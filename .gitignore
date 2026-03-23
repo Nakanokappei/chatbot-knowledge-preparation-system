@@ -1,0 +1,35 @@
+# Laravel
+app/vendor/
+app/node_modules/
+app/.env
+app/storage/*.key
+app/storage/framework/cache/*
+app/storage/framework/sessions/*
+app/storage/framework/views/*
+app/bootstrap/cache/*
+
+# Python
+worker/.env
+worker/__pycache__/
+worker/src/__pycache__/
+worker/src/steps/__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Test data
+worker/test_data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Claude
+.claude/
