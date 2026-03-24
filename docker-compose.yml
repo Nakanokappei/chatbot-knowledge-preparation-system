@@ -1,0 +1,81 @@
+# Local development environment for CKPS
+#
+# Usage:
+#   docker compose up -d db        # Start PostgreSQL only
+#   docker compose up -d           # Start all services
+#   docker compose logs -f worker  # Follow worker logs
+#
+# The 'db' service provides a local PostgreSQL for development.
+# In production, RDS is used instead (no db container needed).
+
+services:
+  # ── PostgreSQL (local development only) ──────────────────────
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: knowledge_prep
+      POSTGRES_USER: ckps_user
+      POSTGRES_PASSWORD: ckps_local_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ckps_user -d knowledge_prep"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Laravel Web Application ──────────────────────────────────
+  app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    ports:
+      - "8000:80"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${APP_KEY:-base64:placeholder_generate_with_artisan_key_generate}
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: knowledge_prep
+      DB_USERNAME: ckps_user
+      DB_PASSWORD: ckps_local_password
+      SQS_PREFIX: ${SQS_PREFIX:-}
+      SQS_QUEUE: ${SQS_QUEUE:-ckps-pipeline-dev}
+      SQS_REGION: ${SQS_REGION:-ap-northeast-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── Python Pipeline Worker ───────────────────────────────────
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: knowledge_prep
+      DB_USER: ckps_user
+      DB_PASSWORD: ckps_local_password
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-}
+      SQS_REGION: ${SQS_REGION:-ap-northeast-1}
+      S3_BUCKET: ${S3_BUCKET:-knowledge-prep-data-dev}
+      S3_REGION: ${S3_REGION:-ap-northeast-1}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

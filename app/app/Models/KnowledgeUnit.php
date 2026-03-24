@@ -25,6 +25,7 @@ class KnowledgeUnit extends Model
         'representative_rows_json', 'keywords_json', 'row_count',
         'confidence', 'review_status', 'source_refs_json',
         'pipeline_config_version', 'prompt_version', 'version',
+        'edited_by_user_id', 'edited_at', 'edit_comment',
     ];
 
     protected $casts = [
@@ -33,7 +34,17 @@ class KnowledgeUnit extends Model
         'keywords_json' => 'array',
         'source_refs_json' => 'array',
         'confidence' => 'decimal:2',
+        'edited_at' => 'datetime',
     ];
+
+    /**
+     * Check whether this KU can be edited.
+     * CTO rule: approved KUs are locked — create a new version instead.
+     */
+    public function isEditable(): bool
+    {
+        return $this->review_status !== 'approved';
+    }
 
     public function cluster(): BelongsTo
     {

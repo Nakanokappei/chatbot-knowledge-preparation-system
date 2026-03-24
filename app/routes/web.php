@@ -1,9 +1,36 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\KnowledgeUnitController;
+use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-Route::get('/jobs/{pipelineJob}', [DashboardController::class, 'show'])->name('dashboard.show');
-Route::post('/dispatch', [DashboardController::class, 'dispatch'])->name('dashboard.dispatch');
-Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
+// Authentication (public)
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// All application routes require authentication
+Route::middleware('auth')->group(function () {
+
+    // Dashboard
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/jobs/{pipelineJob}', [DashboardController::class, 'show'])->name('dashboard.show');
+    Route::post('/dispatch', [DashboardController::class, 'dispatch'])->name('dashboard.dispatch');
+    Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
+    Route::get('/jobs/{pipelineJob}/knowledge-units', [DashboardController::class, 'knowledgeUnits'])->name('dashboard.knowledge-units');
+    Route::get('/jobs/{pipelineJob}/knowledge-units/export', [DashboardController::class, 'exportKnowledgeUnits'])->name('dashboard.knowledge-units.export');
+
+    // Knowledge Unit: detail, edit, review, versions
+    Route::get('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'show'])->name('knowledge-units.show');
+    Route::put('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'update'])->name('knowledge-units.update');
+    Route::post('/knowledge-units/{knowledgeUnit}/review', [KnowledgeUnitController::class, 'review'])->name('knowledge-units.review');
+    Route::get('/knowledge-units/{knowledgeUnit}/versions', [KnowledgeUnitController::class, 'versions'])->name('knowledge-units.versions');
+
+    // Settings: LLM model management
+    Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');
+    Route::post('/settings/models', [SettingsController::class, 'store'])->name('settings.models.store');
+    Route::put('/settings/models/{llmModel}', [SettingsController::class, 'update'])->name('settings.models.update');
+    Route::delete('/settings/models/{llmModel}', [SettingsController::class, 'destroy'])->name('settings.models.destroy');
+});

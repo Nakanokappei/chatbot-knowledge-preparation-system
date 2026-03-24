@@ -1,8 +1,9 @@
 """
-Amazon Bedrock LLM client for Claude Sonnet.
+Amazon Bedrock LLM client for Claude models.
 
 Handles Claude API invocation via Bedrock with retry logic, rate limiting,
 and structured JSON output. Used for cluster analysis and knowledge unit generation.
+Supports model selection via pipeline_config (default: Haiku 4.5).
 
 CTO directive: Prompt/Response logs are mandatory.
 """
@@ -18,9 +19,10 @@ from src.config import SQS_REGION  # Bedrock uses same region
 
 logger = logging.getLogger(__name__)
 
-# Model configuration (CTO decision: Claude 3.5 Sonnet)
+# Default model: Haiku 4.5 (cost-effective, sufficient for classification/extraction)
 # Use APAC inference profile for ap-northeast-1 region
-MODEL_ID = "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
+# Users can override via pipeline_config["llm_model_id"] in the dashboard
+DEFAULT_MODEL_ID = "jp.anthropic.claude-haiku-4-5-20251001-v1:0"
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
 
 # Retry configuration
@@ -37,15 +39,17 @@ def invoke_claude(
     prompt: str,
     max_tokens: int = 2048,
     temperature: float = 0.0,
+    model_id: str = None,
     client=None,
 ) -> dict:
     """
-    Invoke Claude Sonnet via Bedrock and return the parsed JSON response.
+    Invoke a Claude model via Bedrock and return the parsed JSON response.
 
     Args:
         prompt: The user message to send to Claude.
         max_tokens: Maximum tokens in the response.
         temperature: Sampling temperature (0.0 for deterministic).
+        model_id: Bedrock model ID to use. Falls back to DEFAULT_MODEL_ID.
         client: Optional pre-created Bedrock client.
 
     Returns:
@@ -54,10 +58,14 @@ def invoke_claude(
           - "parsed_json": The parsed JSON object (if response is valid JSON).
           - "input_tokens": Number of input tokens used.
           - "output_tokens": Number of output tokens used.
+          - "model_id": The model ID that was actually used.
 
     Raises:
         RuntimeError: After MAX_RETRIES failures.
     """
+    if model_id is None:
+        model_id = DEFAULT_MODEL_ID
+
     if client is None:
         client = get_bedrock_client()
 
@@ -73,7 +81,7 @@ def invoke_claude(
     for attempt in range(MAX_RETRIES):
         try:
             response = client.invoke_model(
-                modelId=MODEL_ID,
+                modelId=model_id,
                 body=body,
                 contentType="application/json",
                 accept="application/json",
@@ -111,6 +119,7 @@ def invoke_claude(
                 "parsed_json": parsed_json,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
+                "model_id": model_id,
             }
 
         except ClientError as e:

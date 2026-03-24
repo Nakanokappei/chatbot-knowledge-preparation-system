@@ -90,6 +90,23 @@
             </dl>
         </div>
 
+        <!-- Knowledge Units Link -->
+        @if($job->step_outputs_json && isset($job->step_outputs_json['knowledge_unit_generation']))
+            <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 style="margin-bottom: 4px;">Knowledge Units</h2>
+                    <span style="font-size: 13px; color: #86868b;">
+                        {{ $job->step_outputs_json['knowledge_unit_generation']['knowledge_units_created'] ?? 0 }} KUs generated
+                    </span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{{ route('dashboard.knowledge-units', $job) }}" class="btn btn-sm" style="background: #0071e3; color: #fff; text-decoration: none;">View Knowledge Units</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json']) }}" class="btn btn-sm btn-outline" style="text-decoration: none;">JSON</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv']) }}" class="btn btn-sm btn-outline" style="text-decoration: none;">CSV</a>
+                </div>
+            </div>
+        @endif
+
         <!-- Cluster Table -->
         <div class="card">
             <h2>Clusters ({{ $clusters->count() }})</h2>

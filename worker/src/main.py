@@ -23,6 +23,7 @@ from src.steps import preprocess
 from src.steps import embedding
 from src.steps import clustering
 from src.steps import cluster_analysis
+from src.steps import knowledge_unit_generation
 
 # Configure logging
 logging.basicConfig(
@@ -38,7 +39,7 @@ STEP_HANDLERS = {
     "embedding": embedding,
     "clustering": clustering,
     "cluster_analysis": cluster_analysis,
-    # "knowledge_unit_generation": knowledge_unit_generation,  # Phase 2 Day 6-8
+    "knowledge_unit_generation": knowledge_unit_generation,
 }
 
 # Graceful shutdown flag

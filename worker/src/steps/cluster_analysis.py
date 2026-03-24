@@ -14,8 +14,9 @@ Output: clusters table updated with topic_name, intent, summary
 
 import json
 import logging
+from datetime import datetime, timezone
 
-from src.bedrock_llm_client import MODEL_ID, invoke_claude
+from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
 from src.db import get_connection, update_job_status, update_job_step_outputs
 from src.step_chain import dispatch_next_step
 
@@ -114,7 +115,6 @@ def save_analysis_results(cluster_id: int, analysis: dict):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
 
             cur.execute(
@@ -144,15 +144,18 @@ def save_analysis_log(
     response_json: dict,
     input_tokens: int,
     output_tokens: int,
+    model_id: str = None,
 ):
     """
     Save LLM prompt/response log to cluster_analysis_logs.
     CTO directive: mandatory for all LLM invocations.
     """
+    if model_id is None:
+        model_id = DEFAULT_MODEL_ID
+
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
 
             cur.execute(
@@ -162,7 +165,7 @@ def save_analysis_log(
                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (
                     cluster_id, job_id, prompt, json.dumps(response_json),
-                    MODEL_ID, PROMPT_VERSION, input_tokens, output_tokens, now, now,
+                    model_id, PROMPT_VERSION, input_tokens, output_tokens, now, now,
                 ),
             )
             conn.commit()
@@ -188,6 +191,11 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     """
     logger.info("Cluster analysis step started for job %d", job_id)
     update_job_status(job_id, status="cluster_analysis", progress=10)
+
+    # Resolve LLM model from pipeline_config (user-selectable, default: Haiku 4.5)
+    pipeline_config = kwargs.get("pipeline_config") or {}
+    llm_model_id = pipeline_config.get("llm_model_id") or DEFAULT_MODEL_ID
+    logger.info("Using LLM model: %s", llm_model_id)
 
     # Step 1: Load clusters with representatives
     clusters = load_clusters_with_representatives(job_id)
@@ -217,13 +225,14 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             cluster["row_count"],
         )
 
-        # Call Claude
-        result = invoke_claude(prompt)
+        # Call Claude with user-selected model
+        result = invoke_claude(prompt, model_id=llm_model_id)
 
         total_input_tokens += result["input_tokens"]
         total_output_tokens += result["output_tokens"]
 
         # Save log (CTO directive: mandatory)
+        # Use result["model_id"] to record the model actually used by invoke_claude
         save_analysis_log(
             cluster_id=cluster["id"],
             job_id=job_id,
@@ -231,6 +240,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             response_json=result["parsed_json"] or {"raw": result["content"]},
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            model_id=result["model_id"],
         )
 
         # Parse and validate response
@@ -242,7 +252,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             )
             # Retry once with explicit JSON instruction
             retry_result = invoke_claude(
-                prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON, nothing else."
+                prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON, nothing else.",
+                model_id=llm_model_id,
             )
             analysis = retry_result["parsed_json"]
             total_input_tokens += retry_result["input_tokens"]
@@ -288,7 +299,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     update_job_step_outputs(job_id, "cluster_analysis", {
         "clusters_analyzed": len(clusters),
         "prompt_version": PROMPT_VERSION,
-        "model": MODEL_ID,
+        "model": llm_model_id,
         "total_input_tokens": total_input_tokens,
         "total_output_tokens": total_output_tokens,
         "cluster_summaries": cluster_summaries,

@@ -39,11 +39,22 @@
 </head>
 <body>
     <div class="container">
-        <h1>Knowledge Preparation System</h1>
-        <p class="subtitle">Pipeline Dashboard — Job Monitor & Cluster Results</p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>Knowledge Preparation System</h1>
+                <p class="subtitle">Pipeline Dashboard — Job Monitor & Cluster Results</p>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <a href="{{ route('settings.models') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">Settings</a>
+                <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                    @csrf
+                    <button type="submit" style="background: none; border: none; color: #86868b; font-size: 13px; cursor: pointer;">Logout ({{ auth()->user()->email }})</button>
+                </form>
+            </div>
+        </div>
 
-        <!-- Stats -->
-        <div class="stats">
+        <!-- Stats (auto-refreshed together with job list) -->
+        <div class="stats" id="stats">
             <div class="stat-card">
                 <div class="stat-value">{{ $stats['total'] }}</div>
                 <div class="stat-label">Total Jobs</div>
@@ -74,13 +85,19 @@
                 </select>
                 <button type="submit" class="btn btn-primary">Dispatch Ping Job</button>
             </form>
-            <form method="POST" action="{{ route('dashboard.dispatch-pipeline') }}" style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+            <form method="POST" action="{{ route('dashboard.dispatch-pipeline') }}" style="display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
                 @csrf
                 <select name="dataset_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                     @foreach($datasets as $dataset)
                         <option value="{{ $dataset->id }}">{{ $dataset->name }} ({{ $dataset->row_count }} rows)</option>
                     @endforeach
                 </select>
+                <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                    @foreach($llmModels as $model)
+                        <option value="{{ $model->model_id }}" @if($model->is_default) selected @endif>{{ $model->display_name }}</option>
+                    @endforeach
+                </select>
+                <a href="{{ route('settings.models') }}" style="font-size: 12px; color: #0071e3; text-decoration: none; white-space: nowrap;">Manage Models</a>
                 <button type="submit" class="btn btn-primary" style="background: #30d158;">Run Full Pipeline</button>
             </form>
             @if(session('success'))
@@ -91,15 +108,15 @@
             @endif
         </div>
 
-        <!-- Job List -->
-        <div class="card">
+        <!-- Job List (auto-refreshed via AJAX, not full page reload) -->
+        <div class="card" id="job-list">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h2 style="margin-bottom: 0;">Pipeline Jobs</h2>
-                <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
                     <label style="font-size: 12px; color: #86868b;">
                         <input type="checkbox" id="auto-refresh" checked> Auto-refresh (5s)
                     </label>
-                    <a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline">Refresh</a>
+                    <span id="refresh-indicator" style="font-size: 11px; color: #86868b; opacity: 0; transition: opacity 0.3s;"></span>
                 </div>
             </div>
 
@@ -139,9 +156,12 @@
                                 @endif
                             </td>
                             <td style="font-size: 12px; color: #86868b;">{{ $job->created_at->format('m/d H:i') }}</td>
-                            <td>
-                                @if($job->status === 'completed' && $job->step_outputs_json && isset($job->step_outputs_json['clustering']))
+                            <td style="white-space: nowrap;">
+                                @if($job->step_outputs_json && isset($job->step_outputs_json['clustering']))
                                     <a href="{{ route('dashboard.show', $job) }}" class="btn btn-sm btn-outline">Details</a>
+                                @endif
+                                @if($job->step_outputs_json && isset($job->step_outputs_json['knowledge_unit_generation']))
+                                    <a href="{{ route('dashboard.knowledge-units', $job) }}" class="btn btn-sm btn-outline" style="margin-left: 4px;">KUs</a>
                                 @endif
                             </td>
                         </tr>
@@ -153,22 +173,59 @@
     </div>
 
     <script>
-        // Auto-refresh every 5 seconds when checkbox is checked
+        // Partial auto-refresh: only update the job list card, not the entire page.
+        // Fetches the same page and extracts #job-list via DOMParser.
         const checkbox = document.getElementById('auto-refresh');
+        const indicator = document.getElementById('refresh-indicator');
         let timer = null;
 
+        async function refreshJobList() {
+            try {
+                const response = await fetch(window.location.href);
+                if (!response.ok) return;
+
+                const html = await response.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+
+                // Update stats cards
+                const freshStats = doc.getElementById('stats');
+                if (freshStats) {
+                    document.getElementById('stats').innerHTML = freshStats.innerHTML;
+                }
+
+                // Update job list table
+                const freshJobList = doc.getElementById('job-list');
+                if (freshJobList) {
+                    document.getElementById('job-list').innerHTML = freshJobList.innerHTML;
+
+                    // Restore the checkbox state after replacing content
+                    const newCheckbox = document.getElementById('auto-refresh');
+                    if (newCheckbox) newCheckbox.checked = true;
+                    newCheckbox.addEventListener('change', onCheckboxChange);
+                }
+
+                // Brief flash to indicate a successful refresh
+                indicator.textContent = 'Updated';
+                indicator.style.opacity = '1';
+                setTimeout(() => { indicator.style.opacity = '0'; }, 1500);
+            } catch (e) {
+                // Silently ignore network errors during background refresh
+            }
+        }
+
         function startAutoRefresh() {
-            timer = setInterval(() => { window.location.reload(); }, 5000);
+            timer = setInterval(refreshJobList, 5000);
         }
 
         function stopAutoRefresh() {
-            if (timer) clearInterval(timer);
+            if (timer) { clearInterval(timer); timer = null; }
         }
 
-        checkbox.addEventListener('change', () => {
+        function onCheckboxChange() {
             checkbox.checked ? startAutoRefresh() : stopAutoRefresh();
-        });
+        }
 
+        checkbox.addEventListener('change', onCheckboxChange);
         if (checkbox.checked) startAutoRefresh();
     </script>
 </body>
