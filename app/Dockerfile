@@ -77,6 +77,7 @@ RUN mkdir -p storage/logs \
         storage/framework/cache \
         storage/framework/sessions \
         storage/framework/views \
+        storage/app/csv-uploads \
         bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
@@ -87,6 +88,7 @@ server {
     server_name _;
     root /var/www/html/public;
     index index.php;
+    client_max_body_size 50M;
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
@@ -129,6 +131,14 @@ stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 SUPERVISOR
+
+# PHP upload size configuration
+RUN cat > /usr/local/etc/php/conf.d/uploads.ini <<'UPLOADS'
+upload_max_filesize = 50M
+post_max_size = 52M
+memory_limit = 256M
+max_execution_time = 120
+UPLOADS
 
 # OPcache configuration for production performance
 RUN cat > /usr/local/etc/php/conf.d/opcache.ini <<'OPCACHE'

@@ -1,0 +1,54 @@
+@extends('layouts.app')
+@section('title', 'Profile — KPS')
+
+@section('extra-styles')
+        label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; color: #86868b; }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px;
+            font-size: 14px; margin-bottom: 12px;
+        }
+@endsection
+
+@section('body')
+    <div class="page-content">
+        <div class="page-container" style="max-width: 600px;">
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Profile Settings</h1>
+            <p style="color: #86868b; font-size: 13px; margin-bottom: 24px;">
+                Tenant: {{ $user->tenant->name ?? 'N/A' }} · Joined: {{ $user->created_at->format('Y-m-d') }}
+            </p>
+
+            @if(session('success'))
+                <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✓ {{ session('success') }}</div>
+            @endif
+            @if($errors->any())
+                <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✗ {{ $errors->first() }}</div>
+            @endif
+
+            <div class="card">
+                <h2>Profile</h2>
+                <form method="POST" action="{{ route('profile.update') }}">
+                    @csrf @method('PUT')
+                    <label for="name">Name</label>
+                    <input type="text" name="name" id="name" value="{{ old('name', $user->name) }}" required>
+                    <label for="email">Email</label>
+                    <input type="email" name="email" id="email" value="{{ old('email', $user->email) }}" required>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Change Password</h2>
+                <form method="POST" action="{{ route('profile.password') }}">
+                    @csrf @method('PUT')
+                    <label for="current_password">Current Password</label>
+                    <input type="password" name="current_password" id="current_password" required>
+                    <label for="password">New Password</label>
+                    <input type="password" name="password" id="password" required>
+                    <label for="password_confirmation">Confirm New Password</label>
+                    <input type="password" name="password_confirmation" id="password_confirmation" required>
+                    <button type="submit" class="btn btn-primary">Change Password</button>
+                </form>
+            </div>
+        </div>
+    </div>
+@endsection

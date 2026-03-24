@@ -7,14 +7,20 @@ and saves the result as a NumPy array on S3 for the clustering step.
 Input:  s3://{bucket}/{tenant_id}/jobs/{job_id}/preprocess/normalized_rows.parquet
 Output: s3://{bucket}/{tenant_id}/jobs/{job_id}/embedding/embeddings.npy
 
-Design: "This cluster will become a Knowledge Unit later" — every row's
-embedding must be cached for reproducible re-runs and future classification.
+Caching strategy:
+- Each embedding is stored individually in S3 as JSON, keyed by content hash
+- DB table (embedding_cache) maps hash -> S3 path for fast lookups
+- Cache reads and writes are parallelized with ThreadPoolExecutor
+- On cache hit, embeddings are loaded from S3 in parallel (no Bedrock call)
+- On cache miss, Bedrock generates the embedding, then cache is populated
 """
 
 import hashlib
 import io
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 
 import boto3
 import numpy as np
@@ -30,6 +36,9 @@ logger = logging.getLogger(__name__)
 # Cache configuration
 NORMALIZATION_VERSION = "v1.0"
 
+# S3 parallelism for cache operations (I/O-bound, safe to use more threads)
+S3_CACHE_WORKERS = 10
+
 
 def compute_cache_key(text: str) -> str:
     """
@@ -42,9 +51,29 @@ def compute_cache_key(text: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _load_single_embedding_from_s3(s3_client, embedding_hash: str, s3_path: str):
+    """
+    Load a single embedding JSON from S3.
+
+    Returns (embedding_hash, embedding_vector) on success, or
+    (embedding_hash, None) on failure.
+    """
+    try:
+        key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
+        response = s3_client.get_object(Bucket=S3_BUCKET, Key=key)
+        embedding = json.loads(response["Body"].read())
+        return embedding_hash, embedding
+    except Exception as e:
+        logger.warning("Failed to load cached embedding %s: %s", embedding_hash, e)
+        return embedding_hash, None
+
+
 def check_cache_batch(cache_keys: list[str]) -> dict[str, list[float]]:
     """
     Look up multiple cache keys in the embedding_cache table.
+
+    DB lookup is a single query, then S3 reads are parallelized with
+    ThreadPoolExecutor for maximum throughput on cache hits.
 
     Returns a dict mapping cache_key -> embedding vector (as list of floats)
     for keys that are found. Missing keys are not included.
@@ -55,7 +84,7 @@ def check_cache_batch(cache_keys: list[str]) -> dict[str, list[float]]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            # Fetch S3 paths for cached embeddings
+            # Single batch query for all cache keys
             placeholders = ",".join(["%s"] * len(cache_keys))
             cur.execute(
                 f"SELECT embedding_hash, s3_path FROM embedding_cache WHERE embedding_hash IN ({placeholders})",
@@ -66,49 +95,77 @@ def check_cache_batch(cache_keys: list[str]) -> dict[str, list[float]]:
         if not rows:
             return {}
 
-        # Load embeddings from S3
+        # Parallel S3 reads for all cached embeddings
         s3 = boto3.client("s3", region_name=S3_REGION)
         cached = {}
 
-        for embedding_hash, s3_path in rows:
-            try:
-                key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
-                response = s3.get_object(Bucket=S3_BUCKET, Key=key)
-                embedding = json.loads(response["Body"].read())
-                cached[embedding_hash] = embedding
-            except Exception as e:
-                logger.warning("Failed to load cached embedding %s: %s", embedding_hash, e)
+        logger.info("Loading %d cached embeddings from S3 (workers=%d)...", len(rows), S3_CACHE_WORKERS)
 
+        with ThreadPoolExecutor(max_workers=S3_CACHE_WORKERS) as executor:
+            futures = {
+                executor.submit(_load_single_embedding_from_s3, s3, emb_hash, s3_path): emb_hash
+                for emb_hash, s3_path in rows
+            }
+
+            for future in as_completed(futures):
+                emb_hash, embedding = future.result()
+                if embedding is not None:
+                    cached[emb_hash] = embedding
+
+        logger.info("Loaded %d/%d embeddings from S3 cache", len(cached), len(rows))
         return cached
     finally:
         conn.close()
 
 
+def _upload_single_embedding_to_s3(s3_client, entry: dict):
+    """
+    Upload a single embedding JSON to S3.
+
+    Returns the entry on success for DB batch insert.
+    """
+    key = entry["s3_path"].replace(f"s3://{S3_BUCKET}/", "")
+    s3_client.put_object(
+        Bucket=S3_BUCKET,
+        Key=key,
+        Body=json.dumps(entry["embedding"]),
+        ContentType="application/json",
+    )
+    return entry
+
+
 def save_cache_batch(entries: list[dict]):
     """
-    Save multiple embeddings to cache (DB record + S3 file).
+    Save multiple embeddings to cache (S3 files + DB records).
+
+    S3 uploads run in parallel, then a single DB transaction inserts
+    all cache records. This minimizes wall-clock time while keeping
+    the DB operation atomic.
 
     Each entry: {"hash": str, "embedding": list[float], "s3_path": str}
     """
     if not entries:
         return
 
-    # Upload individual embeddings to S3
+    # Parallel S3 uploads
     s3 = boto3.client("s3", region_name=S3_REGION)
-    for entry in entries:
-        key = entry["s3_path"].replace(f"s3://{S3_BUCKET}/", "")
-        s3.put_object(
-            Bucket=S3_BUCKET,
-            Key=key,
-            Body=json.dumps(entry["embedding"]),
-            ContentType="application/json",
-        )
 
-    # Insert cache records into DB
+    logger.info("Uploading %d embeddings to S3 cache (workers=%d)...", len(entries), S3_CACHE_WORKERS)
+
+    with ThreadPoolExecutor(max_workers=S3_CACHE_WORKERS) as executor:
+        futures = [
+            executor.submit(_upload_single_embedding_to_s3, s3, entry)
+            for entry in entries
+        ]
+
+        # Wait for all uploads to complete, propagating any errors
+        for future in as_completed(futures):
+            future.result()
+
+    # Single DB transaction for all cache records
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
 
             for entry in entries:
@@ -121,7 +178,7 @@ def save_cache_batch(entries: list[dict]):
                      EMBEDDING_DIMENSION, entry["s3_path"], now, now),
                 )
             conn.commit()
-        logger.info("Saved %d embeddings to cache", len(entries))
+        logger.info("Saved %d embeddings to cache (S3 + DB)", len(entries))
     except Exception:
         conn.rollback()
         raise
@@ -159,9 +216,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     Execute the embedding step.
 
     1. Load normalized rows from S3 (Parquet)
-    2. Check embedding cache for existing vectors
-    3. Generate embeddings for uncached rows via Bedrock
-    4. Save new embeddings to cache
+    2. Check embedding cache for existing vectors (parallel S3 reads)
+    3. Generate embeddings for uncached rows via Bedrock (2-thread parallel)
+    4. Save new embeddings to cache (parallel S3 writes)
     5. Combine all embeddings and save as .npy to S3
     6. Chain to clustering step
     """
@@ -174,7 +231,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     update_job_status(job_id, status="embedding", progress=15)
 
-    # Step 2: Compute cache keys and check cache
+    # Step 2: Compute cache keys and check cache (parallel S3 reads)
     df["cache_key"] = df["normalized_text"].apply(compute_cache_key)
     all_keys = df["cache_key"].tolist()
 
@@ -190,13 +247,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     update_job_status(job_id, status="embedding", progress=25)
 
-    # Step 3: Generate embeddings for uncached rows
+    # Step 3: Generate embeddings for uncached rows (2-thread Bedrock calls)
     uncached_indices = [i for i, key in enumerate(all_keys) if key not in cached_embeddings]
     uncached_texts = [df.iloc[i]["normalized_text"] for i in uncached_indices]
 
     new_embeddings = {}
     if uncached_texts:
-        logger.info("Generating %d embeddings via Bedrock...", len(uncached_texts))
+        logger.info("Generating %d embeddings via Bedrock (2 workers)...", len(uncached_texts))
 
         def progress_cb(completed, total):
             # Map embedding progress to 25-75% of overall step
@@ -205,7 +262,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
         vectors = generate_embeddings_batch(
             uncached_texts,
-            max_workers=10,
+            max_workers=2,
             progress_callback=progress_cb,
         )
 
@@ -223,7 +280,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
                 "s3_path": s3_cache_path,
             })
 
-        # Step 4: Save to cache
+        # Step 4: Save to cache (parallel S3 writes + single DB transaction)
         save_cache_batch(cache_entries)
         logger.info("Saved %d new embeddings to cache", len(cache_entries))
 

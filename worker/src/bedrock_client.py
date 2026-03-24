@@ -1,12 +1,14 @@
 """
 Amazon Bedrock client for Titan Text Embeddings V2.
 
-Handles API invocation with retry logic and rate limiting.
+Handles API invocation with adaptive rate limiting, retry logic,
+and thread-safe concurrency control.
 Follows ADR-0006: Bedrock as the AI provider.
 """
 
 import json
 import logging
+import threading
 import time
 
 import boto3
@@ -21,8 +23,14 @@ MODEL_ID = "amazon.titan-embed-text-v2:0"
 EMBEDDING_DIMENSION = 1024
 
 # Retry configuration
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 BASE_DELAY = 1.0  # seconds
+
+# Adaptive rate limiter shared across threads
+_rate_limiter_lock = threading.Lock()
+_min_interval = 0.05  # seconds between requests (start conservative)
+_last_request_time = 0.0
+_throttle_backoff_until = 0.0  # global pause until this timestamp
 
 
 def get_bedrock_client():
@@ -30,9 +38,77 @@ def get_bedrock_client():
     return boto3.client("bedrock-runtime", region_name=SQS_REGION)
 
 
+def _wait_for_rate_limit():
+    """
+    Thread-safe rate limiter that enforces minimum interval between requests.
+
+    When throttling is detected, all threads pause until the backoff
+    period expires, preventing a burst of retries from making things worse.
+    """
+    global _last_request_time
+
+    with _rate_limiter_lock:
+        now = time.monotonic()
+
+        # If a global throttle backoff is active, wait for it
+        if now < _throttle_backoff_until:
+            wait_time = _throttle_backoff_until - now
+            logger.debug("Rate limiter: global backoff, waiting %.2fs", wait_time)
+            time.sleep(wait_time)
+            now = time.monotonic()
+
+        # Enforce minimum interval between requests
+        elapsed = now - _last_request_time
+        if elapsed < _min_interval:
+            sleep_time = _min_interval - elapsed
+            time.sleep(sleep_time)
+
+        _last_request_time = time.monotonic()
+
+
+def _handle_throttle(attempt: int):
+    """
+    Adjust rate limiter when throttling is detected.
+
+    Increases the minimum interval between requests and sets a global
+    backoff period so all threads slow down together.
+    """
+    global _min_interval, _throttle_backoff_until
+
+    with _rate_limiter_lock:
+        # Double the minimum interval (up to 2 seconds max)
+        _min_interval = min(_min_interval * 2, 2.0)
+
+        # Set global backoff: exponential based on attempt number
+        backoff_duration = BASE_DELAY * (2 ** attempt)
+        _throttle_backoff_until = time.monotonic() + backoff_duration
+
+        logger.warning(
+            "Throttle detected: min_interval=%.3fs, global_backoff=%.1fs",
+            _min_interval, backoff_duration,
+        )
+
+
+def _relax_rate_limit():
+    """
+    Gradually relax the rate limit after successful requests.
+
+    Slowly decreases the minimum interval to find the optimal throughput
+    without triggering throttling.
+    """
+    global _min_interval
+
+    with _rate_limiter_lock:
+        # Reduce interval by 10% (down to 0.05s minimum)
+        _min_interval = max(_min_interval * 0.9, 0.05)
+
+
 def generate_embedding(text: str, client=None) -> list[float]:
     """
     Generate a single embedding vector using Titan Text Embeddings V2.
+
+    Includes adaptive rate limiting: waits before each request based on
+    observed throttling patterns, and backs off when throttled.
 
     Args:
         text: The input text to embed (should be normalized).
@@ -42,7 +118,7 @@ def generate_embedding(text: str, client=None) -> list[float]:
         A list of floats representing the embedding vector (1024 dimensions).
 
     Raises:
-        Exception: After MAX_RETRIES failures.
+        RuntimeError: After MAX_RETRIES failures.
     """
     if client is None:
         client = get_bedrock_client()
@@ -54,6 +130,9 @@ def generate_embedding(text: str, client=None) -> list[float]:
     })
 
     for attempt in range(MAX_RETRIES):
+        # Wait for rate limit clearance before making the request
+        _wait_for_rate_limit()
+
         try:
             response = client.invoke_model(
                 modelId=MODEL_ID,
@@ -65,26 +144,29 @@ def generate_embedding(text: str, client=None) -> list[float]:
             result = json.loads(response["body"].read())
             embedding = result["embedding"]
 
+            # Success: gradually relax the rate limit
+            _relax_rate_limit()
+
             return embedding
 
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
 
-            # Throttling: wait and retry with exponential backoff
+            # Throttling: signal the adaptive rate limiter and retry
             if error_code == "ThrottlingException":
-                delay = BASE_DELAY * (2 ** attempt)
+                _handle_throttle(attempt)
                 logger.warning(
-                    "Bedrock throttled (attempt %d/%d). Waiting %.1fs...",
-                    attempt + 1, MAX_RETRIES, delay,
+                    "Bedrock throttled (attempt %d/%d). Backing off...",
+                    attempt + 1, MAX_RETRIES,
                 )
-                time.sleep(delay)
                 continue
 
-            # Other errors: log and re-raise
+            # Other client errors: log and re-raise immediately
             logger.error("Bedrock API error: %s - %s", error_code, e)
             raise
 
         except Exception as e:
+            # Network or unexpected errors: simple exponential backoff
             delay = BASE_DELAY * (2 ** attempt)
             logger.warning(
                 "Bedrock call failed (attempt %d/%d): %s. Retrying in %.1fs...",
@@ -97,18 +179,20 @@ def generate_embedding(text: str, client=None) -> list[float]:
 
 def generate_embeddings_batch(
     texts: list[str],
-    max_workers: int = 10,
+    max_workers: int = 2,
     progress_callback=None,
 ) -> list[list[float]]:
     """
     Generate embeddings for multiple texts using thread pool parallelism.
 
     Titan Embed v2 accepts one text per API call, so we parallelize
-    with a ThreadPoolExecutor (I/O-bound task).
+    with a ThreadPoolExecutor. The adaptive rate limiter coordinates
+    request timing across all threads to avoid throttling.
 
     Args:
         texts: List of normalized text strings.
-        max_workers: Number of parallel threads (default: 10).
+        max_workers: Number of parallel threads (default: 2, conservative
+                     to stay within Bedrock rate limits).
         progress_callback: Optional callable(completed, total) for progress updates.
 
     Returns:
@@ -116,19 +200,23 @@ def generate_embeddings_batch(
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    client = get_bedrock_client()
+    # Each thread creates its own client to avoid signature expiration.
+    # boto3 clients cache credentials internally, so creating new clients
+    # is cheap and avoids stale signatures after long-running batches.
     results = [None] * len(texts)
-    completed = 0
+    completed_count = 0
 
     logger.info(
         "Generating embeddings for %d texts (workers=%d, model=%s, dim=%d)",
         len(texts), max_workers, MODEL_ID, EMBEDDING_DIMENSION,
     )
 
+    start_time = time.monotonic()
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks with their original index
+        # Submit all tasks — each call creates a fresh client
         future_to_idx = {
-            executor.submit(generate_embedding, text, client): idx
+            executor.submit(generate_embedding, text, None): idx
             for idx, text in enumerate(texts)
         }
 
@@ -136,17 +224,28 @@ def generate_embeddings_batch(
             idx = future_to_idx[future]
             try:
                 results[idx] = future.result()
-                completed += 1
+                completed_count += 1
 
-                # Progress logging every 50 items
-                if completed % 50 == 0 or completed == len(texts):
-                    logger.info("Embedding progress: %d/%d", completed, len(texts))
+                # Progress logging every 50 items or at completion
+                if completed_count % 50 == 0 or completed_count == len(texts):
+                    elapsed = time.monotonic() - start_time
+                    rate = completed_count / elapsed if elapsed > 0 else 0
+                    logger.info(
+                        "Embedding progress: %d/%d (%.1f items/sec, interval=%.3fs)",
+                        completed_count, len(texts), rate, _min_interval,
+                    )
 
                 if progress_callback:
-                    progress_callback(completed, len(texts))
+                    progress_callback(completed_count, len(texts))
 
             except Exception as e:
                 logger.error("Failed to embed text at index %d: %s", idx, e)
                 raise
+
+    elapsed = time.monotonic() - start_time
+    logger.info(
+        "Embedding batch complete: %d texts in %.1fs (%.1f items/sec)",
+        len(texts), elapsed, len(texts) / elapsed if elapsed > 0 else 0,
+    )
 
     return results

@@ -7,9 +7,9 @@ FROM python:3.12-slim AS base
 
 WORKDIR /app
 
-# Install build dependencies for hdbscan (C extensions) and psycopg2
+# Install build dependencies for hdbscan, hnswlib (C extensions), igraph, and psycopg2
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc g++ libpq-dev \
+    && apt-get install -y --no-install-recommends gcc g++ libpq-dev cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies first for layer caching

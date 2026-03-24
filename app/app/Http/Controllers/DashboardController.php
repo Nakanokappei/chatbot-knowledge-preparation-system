@@ -30,31 +30,41 @@ class DashboardController extends Controller
      */
     public function index(): View
     {
-        // Use a fixed tenant for Phase 0 (no login UI yet)
         $tenantId = auth()->user()->tenant_id;
+        $filter = request('filter', 'all');
 
-        $jobs = PipelineJob::with('dataset:id,name')
+        // Fetch all jobs for stats calculation
+        $allJobs = PipelineJob::with('dataset:id,name')
             ->where('tenant_id', $tenantId)
             ->orderByDesc('created_at')
-            ->limit(50)
+            ->limit(200)
             ->get();
 
-        $datasets = Dataset::where('tenant_id', $tenantId)->get();
+        $stats = [
+            'total' => $allJobs->count(),
+            'completed' => $allJobs->where('status', 'completed')->count(),
+            'processing' => $allJobs->whereNotIn('status', ['completed', 'failed', 'submitted'])->count(),
+            'failed' => $allJobs->where('status', 'failed')->count(),
+        ];
 
-        // Load active LLM models for the pipeline dispatch dropdown
+        // Filter jobs for display
+        $jobs = match ($filter) {
+            'completed' => $allJobs->where('status', 'completed'),
+            'processing' => $allJobs->whereNotIn('status', ['completed', 'failed', 'submitted']),
+            'failed' => $allJobs->where('status', 'failed'),
+            default => $allJobs,
+        };
+
+        $datasets = Dataset::where('tenant_id', $tenantId)
+            ->where('row_count', '>', 0)
+            ->get();
+
         $llmModels = LlmModel::where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
 
-        $stats = [
-            'total' => $jobs->count(),
-            'completed' => $jobs->where('status', 'completed')->count(),
-            'processing' => $jobs->whereNotIn('status', ['completed', 'failed', 'submitted'])->count(),
-            'failed' => $jobs->where('status', 'failed')->count(),
-        ];
-
-        return view('dashboard.index', compact('jobs', 'datasets', 'stats', 'llmModels'));
+        return view('dashboard.index', compact('jobs', 'datasets', 'stats', 'llmModels', 'filter'));
     }
 
     /**
@@ -93,6 +103,125 @@ class DashboardController extends Controller
     }
 
     /**
+     * Upload a CSV file to create a new dataset with rows.
+     *
+     * The first column of the CSV (or a user-specified column) is treated as
+     * the raw_text for each row. A dataset record and its dataset_rows are
+     * created in a single transaction.
+     */
+    public function uploadCsv(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:51200',
+            'dataset_name' => 'required|string|max:255',
+            'text_column' => 'nullable|string|max:100',
+            'max_rows' => 'nullable|integer|min:1|max:100000',
+        ]);
+
+        $tenantId = auth()->user()->tenant_id;
+        $file = $request->file('csv_file');
+        $textColumn = $request->input('text_column');
+        $maxRows = $request->input('max_rows');
+
+        // Read CSV into array
+        $handle = fopen($file->getRealPath(), 'r');
+        if (!$handle) {
+            return redirect()->route('dashboard')->with('error', 'Failed to read CSV file.');
+        }
+
+        // Detect delimiter by inspecting the first line
+        $firstLine = fgets($handle);
+        rewind($handle);
+        $delimiter = (substr_count($firstLine, "\t") > substr_count($firstLine, ',')) ? "\t" : ',';
+
+        // Read header row
+        $header = fgetcsv($handle, 0, $delimiter);
+        if (!$header || count($header) === 0) {
+            fclose($handle);
+            return redirect()->route('dashboard')->with('error', 'CSV file has no header row.');
+        }
+
+        // Determine which column index to use for raw_text
+        $textColIndex = 0;
+        if ($textColumn) {
+            $found = array_search($textColumn, $header);
+            if ($found !== false) {
+                $textColIndex = $found;
+            } else {
+                fclose($handle);
+                $available = implode(', ', $header);
+                return redirect()->route('dashboard')
+                    ->with('error', "Column '{$textColumn}' not found. Available: {$available}");
+            }
+        }
+
+        // Read rows
+        $rows = [];
+        $rowNo = 1;
+        while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+            $text = trim($row[$textColIndex] ?? '');
+            if ($text === '') {
+                continue;
+            }
+            $rows[] = [
+                'row_no' => $rowNo,
+                'raw_text' => $text,
+                'metadata_json' => json_encode(array_combine($header, $row)),
+            ];
+            $rowNo++;
+            if ($maxRows && $rowNo > $maxRows) {
+                break;
+            }
+        }
+        fclose($handle);
+
+        if (empty($rows)) {
+            return redirect()->route('dashboard')->with('error', 'CSV contains no data rows.');
+        }
+
+        // Create dataset + rows in transaction
+        DB::beginTransaction();
+        try {
+            $dataset = Dataset::create([
+                'tenant_id' => $tenantId,
+                'name' => $request->input('dataset_name'),
+                'source_type' => 'csv',
+                'original_filename' => $file->getClientOriginalName(),
+                'row_count' => count($rows),
+                'schema_json' => $header,
+            ]);
+
+            $now = now();
+            $chunks = array_chunk($rows, 500);
+            foreach ($chunks as $chunk) {
+                $inserts = [];
+                foreach ($chunk as $r) {
+                    $inserts[] = [
+                        'dataset_id' => $dataset->id,
+                        'tenant_id' => $tenantId,
+                        'row_no' => $r['row_no'],
+                        'raw_text' => $r['raw_text'],
+                        'metadata_json' => $r['metadata_json'],
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+                DatasetRow::insert($inserts);
+            }
+
+            DB::commit();
+
+            return redirect()->route('dashboard')
+                ->with('success', "Dataset '{$dataset->name}' created with " . count($rows) . " rows.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('CSV upload failed', ['error' => $e->getMessage()]);
+            return redirect()->route('dashboard')
+                ->with('error', 'Upload failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Dispatch a pipeline job (preprocess step) to SQS.
      */
     public function dispatchPipeline(Request $request): RedirectResponse
@@ -100,6 +229,7 @@ class DashboardController extends Controller
         $request->validate([
             'dataset_id' => 'required|exists:datasets,id',
             'llm_model_id' => 'nullable|string|max:100',
+            'clustering_method' => 'nullable|in:hdbscan,kmeans,agglomerative,leiden',
         ]);
 
         $tenantId = auth()->user()->tenant_id;
@@ -110,6 +240,33 @@ class DashboardController extends Controller
             ->first();
         $defaultLlmModel = $defaultModel?->model_id ?? 'jp.anthropic.claude-haiku-4-5-20251001-v1:0';
 
+        // Build clustering parameters based on selected method
+        $clusteringMethod = $request->input('clustering_method', 'hdbscan');
+        $clusteringParams = match ($clusteringMethod) {
+            'hdbscan' => [
+                'min_cluster_size' => (int) $request->input('hdbscan_min_cluster_size', 15),
+                'min_samples' => (int) $request->input('hdbscan_min_samples', 5),
+                'metric' => 'euclidean',
+                'cluster_selection_method' => 'eom',
+            ],
+            'kmeans' => [
+                'n_clusters' => (int) $request->input('kmeans_n_clusters', 10),
+            ],
+            'agglomerative' => [
+                'n_clusters' => (int) $request->input('agglomerative_n_clusters', 10),
+                'linkage' => $request->input('agglomerative_linkage', 'ward'),
+            ],
+            'leiden' => [
+                'n_neighbors' => (int) $request->input('leiden_n_neighbors', 15),
+                'resolution' => (float) $request->input('leiden_resolution', 1.0),
+            ],
+            default => [],
+        };
+
+        // Resolve dataset name for embedding record
+        $dataset = Dataset::find($request->input('dataset_id'));
+        $datasetName = $dataset ? $dataset->name : "Dataset {$request->input('dataset_id')}";
+
         // Create the job record for a full pipeline run
         $job = PipelineJob::create([
             'tenant_id' => $tenantId,
@@ -117,12 +274,13 @@ class DashboardController extends Controller
             'status' => 'submitted',
             'progress' => 0,
             'pipeline_config_snapshot_json' => [
-                'phase' => '1',
+                'phase' => '2',
                 'llm_model_id' => $request->input('llm_model_id', $defaultLlmModel),
                 'embedding_model' => 'amazon.titan-embed-text-v2:0',
                 'embedding_dimension' => 1024,
-                'clustering_method' => 'hdbscan',
-                'min_cluster_size' => 15,
+                'clustering_method' => $clusteringMethod,
+                'clustering_params' => $clusteringParams,
+                'dataset_name' => $datasetName,
             ],
         ]);
 

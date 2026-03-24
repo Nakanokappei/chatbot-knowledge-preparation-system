@@ -67,6 +67,26 @@
             </div>
         </div>
 
+        <!-- Bulk Actions -->
+        @if($knowledgeUnits->where('review_status', 'draft')->count() > 0 || $knowledgeUnits->where('review_status', 'reviewed')->count() > 0)
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin-bottom: 0;">Bulk Actions</h2>
+                <div style="display: flex; gap: 8px;">
+                    @if($knowledgeUnits->where('review_status', 'draft')->count() > 0)
+                    <form method="POST" action="{{ route('knowledge-units.bulk-approve', $job) }}" style="display: inline;">
+                        @csrf
+                        <button type="submit" class="btn" style="background: #34c759; color: white;"
+                                onclick="return confirm('Approve all {{ $knowledgeUnits->where('review_status', 'draft')->count() + $knowledgeUnits->where('review_status', 'reviewed')->count() }} Knowledge Units?')">
+                            Approve All ({{ $knowledgeUnits->where('review_status', '!=', 'approved')->where('review_status', '!=', 'rejected')->count() }})
+                        </button>
+                    </form>
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Export -->
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">

@@ -17,7 +17,7 @@ import boto3
 import pandas as pd
 
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs
+from src.db import get_connection, update_job_status, update_job_step_outputs, create_or_get_embedding
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ def load_dataset_rows(dataset_id: int) -> pd.DataFrame:
             ORDER BY id
         """
         df = pd.read_sql(query, conn, params=(dataset_id,))
-        logger.info("Loaded %d rows for dataset %d", len(df), dataset_id)
+        logger.info("Loaded %d rows for dataset %s", len(df), dataset_id)
         return df
     finally:
         conn.close()
@@ -127,6 +127,21 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     """
     logger.info("Preprocess step started for job %d (dataset %d)", job_id, dataset_id)
     update_job_status(job_id, status="preprocessing", progress=10)
+
+    # Step 0: Create or get embedding record for this job
+    pipeline_config = kwargs.get("pipeline_config") or {}
+    column_config = pipeline_config.get("column_config")
+    dataset_name = pipeline_config.get("dataset_name", f"Embedding (job {job_id})")
+    embedding_id = create_or_get_embedding(
+        job_id=job_id,
+        tenant_id=tenant_id,
+        dataset_id=dataset_id,
+        name=dataset_name,
+        column_config=column_config,
+    )
+    # Pass embedding_id through pipeline_config for downstream steps
+    pipeline_config["embedding_id"] = embedding_id
+    kwargs["pipeline_config"] = pipeline_config
 
     # Step 1: Load raw rows from database
     df = load_dataset_rows(dataset_id)

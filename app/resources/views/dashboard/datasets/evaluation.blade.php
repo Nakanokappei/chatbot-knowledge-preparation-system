@@ -37,7 +37,7 @@
 <body>
 <div class="container">
     <div class="nav">
-        <a href="{{ route('datasets.show', $dataset) }}">{{ $dataset->name }}</a> / <strong>Evaluation</strong>
+        <a href="{{ route('kd.show', $dataset) }}">{{ $dataset->name }}</a> / <strong>Evaluation</strong>
     </div>
 
     <h1>Retrieval Quality Evaluation</h1>
@@ -113,7 +113,7 @@ async function runEvaluation() {
 
     for (const testCase of queries) {
         try {
-            const response = await fetch('/api/retrieve', {
+            const response = await fetch('/web-api/retrieve', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

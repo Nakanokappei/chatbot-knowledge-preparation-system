@@ -11,15 +11,16 @@
 services:
   # ── PostgreSQL (local development only) ──────────────────────
   db:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg17
     environment:
       POSTGRES_DB: knowledge_prep
       POSTGRES_USER: ckps_user
       POSTGRES_PASSWORD: ckps_local_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infra/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ckps_user -d knowledge_prep"]
       interval: 5s

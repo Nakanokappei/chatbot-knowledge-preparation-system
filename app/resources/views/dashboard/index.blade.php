@@ -1,234 +1,272 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Knowledge Preparation System — Dashboard</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
-        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
-        h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
-        .subtitle { color: #86868b; font-size: 14px; margin-bottom: 32px; }
-        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { text-align: left; padding: 8px 12px; color: #86868b; font-weight: 500; border-bottom: 1px solid #e5e5e7; }
-        td { padding: 10px 12px; border-bottom: 1px solid #f0f0f2; }
-        .status { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-        .status-submitted { background: #f0f0f2; color: #86868b; }
-        .status-validating, .status-preprocessing, .status-embedding, .status-clustering { background: #fff3cd; color: #856404; }
-        .status-completed { background: #d4edda; color: #155724; }
-        .status-failed { background: #f8d7da; color: #721c24; }
-        .progress-bar { width: 100%; height: 6px; background: #e5e5e7; border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: #34c759; border-radius: 3px; transition: width 0.5s; }
-        .btn { display: inline-block; padding: 8px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; }
-        .btn-primary { background: #0071e3; color: #fff; }
-        .btn-primary:hover { background: #0077ed; }
-        .btn-sm { padding: 4px 12px; font-size: 12px; }
-        .btn-outline { background: transparent; border: 1px solid #d2d2d7; color: #1d1d1f; }
-        .btn-outline:hover { background: #f5f5f7; }
-        .empty { text-align: center; padding: 40px; color: #86868b; }
-        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-        .stat-card { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .stat-value { font-size: 28px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #86868b; margin-top: 4px; }
-        .refresh-note { font-size: 12px; color: #86868b; margin-top: 8px; }
-        #auto-refresh { margin-right: 4px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h1>Knowledge Preparation System</h1>
-                <p class="subtitle">Pipeline Dashboard — Job Monitor & Cluster Results</p>
-            </div>
-            <div style="display: flex; gap: 12px; align-items: center;">
-                <a href="{{ route('datasets.index') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">Datasets</a>
-                <a href="{{ route('cost') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">Cost</a>
-                <a href="{{ route('settings.models') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">Settings</a>
-                <form method="POST" action="{{ route('logout') }}" style="display: inline;">
-                    @csrf
-                    <button type="submit" style="background: none; border: none; color: #86868b; font-size: 13px; cursor: pointer;">Logout ({{ auth()->user()->email }})</button>
-                </form>
+@extends('layouts.app')
+@section('title', 'Pipeline — KPS')
+
+@section('extra-styles')
+        /* ── Layout: sidebar + main ─────────────────────── */
+        .layout { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 260px; background: #F6F6F6; border-right: none; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+        .sidebar-tree { flex: 1; overflow-y: auto; padding: 8px; }
+        .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; }
+
+        /* Sidebar menu items */
+        .sidebar-section { padding: 12px 12px 6px; font-size: 11px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 0 6px 6px 0; margin-left: -8px; padding-left: 20px; cursor: pointer; text-decoration: none; color: #1d1d1f; font-size: 14px; transition: background 0.15s; margin-bottom: 1px; }
+        .sidebar-item:hover { background: #E9E9E9; }
+        .sidebar-item:hover .sidebar-icon { color: #1d1d1f; }
+        .sidebar-item:hover .sidebar-count { color: #86868b; }
+        .sidebar-item.active { background: #DBDBDB; }
+        .sidebar-item.active .sidebar-icon { color: #1d1d1f; }
+        .sidebar-item.active .sidebar-count { color: #86868b; }
+        .sidebar-icon { flex-shrink: 0; color: #86868b; width: 18px; text-align: center; }
+        .sidebar-count { font-size: 11px; color: #86868b; margin-left: auto; }
+
+        /* Dispatch card */
+        .dispatch-card { background: #f9f9fb; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+        .dispatch-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+
+        /* Job table (same design as KU table) */
+        .job-table { width: 100%; border-collapse: collapse; background: #FEFEFE; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .job-table th { text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #86868b; background: #FEFEFE; border-bottom: 1px solid #e5e5e7; }
+        .job-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f2; font-size: 14px; vertical-align: top; }
+        .job-table tr:last-child td { border-bottom: none; }
+        .job-table tr:hover td { background: #F6F6F6; cursor: pointer; }
+@endsection
+
+@section('body')
+    <div class="layout">
+        <!-- Sidebar: status filters -->
+        <div class="sidebar">
+            <div class="sidebar-tree">
+                <div class="sidebar-section">Pipeline Jobs</div>
+
+                <a href="{{ route('dashboard', ['filter' => 'all']) }}"
+                   class="sidebar-item {{ $filter === 'all' ? 'active' : '' }}">
+                    <span class="sidebar-icon">📋</span>
+                    All Jobs
+                    <span class="sidebar-count">{{ $stats['total'] }}</span>
+                </a>
+
+                <a href="{{ route('dashboard', ['filter' => 'completed']) }}"
+                   class="sidebar-item {{ $filter === 'completed' ? 'active' : '' }}">
+                    <span class="sidebar-icon">✅</span>
+                    Completed
+                    <span class="sidebar-count">{{ $stats['completed'] }}</span>
+                </a>
+
+                <a href="{{ route('dashboard', ['filter' => 'processing']) }}"
+                   class="sidebar-item {{ $filter === 'processing' ? 'active' : '' }}">
+                    <span class="sidebar-icon">⏳</span>
+                    Processing
+                    <span class="sidebar-count">{{ $stats['processing'] }}</span>
+                </a>
+
+                <a href="{{ route('dashboard', ['filter' => 'failed']) }}"
+                   class="sidebar-item {{ $filter === 'failed' ? 'active' : '' }}">
+                    <span class="sidebar-icon">❌</span>
+                    Failed
+                    <span class="sidebar-count">{{ $stats['failed'] }}</span>
+                </a>
+
+                <div class="sidebar-section" style="margin-top: 16px;">Actions</div>
+
+                <a href="{{ route('dashboard', ['filter' => $filter, 'show' => 'dispatch']) }}"
+                   class="sidebar-item {{ request('show') === 'dispatch' ? 'active' : '' }}">
+                    <span class="sidebar-icon">🚀</span>
+                    Run Pipeline
+                </a>
             </div>
         </div>
 
-        <!-- Stats (auto-refreshed together with job list) -->
-        <div class="stats" id="stats">
-            <div class="stat-card">
-                <div class="stat-value">{{ $stats['total'] }}</div>
-                <div class="stat-label">Total Jobs</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" style="color: #34c759;">{{ $stats['completed'] }}</div>
-                <div class="stat-label">Completed</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" style="color: #ff9500;">{{ $stats['processing'] }}</div>
-                <div class="stat-label">Processing</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" style="color: #ff3b30;">{{ $stats['failed'] }}</div>
-                <div class="stat-label">Failed</div>
-            </div>
-        </div>
+        <!-- Main area -->
+        <div class="main" id="main-content">
+            @if(request('show') === 'dispatch')
+                <!-- Dispatch form -->
+                <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Run Pipeline</h2>
 
-        <!-- New Job -->
-        <div class="card">
-            <h2>Dispatch Test Job</h2>
-            <form method="POST" action="{{ route('dashboard.dispatch') }}" style="display: flex; align-items: center; gap: 12px;">
-                @csrf
-                <select name="dataset_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                    @foreach($datasets as $dataset)
-                        <option value="{{ $dataset->id }}">{{ $dataset->name }} ({{ $dataset->row_count }} rows)</option>
-                    @endforeach
-                </select>
-                <button type="submit" class="btn btn-primary">Dispatch Ping Job</button>
-            </form>
-            <form method="POST" action="{{ route('dashboard.dispatch-pipeline') }}" style="display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
-                @csrf
-                <select name="dataset_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                    @foreach($datasets as $dataset)
-                        <option value="{{ $dataset->id }}">{{ $dataset->name }} ({{ $dataset->row_count }} rows)</option>
-                    @endforeach
-                </select>
-                <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                    @foreach($llmModels as $model)
-                        <option value="{{ $model->model_id }}" @if($model->is_default) selected @endif>{{ $model->display_name }}</option>
-                    @endforeach
-                </select>
-                <a href="{{ route('settings.models') }}" style="font-size: 12px; color: #0071e3; text-decoration: none; white-space: nowrap;">Manage Models</a>
-                <button type="submit" class="btn btn-primary" style="background: #30d158;">Run Full Pipeline</button>
-            </form>
-            @if(session('success'))
-                <p style="color: #34c759; margin-top: 12px; font-size: 14px;">✓ {{ session('success') }}</p>
-            @endif
-            @if(session('error'))
-                <p style="color: #ff3b30; margin-top: 12px; font-size: 14px;">✗ {{ session('error') }}</p>
-            @endif
-        </div>
+                @if(session('success'))
+                    <div style="background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">✓ {{ session('success') }}</div>
+                @endif
+                @if(session('error'))
+                    <div style="background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">✗ {{ session('error') }}</div>
+                @endif
 
-        <!-- Job List (auto-refreshed via AJAX, not full page reload) -->
-        <div class="card" id="job-list">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h2 style="margin-bottom: 0;">Pipeline Jobs</h2>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <label style="font-size: 12px; color: #86868b;">
-                        <input type="checkbox" id="auto-refresh" checked> Auto-refresh (5s)
-                    </label>
-                    <span id="refresh-indicator" style="font-size: 11px; color: #86868b; opacity: 0; transition: opacity 0.3s;"></span>
+                <div class="dispatch-card">
+                    <h3>Upload Dataset</h3>
+                    <form method="POST" action="{{ route('dataset.upload') }}" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        @csrf
+                        <input type="file" name="csv_file" accept=".csv,.txt" required style="font-size: 13px;">
+                        <button type="submit" class="btn btn-primary">Upload & Configure</button>
+                    </form>
                 </div>
-            </div>
 
-            @if($jobs->isEmpty())
-                <div class="empty">No jobs yet. Dispatch a test job above.</div>
+                <div class="dispatch-card">
+                    <h3>Dispatch Pipeline</h3>
+                    <form method="POST" action="{{ route('dashboard.dispatch-pipeline') }}">
+                        @csrf
+                        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <select name="dataset_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                                @foreach($datasets as $dataset)
+                                    <option value="{{ $dataset->id }}">{{ $dataset->name }} ({{ $dataset->row_count }} rows)</option>
+                                @endforeach
+                            </select>
+                            <select name="llm_model_id" required style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                                <option value="">-- Select LLM --</option>
+                                @foreach($llmModels as $model)
+                                    <option value="{{ $model->model_id }}">{{ $model->display_name }}</option>
+                                @endforeach
+                            </select>
+                            <select name="clustering_method" id="clustering-method" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                                <option value="hdbscan" selected>HDBSCAN (auto clusters)</option>
+                                <option value="kmeans">K-Means (fixed clusters)</option>
+                                <option value="agglomerative">Agglomerative (hierarchical)</option>
+                                <option value="leiden">HNSW + Leiden (graph)</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary" style="background: #30d158;">Run Full Pipeline</button>
+                        </div>
+                        <div id="clustering-params" style="margin-top: 10px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <div id="params-hdbscan">
+                                <label style="font-size: 12px; color: #86868b;">min_cluster_size</label>
+                                <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">min_samples</label>
+                                <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width: 60px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                            </div>
+                            <div id="params-kmeans" style="display: none;">
+                                <label style="font-size: 12px; color: #86868b;">n_clusters</label>
+                                <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                            </div>
+                            <div id="params-agglomerative" style="display: none;">
+                                <label style="font-size: 12px; color: #86868b;">n_clusters</label>
+                                <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">linkage</label>
+                                <select name="agglomerative_linkage" style="padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                                    <option value="ward" selected>ward</option>
+                                    <option value="complete">complete</option>
+                                    <option value="average">average</option>
+                                    <option value="single">single</option>
+                                </select>
+                            </div>
+                            <div id="params-leiden" style="display: none;">
+                                <label style="font-size: 12px; color: #86868b;">n_neighbors</label>
+                                <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">resolution</label>
+                                <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                            </div>
+                        </div>
+                    </form>
+                </div>
             @else
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Dataset</th>
-                            <th>Status</th>
-                            <th>Progress</th>
-                            <th>Clusters</th>
-                            <th>Created</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($jobs as $job)
-                        <tr>
-                            <td>#{{ $job->id }}</td>
-                            <td>{{ $job->dataset->name ?? '—' }}</td>
-                            <td><span class="status status-{{ $job->status }}">{{ $job->status }}</span></td>
-                            <td>
-                                <div class="progress-bar">
-                                    <div class="progress-bar-fill" style="width: {{ $job->progress }}%"></div>
-                                </div>
-                                <span style="font-size: 12px; color: #86868b;">{{ $job->progress }}%</span>
-                            </td>
-                            <td>
-                                @if($job->step_outputs_json && isset($job->step_outputs_json['clustering']))
-                                    <span style="font-size: 13px; font-weight: 600;">{{ $job->step_outputs_json['clustering']['n_clusters'] }}</span>
-                                    <span style="font-size: 11px; color: #86868b;">+{{ $job->step_outputs_json['clustering']['n_noise'] }} noise</span>
-                                @else
-                                    <span style="color: #d2d2d7;">—</span>
-                                @endif
-                            </td>
-                            <td style="font-size: 12px; color: #86868b;">{{ $job->created_at->format('m/d H:i') }}</td>
-                            <td style="white-space: nowrap;">
-                                @if($job->step_outputs_json && isset($job->step_outputs_json['clustering']))
-                                    <a href="{{ route('dashboard.show', $job) }}" class="btn btn-sm btn-outline">Details</a>
-                                @endif
-                                @if($job->step_outputs_json && isset($job->step_outputs_json['knowledge_unit_generation']))
-                                    <a href="{{ route('dashboard.knowledge-units', $job) }}" class="btn btn-sm btn-outline" style="margin-left: 4px;">KUs</a>
-                                @endif
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                <!-- Job list -->
+                @if(session('success'))
+                    <div style="background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">✓ {{ session('success') }}</div>
+                @endif
+
+                @if($jobs->isEmpty())
+                    <div style="text-align: center; padding: 60px 20px; color: #86868b;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
+                        <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px;">No {{ $filter !== 'all' ? $filter : '' }} jobs</div>
+                        <div style="font-size: 13px;">
+                            @if($filter === 'all')
+                                Run a pipeline to get started.
+                            @else
+                                No jobs with status "{{ $filter }}".
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <table class="job-table" id="job-list">
+                        <tbody>
+                            @foreach($jobs as $job)
+                            @php
+                                $clustering = $job->step_outputs_json['clustering'] ?? null;
+                                $nClusters = $clustering['n_clusters'] ?? null;
+                                $nNoise = $clustering['n_noise'] ?? null;
+                                $silhouette = $clustering['silhouette_score'] ?? null;
+                            @endphp
+                            <tr onclick="window.location='{{ route('dashboard.show', $job) }}'">
+                                <!-- Info column -->
+                                <td style="max-width: 0; width: 100%;">
+                                    <div style="font-size: 14px; font-weight: 500;">{{ $job->dataset->name ?? 'Unknown Dataset' }}</div>
+                                    <div style="font-size: 13px; color: #86868b; margin-top: 2px;">
+                                        @if($nClusters !== null)
+                                            {{ $nClusters }} clusters
+                                            @if($silhouette !== null)
+                                                · silhouette {{ number_format($silhouette, 3) }}
+                                            @endif
+                                        @else
+                                            {{ $job->status }}
+                                            @if($job->progress > 0 && $job->progress < 100)
+                                                · {{ $job->progress }}%
+                                            @endif
+                                        @endif
+                                    </div>
+                                    <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        @if($nNoise !== null)
+                                            {{ $nNoise }} noise points
+                                        @elseif($job->error_detail)
+                                            {{ Str::limit($job->error_detail, 80) }}
+                                        @endif
+                                    </div>
+                                </td>
+                                <!-- Right: date + status icon -->
+                                <td style="white-space: nowrap; text-align: right; vertical-align: top;">
+                                    <div style="font-size: 12px; color: #86868b;">{{ $job->created_at->format('m/d H:i') }}</div>
+                                    <div style="font-size: 13px; color: #86868b; margin-top: 2px;">
+                                        @if($job->progress > 0 && $job->progress < 100)
+                                            <div class="progress-bar" style="width: 60px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle;">
+                                                <div style="height: 100%; background: #ff9500; width: {{ $job->progress }}%; border-radius: 2px;"></div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div style="font-size: 14px; margin-top: 4px;">
+                                        @if($job->status === 'completed') ✅
+                                        @elseif($job->status === 'failed') ❌
+                                        @else ⏳
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
             @endif
         </div>
     </div>
+@endsection
 
-    <script>
-        // Partial auto-refresh: only update the job list card, not the entire page.
-        // Fetches the same page and extracts #job-list via DOMParser.
-        const checkbox = document.getElementById('auto-refresh');
-        const indicator = document.getElementById('refresh-indicator');
-        let timer = null;
+@section('scripts')
+        // Clustering method parameter toggle
+        const methodSelect = document.getElementById('clustering-method');
+        if (methodSelect) {
+            methodSelect.addEventListener('change', function() {
+                const allParams = ['params-hdbscan', 'params-kmeans', 'params-agglomerative', 'params-leiden'];
+                allParams.forEach(id => document.getElementById(id).style.display = 'none');
+                document.getElementById('params-' + this.value).style.display = '';
+            });
+        }
 
+        // Auto-refresh job list every 5 seconds (only on list view)
+        @if(request('show') !== 'dispatch')
         async function refreshJobList() {
             try {
                 const response = await fetch(window.location.href);
                 if (!response.ok) return;
-
                 const html = await response.text();
                 const doc = new DOMParser().parseFromString(html, 'text/html');
-
-                // Update stats cards
-                const freshStats = doc.getElementById('stats');
-                if (freshStats) {
-                    document.getElementById('stats').innerHTML = freshStats.innerHTML;
+                // Refresh sidebar counts
+                const freshSidebar = doc.querySelector('.sidebar-tree');
+                const currentSidebar = document.querySelector('.sidebar-tree');
+                if (freshSidebar && currentSidebar) {
+                    currentSidebar.innerHTML = freshSidebar.innerHTML;
                 }
-
-                // Update job list table
-                const freshJobList = doc.getElementById('job-list');
-                if (freshJobList) {
-                    document.getElementById('job-list').innerHTML = freshJobList.innerHTML;
-
-                    // Restore the checkbox state after replacing content
-                    const newCheckbox = document.getElementById('auto-refresh');
-                    if (newCheckbox) newCheckbox.checked = true;
-                    newCheckbox.addEventListener('change', onCheckboxChange);
+                // Refresh job list
+                const freshMain = doc.getElementById('job-list');
+                const currentMain = document.getElementById('job-list');
+                if (freshMain && currentMain) {
+                    currentMain.innerHTML = freshMain.innerHTML;
                 }
-
-                // Brief flash to indicate a successful refresh
-                indicator.textContent = 'Updated';
-                indicator.style.opacity = '1';
-                setTimeout(() => { indicator.style.opacity = '0'; }, 1500);
-            } catch (e) {
-                // Silently ignore network errors during background refresh
-            }
+            } catch (e) { }
         }
-
-        function startAutoRefresh() {
-            timer = setInterval(refreshJobList, 5000);
-        }
-
-        function stopAutoRefresh() {
-            if (timer) { clearInterval(timer); timer = null; }
-        }
-
-        function onCheckboxChange() {
-            checkbox.checked ? startAutoRefresh() : stopAutoRefresh();
-        }
-
-        checkbox.addEventListener('change', onCheckboxChange);
-        if (checkbox.checked) startAutoRefresh();
-    </script>
-</body>
-</html>
+        setInterval(refreshJobList, 5000);
+        @endif
+@endsection

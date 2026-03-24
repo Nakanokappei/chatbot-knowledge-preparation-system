@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\LlmModel;
+use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 /**
@@ -18,6 +21,9 @@ class SettingsController extends Controller
 {
     /**
      * Display the LLM model management page.
+     *
+     * Fetches available models from AWS Bedrock API (cached 1 hour)
+     * and shows the tenant's registered models alongside.
      */
     public function index(): View
     {
@@ -27,7 +33,201 @@ class SettingsController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        return view('settings.models', compact('models'));
+        // Fetch available Bedrock models (cached for 1 hour)
+        $bedrockModels = $this->fetchBedrockModels();
+
+        // Fetch pricing from AWS Price List API (cached 24 hours)
+        $pricing = $this->fetchBedrockPricing();
+
+        return view('settings.models', compact('models', 'bedrockModels', 'pricing'));
+    }
+
+    /**
+     * Fetch text-capable foundation models from Bedrock API.
+     *
+     * Returns an array of ['model_id' => ..., 'display_name' => ..., 'provider' => ...]
+     * sorted by provider then name. Results are cached for 1 hour.
+     */
+    private function fetchBedrockModels(): array
+    {
+        return Cache::remember('bedrock_models_list', 3600, function () {
+            try {
+                $client = new \Aws\Bedrock\BedrockClient([
+                    'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
+                    'version' => 'latest',
+                ]);
+
+                $response = $client->listFoundationModels();
+                $result = [];
+
+                foreach ($response['modelSummaries'] as $m) {
+                    // Only text-in, text-out models (for LLM analysis)
+                    $input = $m['inputModalities'] ?? [];
+                    $output = $m['outputModalities'] ?? [];
+                    if (!in_array('TEXT', $input) || !in_array('TEXT', $output)) {
+                        continue;
+                    }
+
+                    // Skip rerankers (not generation models)
+                    if (str_contains(strtolower($m['modelName'] ?? ''), 'rerank')) {
+                        continue;
+                    }
+
+                    $result[] = [
+                        'model_id' => $m['modelId'],
+                        'display_name' => $m['modelName'],
+                        'provider' => $m['providerName'],
+                    ];
+                }
+
+                // Sort by provider, then display_name
+                usort($result, function ($a, $b) {
+                    return [$a['provider'], $a['display_name']] <=> [$b['provider'], $b['display_name']];
+                });
+
+                return $result;
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch Bedrock models: ' . $e->getMessage());
+                return [];
+            }
+        });
+    }
+
+    /**
+     * Fetch Bedrock model pricing from AWS Price List API.
+     *
+     * Returns an associative array keyed by model display name (as used
+     * in the Price List API), with input/output costs per 1K tokens and
+     * the pricing unit string.
+     *
+     * Results are cached for 24 hours since pricing rarely changes.
+     * Only us-east-1 pricing is available via the API.
+     */
+    private function fetchBedrockPricing(): array
+    {
+        return Cache::remember('bedrock_pricing', 86400, function () {
+            try {
+                $client = new \Aws\Pricing\PricingClient([
+                    'region' => 'us-east-1',
+                    'version' => 'latest',
+                ]);
+
+                $pricing = [];
+                $nextToken = null;
+
+                // Paginate through all providers
+                do {
+                    $params = [
+                        'ServiceCode' => 'AmazonBedrock',
+                        'Filters' => [
+                            ['Type' => 'TERM_MATCH', 'Field' => 'regionCode', 'Value' => 'us-east-1'],
+                        ],
+                        'MaxResults' => 100,
+                    ];
+                    if ($nextToken) {
+                        $params['NextToken'] = $nextToken;
+                    }
+
+                    $response = $client->getProducts($params);
+
+                    foreach ($response['PriceList'] as $item) {
+                        $data = json_decode($item, true);
+                        $attrs = $data['product']['attributes'] ?? [];
+                        $model = $attrs['model'] ?? null;
+                        $inferenceType = $attrs['inferenceType'] ?? null;
+
+                        if (!$model || !$inferenceType) {
+                            continue;
+                        }
+
+                        // Extract price from OnDemand terms
+                        $terms = $data['terms']['OnDemand'] ?? [];
+                        $usd = null;
+                        $unit = null;
+                        foreach ($terms as $term) {
+                            foreach ($term['priceDimensions'] ?? [] as $dim) {
+                                $usd = $dim['pricePerUnit']['USD'] ?? null;
+                                $unit = $dim['unit'] ?? null;
+                            }
+                        }
+
+                        if ($usd === null) {
+                            continue;
+                        }
+
+                        $key = strtolower(trim($model));
+                        if (!isset($pricing[$key])) {
+                            $pricing[$key] = [
+                                'model_name' => $model,
+                                'input' => null,
+                                'output' => null,
+                                'unit' => $unit,
+                            ];
+                        }
+
+                        if (str_contains(strtolower($inferenceType), 'input')) {
+                            $pricing[$key]['input'] = (float) $usd;
+                        } elseif (str_contains(strtolower($inferenceType), 'output')) {
+                            $pricing[$key]['output'] = (float) $usd;
+                        }
+                    }
+
+                    $nextToken = $response['NextToken'] ?? null;
+                } while ($nextToken);
+
+                return $pricing;
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch Bedrock pricing: ' . $e->getMessage());
+                return [];
+            }
+        });
+    }
+
+    /**
+     * Look up pricing for a specific model ID by fuzzy-matching model names.
+     *
+     * The Price List API uses display names like "Claude 3 Haiku" while
+     * Bedrock uses IDs like "anthropic.claude-3-haiku-20240307-v1:0".
+     * This method bridges the gap with substring matching.
+     */
+    public static function findPricingForModel(array $pricing, string $modelId): ?array
+    {
+        // Build mapping hints: model_id substring => pricing key patterns
+        $hints = [
+            'claude-instant' => 'claude instant',
+            'claude-2.0' => 'claude 2.0',
+            'claude-2.1' => 'claude 2.1',
+            'claude-3-haiku' => 'claude 3 haiku',
+            'claude-3-sonnet' => 'claude 3 sonnet',
+            'claude-3-opus' => 'claude 3 opus',
+            'claude-3-5-haiku' => 'claude 3.5 haiku',
+            'claude-3-5-sonnet' => 'claude 3.5 sonnet',
+            'claude-3-7-sonnet' => 'claude 3.7 sonnet',
+            'claude-haiku-4' => 'claude haiku 4',
+            'claude-sonnet-4' => 'claude sonnet 4',
+            'claude-opus-4' => 'claude opus 4',
+            'titan-embed' => 'titan multimodal embeddings',
+            'titan-text-express' => 'titan text express',
+            'titan-text-lite' => 'titan text lite',
+            'llama3' => 'llama 3',
+            'mistral-7b' => 'mistral 7b',
+            'mixtral-8x7b' => 'mixtral 8x7b',
+            'command-r' => 'command r',
+        ];
+
+        $modelLower = strtolower($modelId);
+
+        foreach ($hints as $idPattern => $pricingPattern) {
+            if (str_contains($modelLower, $idPattern)) {
+                foreach ($pricing as $key => $info) {
+                    if (str_contains($key, $pricingPattern)) {
+                        return $info;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -36,69 +236,61 @@ class SettingsController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'display_name' => 'required|string|max:100',
             'model_id' => 'required|string|max:200',
+            'display_name' => 'nullable|string|max:100',
         ]);
 
         $tenantId = auth()->user()->tenant_id;
-
-        // Determine the next sort_order value
-        $maxSort = LlmModel::where('tenant_id', $tenantId)->max('sort_order') ?? -1;
+        $modelId = $request->input('model_id');
 
         // Check for duplicate model_id within the tenant
         $exists = LlmModel::where('tenant_id', $tenantId)
-            ->where('model_id', $request->input('model_id'))
+            ->where('model_id', $modelId)
             ->exists();
 
         if ($exists) {
             return redirect()->route('settings.models')
-                ->with('error', 'This Model ID already exists.');
+                ->with('error', 'This model is already registered.');
         }
 
-        // If this is the first model, make it the default
-        $isFirst = LlmModel::where('tenant_id', $tenantId)->count() === 0;
+        // Use provided display_name, or look up from Bedrock API cache
+        $displayName = $request->input('display_name');
+        if (!$displayName) {
+            $bedrockModels = $this->fetchBedrockModels();
+            foreach ($bedrockModels as $bm) {
+                if ($bm['model_id'] === $modelId) {
+                    $displayName = $bm['provider'] . ' ' . $bm['display_name'];
+                    break;
+                }
+            }
+        }
+        if (!$displayName) {
+            $displayName = $modelId;
+        }
+
+        $maxSort = LlmModel::where('tenant_id', $tenantId)->max('sort_order') ?? -1;
 
         LlmModel::create([
             'tenant_id' => $tenantId,
-            'display_name' => $request->input('display_name'),
-            'model_id' => $request->input('model_id'),
-            'is_default' => $isFirst,
+            'display_name' => $displayName,
+            'model_id' => $modelId,
+            'is_default' => false,
             'sort_order' => $maxSort + 1,
             'is_active' => true,
         ]);
 
         return redirect()->route('settings.models')
-            ->with('success', 'Model added successfully.');
+            ->with('success', "{$displayName} added.");
     }
 
     /**
-     * Update an existing LLM model (toggle default, toggle active, or rename).
+     * Update an existing LLM model (toggle active or rename).
      */
     public function update(Request $request, LlmModel $llmModel): RedirectResponse
     {
-        $tenantId = auth()->user()->tenant_id;
-
         $action = $request->input('action');
 
-        if ($action === 'set_default') {
-            // Clear all defaults for this tenant, then set the selected one
-            DB::transaction(function () use ($tenantId, $llmModel) {
-                LlmModel::where('tenant_id', $tenantId)
-                    ->update(['is_default' => false]);
-                $llmModel->update(['is_default' => true, 'is_active' => true]);
-            });
-
-            return redirect()->route('settings.models')
-                ->with('success', "{$llmModel->display_name} set as default.");
-        }
-
         if ($action === 'toggle_active') {
-            // Prevent deactivating the default model
-            if ($llmModel->is_default && $llmModel->is_active) {
-                return redirect()->route('settings.models')
-                    ->with('error', 'Cannot deactivate the default model. Set another default first.');
-            }
-
             $llmModel->update(['is_active' => !$llmModel->is_active]);
             $status = $llmModel->is_active ? 'activated' : 'deactivated';
 
@@ -123,12 +315,6 @@ class SettingsController extends Controller
      */
     public function destroy(LlmModel $llmModel): RedirectResponse
     {
-        // Prevent deleting the default model
-        if ($llmModel->is_default) {
-            return redirect()->route('settings.models')
-                ->with('error', 'Cannot delete the default model. Set another default first.');
-        }
-
         $name = $llmModel->display_name;
         $llmModel->delete();
 

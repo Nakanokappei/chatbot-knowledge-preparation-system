@@ -32,4 +32,9 @@ class Dataset extends Model
     {
         return $this->hasMany(PipelineJob::class);
     }
+
+    public function embeddings(): HasMany
+    {
+        return $this->hasMany(Embedding::class);
+    }
 }

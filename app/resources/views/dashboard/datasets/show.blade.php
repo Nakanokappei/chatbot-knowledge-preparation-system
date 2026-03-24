@@ -38,7 +38,7 @@
 <div class="container">
     <div class="nav">
         <a href="{{ route('dashboard') }}">Dashboard</a> /
-        <a href="{{ route('datasets.index') }}">Datasets</a> /
+        <a href="{{ route('kd.index') }}">Datasets</a> /
         <strong>{{ $dataset->name }}</strong>
     </div>
 
@@ -59,7 +59,7 @@
 
     <div class="actions">
         @if($dataset->isEditable())
-            <form method="POST" action="{{ route('datasets.publish', $dataset) }}">
+            <form method="POST" action="{{ route('kd.publish', $dataset) }}">
                 @csrf
                 <button type="submit" class="btn btn-success" onclick="return confirm('Publish this dataset? It will become available for retrieval.')">
                     Publish
@@ -68,14 +68,14 @@
         @endif
 
         @if($dataset->isPublished())
-            <form method="POST" action="{{ route('datasets.new-version', $dataset) }}">
+            <form method="POST" action="{{ route('kd.new-version', $dataset) }}">
                 @csrf
                 <button type="submit" class="btn btn-primary">New Version (v{{ $dataset->version + 1 }})</button>
             </form>
 
-            <a href="{{ route('datasets.export', $dataset) }}" class="btn btn-outline">Export JSON</a>
+            <a href="{{ route('kd.export', $dataset) }}" class="btn btn-outline">Export JSON</a>
 
-            <a href="{{ route('datasets.chat', $dataset) }}" class="btn btn-primary">Chat</a>
+            <a href="{{ route('kd.chat', $dataset) }}" class="btn btn-primary">Chat</a>
         @endif
     </div>
 

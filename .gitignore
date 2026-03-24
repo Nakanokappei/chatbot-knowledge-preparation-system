@@ -31,5 +31,9 @@ worker/test_data/
 ._*
 Thumbs.db
 
+# Docker Compose env
+.env
+
 # Claude
 .claude/
+.env.docker

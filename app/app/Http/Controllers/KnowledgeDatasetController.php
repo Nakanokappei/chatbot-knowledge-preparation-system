@@ -100,7 +100,7 @@ class KnowledgeDatasetController extends Controller
         });
 
         return redirect()
-            ->route('datasets.show', $dataset)
+            ->route('kd.show', $dataset)
             ->with('success', "Dataset \"{$dataset->name}\" created with {$dataset->ku_count} units.");
     }
 
@@ -170,7 +170,7 @@ class KnowledgeDatasetController extends Controller
         });
 
         return redirect()
-            ->route('datasets.show', $newDataset)
+            ->route('kd.show', $newDataset)
             ->with('success', "New version v{$newDataset->version} created as draft.");
     }
 
@@ -217,7 +217,7 @@ class KnowledgeDatasetController extends Controller
     public function chat(KnowledgeDataset $dataset)
     {
         if (! $dataset->isPublished()) {
-            return redirect()->route('datasets.show', $dataset)
+            return redirect()->route('kd.show', $dataset)
                 ->withErrors(['status' => 'Chat is only available for published datasets.']);
         }
 

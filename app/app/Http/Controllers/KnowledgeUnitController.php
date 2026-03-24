@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\KnowledgeUnit;
 use App\Models\KnowledgeUnitReview;
 use App\Models\KnowledgeUnitVersion;
+use App\Models\PipelineJob;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -184,5 +185,35 @@ class KnowledgeUnitController extends Controller
             'versions' => $versions,
             'reviews' => $reviews,
         ]);
+    }
+
+    /**
+     * Bulk approve all non-approved KUs for a job.
+     * Transitions: draft → reviewed → approved in one step.
+     */
+    public function bulkApprove(PipelineJob $pipelineJob)
+    {
+        $tenantId = auth()->user()->tenant_id;
+
+        $kus = KnowledgeUnit::where('tenant_id', $tenantId)
+            ->where('pipeline_job_id', $pipelineJob->id)
+            ->whereIn('review_status', ['draft', 'reviewed'])
+            ->get();
+
+        $count = 0;
+        foreach ($kus as $ku) {
+            $ku->update(['review_status' => 'approved']);
+
+            KnowledgeUnitReview::create([
+                'knowledge_unit_id' => $ku->id,
+                'reviewer_user_id' => auth()->id(),
+                'review_status' => 'approved',
+                'review_comment' => 'Bulk approved',
+            ]);
+
+            $count++;
+        }
+
+        return back()->with('success', "{$count} Knowledge Units approved.");
     }
 }

@@ -33,13 +33,13 @@
 <body>
 <div class="container">
     <div class="nav">
-        <a href="{{ route('datasets.index') }}">Datasets</a> / <strong>New Dataset</strong>
+        <a href="{{ route('kd.index') }}">Datasets</a> / <strong>New Dataset</strong>
     </div>
 
     <h1>Create Knowledge Dataset</h1>
 
     <div class="card">
-        <form method="POST" action="{{ route('datasets.store') }}">
+        <form method="POST" action="{{ route('kd.store') }}">
             @csrf
 
             <label for="name">Dataset Name</label>

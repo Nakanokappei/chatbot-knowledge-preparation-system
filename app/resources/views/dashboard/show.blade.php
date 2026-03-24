@@ -85,7 +85,12 @@
                 @endif
                 @if($clusteringOutput)
                     <dt>Clustering:</dt>
-                    <dd>HDBSCAN (min_cluster_size={{ $clusteringOutput['hdbscan_params']['min_cluster_size'] ?? '?' }})</dd>
+                    @php
+                        $cMethod = $clusteringOutput['clustering_method'] ?? 'hdbscan';
+                        $cParams = $clusteringOutput['clustering_params'] ?? $clusteringOutput['hdbscan_params'] ?? [];
+                        $cParamStr = collect($cParams)->map(fn($v, $k) => "{$k}={$v}")->implode(', ');
+                    @endphp
+                    <dd>{{ strtoupper($cMethod) }} ({{ $cParamStr ?: 'defaults' }})</dd>
                 @endif
             </dl>
         </div>

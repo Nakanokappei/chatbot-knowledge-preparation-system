@@ -34,7 +34,7 @@
 </head>
 <body>
 <div class="header">
-    <a href="{{ route('datasets.show', $dataset) }}">Back</a>
+    <a href="{{ route('kd.show', $dataset) }}">Back</a>
     <h2>{{ $dataset->name }} v{{ $dataset->version }}</h2>
     <span class="badge">{{ $dataset->ku_count }} KUs</span>
 </div>
@@ -83,7 +83,7 @@ async function sendMessage() {
     scrollToBottom();
 
     try {
-        const response = await fetch('/api/chat', {
+        const response = await fetch('/web-api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

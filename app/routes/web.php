@@ -3,8 +3,11 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CostController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DatasetWizardController;
+use App\Http\Controllers\EmbeddingController;
 use App\Http\Controllers\KnowledgeDatasetController;
 use App\Http\Controllers\KnowledgeUnitController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,10 +19,25 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // All application routes require authentication
 Route::middleware('auth')->group(function () {
 
-    // Dashboard
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/jobs/{pipelineJob}', [DashboardController::class, 'show'])->name('dashboard.show');
-    Route::post('/dispatch', [DashboardController::class, 'dispatch'])->name('dashboard.dispatch');
+    // Workspace (main view — sidebar with embeddings + KU list)
+    Route::get('/', [EmbeddingController::class, 'index'])->name('workspace.index');
+    Route::get('/workspace/{embeddingId}', [EmbeddingController::class, 'index'])->name('workspace.embedding');
+    Route::get('/workspace/{embeddingId}/ku/{kuId}', [EmbeddingController::class, 'showKnowledgeUnit'])->name('workspace.ku');
+    Route::post('/workspace/{embeddingId}/bulk-approve', [EmbeddingController::class, 'bulkApprove'])->name('workspace.bulk-approve');
+    Route::post('/workspace/{embeddingId}/bulk-status', [EmbeddingController::class, 'bulkUpdateStatus'])->name('workspace.ku.bulk-status');
+    Route::put('/workspace/{embeddingId}/rename', [EmbeddingController::class, 'rename'])->name('workspace.rename');
+    Route::delete('/workspace/{embeddingId}', [EmbeddingController::class, 'destroy'])->name('workspace.destroy');
+    Route::get('/workspace/{embeddingId}/export', [EmbeddingController::class, 'export'])->name('workspace.export');
+
+    // Pipeline: redirect legacy URLs to workspace pipeline view
+    Route::get('/pipeline', fn () => redirect('/?pipeline=jobs&pf=all'))->name('dashboard');
+    Route::get('/pipeline/jobs/{pipelineJob}', fn ($pipelineJob) => redirect('/?pipeline=jobs&pf=all'))->name('dashboard.show');
+    // Dataset wizard: upload → configure → finalize
+    Route::post('/dataset/upload', [DatasetWizardController::class, 'upload'])->name('dataset.upload');
+    Route::get('/dataset/{dataset}/configure', [DatasetWizardController::class, 'configure'])->name('dataset.configure');
+    Route::post('/dataset/{dataset}/preview', [DatasetWizardController::class, 'preview'])->name('dataset.preview');
+    Route::post('/dataset/{dataset}/finalize', [DatasetWizardController::class, 'finalize'])->name('dataset.finalize');
+
     Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
     Route::get('/jobs/{pipelineJob}/knowledge-units', [DashboardController::class, 'knowledgeUnits'])->name('dashboard.knowledge-units');
     Route::get('/jobs/{pipelineJob}/knowledge-units/export', [DashboardController::class, 'exportKnowledgeUnits'])->name('dashboard.knowledge-units.export');
@@ -29,20 +47,30 @@ Route::middleware('auth')->group(function () {
     Route::put('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'update'])->name('knowledge-units.update');
     Route::post('/knowledge-units/{knowledgeUnit}/review', [KnowledgeUnitController::class, 'review'])->name('knowledge-units.review');
     Route::get('/knowledge-units/{knowledgeUnit}/versions', [KnowledgeUnitController::class, 'versions'])->name('knowledge-units.versions');
+    Route::post('/jobs/{pipelineJob}/knowledge-units/bulk-approve', [KnowledgeUnitController::class, 'bulkApprove'])->name('knowledge-units.bulk-approve');
 
     // Knowledge Datasets
-    Route::get('/datasets', [KnowledgeDatasetController::class, 'index'])->name('datasets.index');
-    Route::get('/datasets/create', [KnowledgeDatasetController::class, 'create'])->name('datasets.create');
-    Route::post('/datasets', [KnowledgeDatasetController::class, 'store'])->name('datasets.store');
-    Route::get('/datasets/{dataset}', [KnowledgeDatasetController::class, 'show'])->name('datasets.show');
-    Route::post('/datasets/{dataset}/publish', [KnowledgeDatasetController::class, 'publish'])->name('datasets.publish');
-    Route::post('/datasets/{dataset}/new-version', [KnowledgeDatasetController::class, 'newVersion'])->name('datasets.new-version');
-    Route::get('/datasets/{dataset}/export', [KnowledgeDatasetController::class, 'export'])->name('datasets.export');
-    Route::get('/datasets/{dataset}/chat', [KnowledgeDatasetController::class, 'chat'])->name('datasets.chat');
-    Route::get('/datasets/{dataset}/evaluation', [KnowledgeDatasetController::class, 'evaluation'])->name('datasets.evaluation');
+    Route::get('/knowledge-datasets', [KnowledgeDatasetController::class, 'index'])->name('kd.index');
+    Route::get('/knowledge-datasets/create', [KnowledgeDatasetController::class, 'create'])->name('kd.create');
+    Route::post('/knowledge-datasets', [KnowledgeDatasetController::class, 'store'])->name('kd.store');
+    Route::get('/knowledge-datasets/{dataset}', [KnowledgeDatasetController::class, 'show'])->name('kd.show');
+    Route::post('/knowledge-datasets/{dataset}/publish', [KnowledgeDatasetController::class, 'publish'])->name('kd.publish');
+    Route::post('/knowledge-datasets/{dataset}/new-version', [KnowledgeDatasetController::class, 'newVersion'])->name('kd.new-version');
+    Route::get('/knowledge-datasets/{dataset}/export', [KnowledgeDatasetController::class, 'export'])->name('kd.export');
+    Route::get('/knowledge-datasets/{dataset}/chat', [KnowledgeDatasetController::class, 'chat'])->name('kd.chat');
+    Route::get('/knowledge-datasets/{dataset}/evaluation', [KnowledgeDatasetController::class, 'evaluation'])->name('kd.evaluation');
 
     // Cost dashboard
     Route::get('/cost', [CostController::class, 'index'])->name('cost');
+
+    // Chat & Retrieve (web session auth, used by browser UI)
+    Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
+    Route::post('/web-api/chat', [\App\Http\Controllers\Api\ChatController::class, 'chat'])->name('web.chat');
+
+    // Profile: user settings, password change
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     // Settings: LLM model management
     Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');

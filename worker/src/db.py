@@ -106,6 +106,117 @@ def update_job_status(job_id: int, status: str, progress: int = 0, error_detail:
         conn.close()
 
 
+def create_or_get_embedding(job_id: int, tenant_id: int, dataset_id: int,
+                            name: str, column_config: list = None,
+                            embedding_model: str = "amazon.titan-embed-text-v2:0") -> int:
+    """
+    Create an embedding record for a pipeline job, or return existing one.
+
+    Called at the start of the preprocess step. The embedding record links
+    the dataset, column configuration, and resulting KUs together.
+    Returns the embedding_id.
+    """
+    conn = get_connection(tenant_id=tenant_id)
+    try:
+        with conn.cursor() as cur:
+            # Check if job already has an embedding_id
+            cur.execute(
+                "SELECT embedding_id FROM pipeline_jobs WHERE id = %s", (job_id,)
+            )
+            row = cur.fetchone()
+            if row and row[0]:
+                logger.info("Job %d already has embedding_id=%d", job_id, row[0])
+                return row[0]
+
+            # Create new embedding record
+            now = datetime.now(timezone.utc)
+            cur.execute(
+                """INSERT INTO embeddings
+                   (tenant_id, dataset_id, name, column_config_json,
+                    embedding_model, status, row_count, created_at, updated_at)
+                   VALUES (%s, %s, %s, %s, %s, 'processing', 0, %s, %s)
+                   RETURNING id""",
+                (tenant_id, dataset_id, name,
+                 json.dumps(column_config) if column_config else None,
+                 embedding_model, now, now),
+            )
+            embedding_id = cur.fetchone()[0]
+
+            # Link job to embedding
+            cur.execute(
+                "UPDATE pipeline_jobs SET embedding_id = %s WHERE id = %s",
+                (embedding_id, job_id),
+            )
+            conn.commit()
+            logger.info("Created embedding %d for job %d", embedding_id, job_id)
+            return embedding_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def update_embedding_status(embedding_id: int, status: str, row_count: int = None):
+    """Update an embedding record's status and optionally row_count."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            now = datetime.now(timezone.utc)
+            if row_count is not None:
+                cur.execute(
+                    """UPDATE embeddings
+                       SET status = %s, row_count = %s, updated_at = %s
+                       WHERE id = %s""",
+                    (status, row_count, now, embedding_id),
+                )
+            else:
+                cur.execute(
+                    """UPDATE embeddings SET status = %s, updated_at = %s WHERE id = %s""",
+                    (status, now, embedding_id),
+                )
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def link_clusters_to_embedding(job_id: int, embedding_id: int):
+    """Set embedding_id on all clusters belonging to a job."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE clusters SET embedding_id = %s WHERE pipeline_job_id = %s",
+                (embedding_id, job_id),
+            )
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def link_knowledge_units_to_embedding(job_id: int, embedding_id: int):
+    """Set embedding_id on all KUs belonging to a job."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE knowledge_units SET embedding_id = %s WHERE pipeline_job_id = %s",
+                (embedding_id, job_id),
+            )
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def update_job_step_outputs(job_id: int, step_name: str, step_data: dict):
     """
     Merge step output metadata into the job's step_outputs_json column.

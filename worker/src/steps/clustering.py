@@ -1,8 +1,11 @@
 """
-Clustering step — group embeddings using HDBSCAN.
+Clustering step — group embeddings using configurable algorithms.
 
-This step reads embedding vectors from S3, runs HDBSCAN clustering, saves
-cluster assignments to RDS, computes centroids, and selects representative rows.
+Supports four clustering methods (BERTopic-inspired design):
+  - hdbscan:       Density-based, automatic cluster count, noise detection
+  - kmeans:        Spherical clusters, fixed count, no noise
+  - agglomerative: Hierarchical, fixed count, no noise
+  - leiden:        Graph-based community detection via HNSW k-NN + Leiden
 
 CTO directive: "This cluster will become a Knowledge Unit later."
 Every design decision here serves that downstream purpose.
@@ -15,28 +18,269 @@ Output: clusters, cluster_memberships, cluster_centroids, cluster_representative
 import io
 import json
 import logging
+from datetime import datetime, timezone
 
 import boto3
-import hdbscan
 import numpy as np
 from sklearn.metrics import silhouette_score
 
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs
+from src.db import get_connection, update_job_status, update_job_step_outputs, link_clusters_to_embedding
+from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
 
-# HDBSCAN parameters (CTO decision)
-HDBSCAN_PARAMS = {
-    "min_cluster_size": 15,
-    "min_samples": 5,
-    "metric": "euclidean",
-    "cluster_selection_method": "eom",
+# Default parameters for each clustering method
+DEFAULT_PARAMS = {
+    "hdbscan": {
+        "min_cluster_size": 15,
+        "min_samples": 5,
+        "metric": "euclidean",
+        "cluster_selection_method": "eom",
+    },
+    "kmeans": {
+        "n_clusters": 10,
+        "n_init": 10,
+        "max_iter": 300,
+        "random_state": 42,
+    },
+    "agglomerative": {
+        "n_clusters": 10,
+        "linkage": "ward",
+    },
+    "leiden": {
+        "n_neighbors": 15,
+        "resolution": 1.0,
+        "ef_construction": 200,
+        "M": 16,
+    },
 }
 
 # Number of representative rows per cluster (closest to centroid)
 NUM_REPRESENTATIVES = 5
 
+
+# ---------------------------------------------------------------------------
+# Clustering algorithm implementations
+# ---------------------------------------------------------------------------
+
+def run_hdbscan(embeddings: np.ndarray, params: dict) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Run HDBSCAN density-based clustering.
+
+    Returns (labels, probabilities). Noise points have label -1.
+    """
+    import hdbscan
+
+    logger.info(
+        "Running HDBSCAN (min_cluster_size=%d, min_samples=%d) on %d vectors",
+        params["min_cluster_size"], params["min_samples"], len(embeddings),
+    )
+
+    clusterer = hdbscan.HDBSCAN(**params)
+    clusterer.fit(embeddings)
+
+    labels = clusterer.labels_
+    probabilities = clusterer.probabilities_
+
+    return labels, probabilities
+
+
+def run_kmeans(embeddings: np.ndarray, params: dict) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Run K-Means clustering.
+
+    All points are assigned to a cluster (no noise). Probabilities are set
+    to 1.0 for all points since K-Means is a hard assignment algorithm.
+    """
+    from sklearn.cluster import KMeans
+
+    n_clusters = params["n_clusters"]
+    logger.info("Running K-Means (n_clusters=%d) on %d vectors", n_clusters, len(embeddings))
+
+    clusterer = KMeans(
+        n_clusters=n_clusters,
+        n_init=params.get("n_init", 10),
+        max_iter=params.get("max_iter", 300),
+        random_state=params.get("random_state", 42),
+    )
+    labels = clusterer.fit_predict(embeddings)
+
+    # K-Means is hard assignment: every point belongs to exactly one cluster
+    probabilities = np.ones(len(labels), dtype=np.float64)
+
+    return labels, probabilities
+
+
+def run_agglomerative(embeddings: np.ndarray, params: dict) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Run Agglomerative (hierarchical) clustering.
+
+    Builds a bottom-up hierarchy and cuts at the specified number of clusters.
+    All points are assigned (no noise).
+    """
+    from sklearn.cluster import AgglomerativeClustering
+
+    n_clusters = params["n_clusters"]
+    linkage = params.get("linkage", "ward")
+    logger.info(
+        "Running Agglomerative (n_clusters=%d, linkage=%s) on %d vectors",
+        n_clusters, linkage, len(embeddings),
+    )
+
+    clusterer = AgglomerativeClustering(n_clusters=n_clusters, linkage=linkage)
+    labels = clusterer.fit_predict(embeddings)
+
+    # Agglomerative is hard assignment
+    probabilities = np.ones(len(labels), dtype=np.float64)
+
+    return labels, probabilities
+
+
+def run_leiden(embeddings: np.ndarray, params: dict) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Run HNSW + Leiden graph-based community detection.
+
+    Steps:
+    1. Build a k-nearest-neighbor graph using HNSW (hnswlib)
+    2. Convert to igraph weighted graph (cosine similarity as edge weights)
+    3. Run Leiden community detection algorithm
+
+    This approach excels at finding natural community structure in
+    high-dimensional embedding spaces without requiring a predefined
+    cluster count.
+    """
+    import hnswlib
+    import igraph as ig
+    import leidenalg as la
+
+    n_neighbors = params.get("n_neighbors", 15)
+    resolution = params.get("resolution", 1.0)
+    ef_construction = params.get("ef_construction", 200)
+    M = params.get("M", 16)
+
+    n_points, dim = embeddings.shape
+    logger.info(
+        "Running Leiden (n_neighbors=%d, resolution=%.2f) on %d vectors (dim=%d)",
+        n_neighbors, resolution, n_points, dim,
+    )
+
+    # Step 1: Build HNSW index for fast approximate k-NN search
+    logger.info("Building HNSW index (ef_construction=%d, M=%d)...", ef_construction, M)
+    index = hnswlib.Index(space="cosine", dim=dim)
+    index.init_index(max_elements=n_points, ef_construction=ef_construction, M=M)
+    index.add_items(embeddings, np.arange(n_points))
+    index.set_ef(max(n_neighbors * 2, 50))
+
+    # Query k nearest neighbors for each point
+    neighbor_indices, neighbor_distances = index.knn_query(embeddings, k=n_neighbors)
+
+    # Step 2: Build weighted igraph from k-NN results
+    logger.info("Building k-NN graph (%d neighbors per node)...", n_neighbors)
+    edges = []
+    weights = []
+
+    for i in range(n_points):
+        for j_idx in range(n_neighbors):
+            j = int(neighbor_indices[i][j_idx])
+            if i == j:
+                continue  # Skip self-loops
+
+            # Cosine distance → cosine similarity as edge weight
+            cosine_dist = float(neighbor_distances[i][j_idx])
+            similarity = max(1.0 - cosine_dist, 0.0)
+
+            edges.append((i, j))
+            weights.append(similarity)
+
+    graph = ig.Graph(n=n_points, edges=edges, directed=False)
+    graph.es["weight"] = weights
+
+    # Remove duplicate edges (keep highest weight)
+    graph.simplify(combine_edges="max")
+
+    logger.info(
+        "Graph built: %d vertices, %d edges",
+        graph.vcount(), graph.ecount(),
+    )
+
+    # Step 3: Run Leiden community detection
+    logger.info("Running Leiden algorithm (resolution=%.2f)...", resolution)
+    partition = la.find_partition(
+        graph,
+        la.RBConfigurationVertexPartition,
+        weights="weight",
+        resolution_parameter=resolution,
+    )
+
+    labels = np.array(partition.membership, dtype=np.intp)
+
+    # Leiden is hard assignment: all points belong to a community
+    probabilities = np.ones(len(labels), dtype=np.float64)
+
+    return labels, probabilities
+
+
+# ---------------------------------------------------------------------------
+# Dispatcher: select and run the appropriate clustering method
+# ---------------------------------------------------------------------------
+
+CLUSTERING_METHODS = {
+    "hdbscan": run_hdbscan,
+    "kmeans": run_kmeans,
+    "agglomerative": run_agglomerative,
+    "leiden": run_leiden,
+}
+
+
+def run_clustering(
+    embeddings: np.ndarray,
+    method: str = "hdbscan",
+    params: dict | None = None,
+) -> tuple[np.ndarray, np.ndarray, str, dict]:
+    """
+    Dispatch to the selected clustering algorithm.
+
+    Args:
+        embeddings: (N, D) float array of embedding vectors.
+        method: One of "hdbscan", "kmeans", "agglomerative", "leiden".
+        params: Algorithm-specific parameters (merged with defaults).
+
+    Returns:
+        (labels, probabilities, method_name, effective_params) tuple.
+    """
+    if method not in CLUSTERING_METHODS:
+        raise ValueError(
+            f"Unknown clustering method '{method}'. "
+            f"Supported: {list(CLUSTERING_METHODS.keys())}"
+        )
+
+    # Merge user params over defaults
+    effective_params = dict(DEFAULT_PARAMS.get(method, {}))
+    if params:
+        effective_params.update(params)
+
+    logger.info("Clustering method: %s, params: %s", method, effective_params)
+
+    # Run the selected algorithm
+    run_fn = CLUSTERING_METHODS[method]
+    labels, probabilities = run_fn(embeddings, effective_params)
+
+    # Log summary
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    n_noise = int((labels == -1).sum())
+    logger.info(
+        "%s result: %d clusters, %d noise points (%.1f%%)",
+        method.upper(), n_clusters, n_noise,
+        n_noise / len(labels) * 100 if len(labels) > 0 else 0,
+    )
+
+    return labels, probabilities, method, effective_params
+
+
+# ---------------------------------------------------------------------------
+# Shared utility functions (unchanged)
+# ---------------------------------------------------------------------------
 
 def download_npy_from_s3(s3_path: str) -> np.ndarray:
     """Download a NumPy array from S3."""
@@ -53,34 +297,6 @@ def download_json_from_s3(s3_path: str):
     key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
     response = s3.get_object(Bucket=S3_BUCKET, Key=key)
     return json.loads(response["Body"].read())
-
-
-def run_hdbscan(embeddings: np.ndarray) -> hdbscan.HDBSCAN:
-    """
-    Run HDBSCAN clustering on the embedding matrix.
-
-    Returns the fitted HDBSCAN clusterer object.
-    """
-    logger.info(
-        "Running HDBSCAN (min_cluster_size=%d, min_samples=%d) on %d vectors",
-        HDBSCAN_PARAMS["min_cluster_size"],
-        HDBSCAN_PARAMS["min_samples"],
-        len(embeddings),
-    )
-
-    clusterer = hdbscan.HDBSCAN(**HDBSCAN_PARAMS)
-    clusterer.fit(embeddings)
-
-    labels = clusterer.labels_
-    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-    n_noise = (labels == -1).sum()
-
-    logger.info(
-        "HDBSCAN result: %d clusters, %d noise points (%.1f%%)",
-        n_clusters, n_noise, n_noise / len(labels) * 100,
-    )
-
-    return clusterer
 
 
 def compute_centroids(embeddings: np.ndarray, labels: np.ndarray) -> dict[int, np.ndarray]:
@@ -163,7 +379,6 @@ def save_clusters_to_db(
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
 
             # Clear previous clustering results for this job (idempotent re-run)
@@ -266,20 +481,27 @@ def save_clusters_to_db(
         conn.close()
 
 
+# ---------------------------------------------------------------------------
+# Step entry point
+# ---------------------------------------------------------------------------
+
 def execute(job_id: int, tenant_id: int, dataset_id: int = None,
-            input_s3_path: str = None, **kwargs):
+            input_s3_path: str = None, pipeline_config: dict = None, **kwargs):
     """
     Execute the clustering step.
 
     1. Load embeddings from S3
-    2. Run HDBSCAN
+    2. Run selected clustering algorithm (from pipeline_config)
     3. Compute centroids
     4. Find representative rows
     5. Compute quality metrics (silhouette score)
     6. Save everything to RDS
     7. Save results JSON to S3
-    8. Mark job as completed (final step in pipeline)
+    8. Chain to next step (cluster_analysis)
     """
+    if pipeline_config is None:
+        pipeline_config = {}
+
     logger.info("Clustering step started for job %d", job_id)
     update_job_status(job_id, status="clustering", progress=10)
 
@@ -294,10 +516,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     update_job_status(job_id, status="clustering", progress=20)
 
-    # Step 2: Run HDBSCAN
-    clusterer = run_hdbscan(embeddings)
-    labels = clusterer.labels_
-    probabilities = clusterer.probabilities_
+    # Step 2: Run selected clustering algorithm
+    clustering_method = pipeline_config.get("clustering_method", "hdbscan")
+    clustering_params = pipeline_config.get("clustering_params", {})
+
+    labels, probabilities, method_used, effective_params = run_clustering(
+        embeddings, method=clustering_method, params=clustering_params,
+    )
 
     update_job_status(job_id, status="clustering", progress=40)
 
@@ -343,6 +568,11 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         quality_score=quality_score,
     )
 
+    # Link clusters to embedding record
+    embedding_id = pipeline_config.get("embedding_id")
+    if embedding_id:
+        link_clusters_to_embedding(job_id, embedding_id)
+
     update_job_status(job_id, status="clustering", progress=85)
 
     # Step 7: Save results JSON to S3
@@ -363,7 +593,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         "n_noise": n_noise,
         "noise_percentage": round(n_noise / len(labels) * 100, 1),
         "silhouette_score": quality_score,
-        "hdbscan_params": HDBSCAN_PARAMS,
+        "clustering_method": method_used,
+        "clustering_params": effective_params,
         "clusters": cluster_summary,
     }
 
@@ -385,13 +616,25 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         "n_noise": n_noise,
         "noise_percentage": round(n_noise / len(labels) * 100, 1),
         "silhouette_score": quality_score,
-        "hdbscan_params": HDBSCAN_PARAMS,
+        "clustering_method": method_used,
+        "clustering_params": effective_params,
         "results_s3_path": results_s3_path,
     })
 
-    # Step 9: Pipeline complete — mark job as completed
-    update_job_status(job_id, status="completed", progress=100)
+    # Step 9: Chain to next step (cluster_analysis)
+    next_step = dispatch_next_step(
+        current_step="clustering",
+        job_id=job_id,
+        tenant_id=tenant_id,
+        dataset_id=dataset_id,
+        output_s3_path=results_s3_path,
+        pipeline_config=pipeline_config,
+    )
+
+    if next_step is None:
+        update_job_status(job_id, status="completed", progress=100)
+
     logger.info(
-        "Clustering step completed for job %d: %d clusters, %d noise, silhouette=%.4f",
-        job_id, n_clusters, n_noise, quality_score,
+        "Clustering step completed for job %d: method=%s, %d clusters, %d noise, silhouette=%.4f",
+        job_id, method_used, n_clusters, n_noise, quality_score,
     )

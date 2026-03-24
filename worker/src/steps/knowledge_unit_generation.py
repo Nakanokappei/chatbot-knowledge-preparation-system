@@ -16,7 +16,8 @@ import json
 import logging
 from datetime import datetime, timezone
 
-from src.db import get_connection, update_job_status, update_job_step_outputs
+from src.db import (get_connection, update_job_status, update_job_step_outputs,
+                    link_knowledge_units_to_embedding, update_embedding_status)
 
 logger = logging.getLogger(__name__)
 
@@ -237,13 +238,20 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             cluster["topic_name"], cluster["row_count"],
         )
 
-    # Step 3: Record step metadata
+    # Step 3: Link KUs to embedding and mark embedding as ready
+    pipeline_config = kwargs.get("pipeline_config") or {}
+    embedding_id = pipeline_config.get("embedding_id")
+    if embedding_id:
+        link_knowledge_units_to_embedding(job_id, embedding_id)
+        update_embedding_status(embedding_id, "ready", row_count=len(ku_ids))
+
+    # Step 4: Record step metadata
     update_job_step_outputs(job_id, "knowledge_unit_generation", {
         "knowledge_units_created": len(ku_ids),
         "knowledge_unit_ids": ku_ids,
     })
 
-    # Step 4: Mark job as completed (this is the final step)
+    # Step 5: Mark job as completed (this is the final step)
     update_job_status(job_id, status="completed", progress=100)
 
     logger.info(

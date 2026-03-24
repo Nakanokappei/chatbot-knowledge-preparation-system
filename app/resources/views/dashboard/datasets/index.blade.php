@@ -33,7 +33,7 @@
     <div class="nav">
         <a href="{{ route('dashboard') }}">Dashboard</a> /
         <strong>Knowledge Datasets</strong>
-        <a href="{{ route('datasets.create') }}" class="btn btn-primary" style="margin-left: auto;">+ New Dataset</a>
+        <a href="{{ route('kd.create') }}" class="btn btn-primary" style="margin-left: auto;">+ New Dataset</a>
     </div>
 
     @if(session('success'))
@@ -45,7 +45,7 @@
     @forelse($datasets as $dataset)
         <div class="card">
             <div class="card-header">
-                <a href="{{ route('datasets.show', $dataset) }}" class="card-title" style="color: #111; text-decoration: none;">
+                <a href="{{ route('kd.show', $dataset) }}" class="card-title" style="color: #111; text-decoration: none;">
                     {{ $dataset->name }}
                     <span style="font-weight: normal; color: #6b7280;">v{{ $dataset->version }}</span>
                 </a>
@@ -63,7 +63,7 @@
         <div class="card empty">
             <p>No datasets yet. Create one from your approved Knowledge Units.</p>
             <br>
-            <a href="{{ route('datasets.create') }}" class="btn btn-primary">+ New Dataset</a>
+            <a href="{{ route('kd.create') }}" class="btn btn-primary">+ New Dataset</a>
         </div>
     @endforelse
 </div>
