@@ -77,5 +77,25 @@ services:
       db:
         condition: service_healthy
 
+  # ── Worker connected to host DB (for testing with existing data) ──
+  worker-host:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_NAME: knowledge_prep
+      DB_USER: ckps_app
+      DB_PASSWORD: ckps_app_staging_2026
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-}
+      SQS_REGION: ${SQS_REGION:-ap-northeast-1}
+      S3_BUCKET: ${S3_BUCKET:-knowledge-prep-data-dev}
+      S3_REGION: ${S3_REGION:-ap-northeast-1}
+      LOG_LEVEL: INFO
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+
 volumes:
   pgdata:

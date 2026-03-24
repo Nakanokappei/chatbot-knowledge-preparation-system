@@ -17,7 +17,7 @@ import time
 import boto3
 
 from src.config import LOG_LEVEL, SQS_POLL_INTERVAL, SQS_QUEUE_URL, SQS_REGION
-from src.db import update_job_status
+from src.db import clear_tenant_context, set_tenant_context, update_job_status
 from src.steps import ping
 from src.steps import preprocess
 from src.steps import embedding
@@ -81,6 +81,9 @@ def process_message(message_body: dict):
         update_job_status(job_id, status="failed", error_detail=f"Unknown step: {step}")
         return
 
+    # Set tenant context for RLS enforcement on all DB connections
+    set_tenant_context(tenant_id)
+
     try:
         logger.info("Processing step '%s' for job %d", step, job_id)
         handler.execute(
@@ -93,6 +96,8 @@ def process_message(message_body: dict):
     except Exception as exc:
         logger.exception("Step '%s' failed for job %d: %s", step, job_id, exc)
         update_job_status(job_id, status="failed", error_detail=str(exc))
+    finally:
+        clear_tenant_context()
 
 
 def poll_sqs():
