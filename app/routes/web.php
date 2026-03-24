@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\KnowledgeDatasetController;
 use App\Http\Controllers\KnowledgeUnitController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,17 @@ Route::middleware('auth')->group(function () {
     Route::put('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'update'])->name('knowledge-units.update');
     Route::post('/knowledge-units/{knowledgeUnit}/review', [KnowledgeUnitController::class, 'review'])->name('knowledge-units.review');
     Route::get('/knowledge-units/{knowledgeUnit}/versions', [KnowledgeUnitController::class, 'versions'])->name('knowledge-units.versions');
+
+    // Knowledge Datasets
+    Route::get('/datasets', [KnowledgeDatasetController::class, 'index'])->name('datasets.index');
+    Route::get('/datasets/create', [KnowledgeDatasetController::class, 'create'])->name('datasets.create');
+    Route::post('/datasets', [KnowledgeDatasetController::class, 'store'])->name('datasets.store');
+    Route::get('/datasets/{dataset}', [KnowledgeDatasetController::class, 'show'])->name('datasets.show');
+    Route::post('/datasets/{dataset}/publish', [KnowledgeDatasetController::class, 'publish'])->name('datasets.publish');
+    Route::post('/datasets/{dataset}/new-version', [KnowledgeDatasetController::class, 'newVersion'])->name('datasets.new-version');
+    Route::get('/datasets/{dataset}/export', [KnowledgeDatasetController::class, 'export'])->name('datasets.export');
+    Route::get('/datasets/{dataset}/chat', [KnowledgeDatasetController::class, 'chat'])->name('datasets.chat');
+    Route::get('/datasets/{dataset}/evaluation', [KnowledgeDatasetController::class, 'evaluation'])->name('datasets.evaluation');
 
     // Settings: LLM model management
     Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');

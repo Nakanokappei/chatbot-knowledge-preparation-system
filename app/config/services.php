@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'bedrock' => [
+        'region' => env('AWS_BEDROCK_REGION', 'ap-northeast-1'),
+    ],
+
 ];
