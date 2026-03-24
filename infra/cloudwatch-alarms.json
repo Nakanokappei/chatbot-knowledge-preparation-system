@@ -1,0 +1,79 @@
+{
+  "Description": "CKPS CloudWatch Alarms — Production monitoring",
+  "SnsTopicArn": "arn:aws:sns:ap-northeast-1:444332185803:ckps-alerts",
+  "Alarms": [
+    {
+      "AlarmName": "CKPS-HighRetrievalLatency",
+      "MetricName": "RetrievalLatency",
+      "Namespace": "CKPS",
+      "Statistic": "p99",
+      "Period": 300,
+      "EvaluationPeriods": 1,
+      "Threshold": 2000,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "Description": "Retrieval p99 latency > 2s (SLO: p99 < 2s)"
+    },
+    {
+      "AlarmName": "CKPS-HighChatLatency",
+      "MetricName": "ChatLatency",
+      "Namespace": "CKPS",
+      "Statistic": "p99",
+      "Period": 300,
+      "EvaluationPeriods": 1,
+      "Threshold": 12000,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "Description": "Chat p99 latency > 12s (SLO: p99 < 12s)"
+    },
+    {
+      "AlarmName": "CKPS-PipelineStepFailures",
+      "MetricName": "PipelineStepErrors",
+      "Namespace": "CKPS",
+      "Statistic": "Sum",
+      "Period": 900,
+      "EvaluationPeriods": 1,
+      "Threshold": 3,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "Description": "More than 3 pipeline step failures in 15 minutes"
+    },
+    {
+      "AlarmName": "CKPS-HighTokenCost",
+      "MetricName": "TokenCostPerDay",
+      "Namespace": "CKPS",
+      "Statistic": "Sum",
+      "Period": 3600,
+      "EvaluationPeriods": 1,
+      "Threshold": 10,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "Description": "Token cost exceeds $10/hour"
+    },
+    {
+      "AlarmName": "CKPS-SQS-DLQ-Messages",
+      "MetricName": "ApproximateNumberOfMessagesVisible",
+      "Namespace": "AWS/SQS",
+      "Dimensions": [{"Name": "QueueName", "Value": "ckps-dlq-dev"}],
+      "Statistic": "Sum",
+      "Period": 300,
+      "EvaluationPeriods": 1,
+      "Threshold": 0,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "Description": "Dead letter queue has messages — pipeline failures"
+    },
+    {
+      "AlarmName": "CKPS-ChatErrorRate",
+      "MetricName": "ChatErrorRate",
+      "Namespace": "CKPS",
+      "Statistic": "Sum",
+      "Period": 300,
+      "EvaluationPeriods": 1,
+      "Threshold": 5,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "Description": "More than 5 chat API errors in 5 minutes"
+    }
+  ]
+}

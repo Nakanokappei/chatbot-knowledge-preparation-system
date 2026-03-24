@@ -35,9 +35,11 @@ Route::middleware('auth:sanctum')->group(function () {
         'index', 'show', 'store',
     ]);
 
-    // Retrieval API — vector similarity search against published datasets
-    Route::post('/retrieve', [RetrievalController::class, 'retrieve']);
+    // Retrieval API — rate limited per tenant + budget enforced
+    Route::post('/retrieve', [RetrievalController::class, 'retrieve'])
+        ->middleware(['throttle:api-retrieve', 'budget']);
 
-    // Chat API — minimal RAG verification endpoint
-    Route::post('/chat', [ChatController::class, 'chat']);
+    // Chat API — rate limited per tenant + budget enforced
+    Route::post('/chat', [ChatController::class, 'chat'])
+        ->middleware(['throttle:api-chat', 'budget']);
 });

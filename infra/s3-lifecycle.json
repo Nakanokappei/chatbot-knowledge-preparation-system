@@ -1,0 +1,27 @@
+{
+  "Rules": [
+    {
+      "ID": "EmbeddingDataLifecycle",
+      "Filter": {"Prefix": "embedding/"},
+      "Status": "Enabled",
+      "Transitions": [
+        {"Days": 30, "StorageClass": "STANDARD_IA"},
+        {"Days": 90, "StorageClass": "GLACIER"}
+      ]
+    },
+    {
+      "ID": "PreprocessDataCleanup",
+      "Filter": {"Prefix": "preprocess/"},
+      "Status": "Enabled",
+      "Expiration": {"Days": 90}
+    },
+    {
+      "ID": "ExportsLifecycle",
+      "Filter": {"Prefix": "exports/"},
+      "Status": "Enabled",
+      "Transitions": [
+        {"Days": 30, "StorageClass": "STANDARD_IA"}
+      ]
+    }
+  ]
+}

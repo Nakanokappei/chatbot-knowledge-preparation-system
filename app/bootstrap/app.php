@@ -14,6 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Set PostgreSQL RLS tenant scope after authentication
         $middleware->appendToGroup('web', \App\Http\Middleware\SetTenantScope::class);
+
+        // API metrics tracking
+        $middleware->appendToGroup('api', \App\Http\Middleware\TrackApiMetrics::class);
+
+        // Budget enforcement alias
+        $middleware->alias([
+            'budget' => \App\Http\Middleware\EnforceBudget::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

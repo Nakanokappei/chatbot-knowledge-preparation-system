@@ -46,6 +46,7 @@
             </div>
             <div style="display: flex; gap: 12px; align-items: center;">
                 <a href="{{ route('datasets.index') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">Datasets</a>
+                <a href="{{ route('cost') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">Cost</a>
                 <a href="{{ route('settings.models') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">Settings</a>
                 <form method="POST" action="{{ route('logout') }}" style="display: inline;">
                     @csrf

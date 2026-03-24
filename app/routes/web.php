@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CostController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KnowledgeDatasetController;
 use App\Http\Controllers\KnowledgeUnitController;
@@ -39,6 +40,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/datasets/{dataset}/export', [KnowledgeDatasetController::class, 'export'])->name('datasets.export');
     Route::get('/datasets/{dataset}/chat', [KnowledgeDatasetController::class, 'chat'])->name('datasets.chat');
     Route::get('/datasets/{dataset}/evaluation', [KnowledgeDatasetController::class, 'evaluation'])->name('datasets.evaluation');
+
+    // Cost dashboard
+    Route::get('/cost', [CostController::class, 'index'])->name('cost');
 
     // Settings: LLM model management
     Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');
