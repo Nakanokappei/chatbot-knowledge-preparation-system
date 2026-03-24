@@ -45,8 +45,8 @@
 
 @section('body')
     <div class="page-content">
-        <a href="{{ route('workspace.index') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">← Workspace</a>
-        <h1 style="margin-top: 12px; font-size: 22px; font-weight: 600;">Configure Dataset: {{ $dataset->name }}</h1>
+        <a href="{{ route('workspace.index') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">&larr; {{ __('ui.nav_workspace') }}</a>
+        <h1 style="margin-top: 12px; font-size: 22px; font-weight: 600;">{{ __('ui.configure_dataset') }}: {{ $dataset->name }}</h1>
         <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ $dataset->original_filename }} — {{ $totalLines }} data rows — Encoding: {{ $detectedEncoding }}</p>
 
         @if(session('error'))
@@ -58,21 +58,21 @@
 
             <!-- Basic Settings -->
             <div class="card">
-                <h2>Basic Settings</h2>
+                <h2>{{ __('ui.basic_settings') }}</h2>
                 <div class="row">
                     <div class="col">
-                        <label>Dataset name</label>
+                        <label>{{ __('ui.dataset_name') }}</label>
                         <input type="text" name="dataset_name" value="{{ $dataset->name }}">
                     </div>
                     <div class="col">
-                        <label>First row is</label>
+                        <label>{{ __('ui.first_row_is') }}</label>
                         <select id="has-header" name="has_header" onchange="refreshPreview()">
-                            <option value="1" selected>Header (column names)</option>
-                            <option value="0">Data (no header)</option>
+                            <option value="1" selected>{{ __('ui.header_option') }}</option>
+                            <option value="0">{{ __('ui.data_option') }}</option>
                         </select>
                     </div>
                     <div class="col">
-                        <label>Character encoding</label>
+                        <label>{{ __('ui.encoding') }}</label>
                         <select id="encoding" name="encoding">
                             <option value="UTF-8" {{ $detectedEncoding === 'UTF-8' ? 'selected' : '' }}>UTF-8</option>
                             <option value="Shift_JIS" {{ $detectedEncoding === 'Shift_JIS' ? 'selected' : '' }}>Shift_JIS</option>
@@ -85,13 +85,13 @@
 
             <!-- Column Mapper -->
             <div class="card">
-                <h2>Select Columns for Embedding</h2>
+                <h2>{{ __('ui.select_columns') }}</h2>
                 <p style="font-size: 12px; color: #5f6368; margin-bottom: 12px;">
                     Click <strong>+</strong> to add columns. Drag to reorder. Edit the label shown before each value.
                 </p>
                 <div class="mapper">
                     <div class="mapper-panel" id="available-panel">
-                        <h3>Available Columns</h3>
+                        <h3>{{ __('ui.available_columns') }}</h3>
                         <div id="available-list">
                             @foreach($columns as $i => $col)
                             <div class="col-item" data-index="{{ $i }}">
@@ -106,16 +106,16 @@
                         </div>
                     </div>
                     <div class="mapper-panel selected" id="selected-panel">
-                        <h3>Embedding Columns (in order)</h3>
+                        <h3>{{ __('ui.embedding_columns') }}</h3>
                         <div id="selected-list"></div>
-                        <div class="drop-zone" id="drop-zone">Drop columns here or click + on the left</div>
+                        <div class="drop-zone" id="drop-zone">{{ __('ui.drop_here') }}</div>
                     </div>
                 </div>
             </div>
 
             <!-- Preview -->
             <div class="card">
-                <h2>Embedding Text Preview</h2>
+                <h2>{{ __('ui.embedding_preview') }}</h2>
                 <div class="preview-box" id="preview-box">
                     <span style="color: #5f6368;">Select columns above to see preview...</span>
                 </div>
@@ -123,10 +123,20 @@
 
             <!-- Pipeline Settings -->
             <div class="card">
-                <h2>Pipeline Settings</h2>
+                <h2>{{ __('ui.pipeline_settings') }}</h2>
                 <div class="pipeline-options">
                     <div>
-                        <label>LLM Model</label>
+                        <label>{{ __('ui.embedding_model') ?? 'Embedding Model' }}</label>
+                        <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                            @foreach($embeddingModels as $em)
+                                <option value="{{ $em->model_id }}" @if($em->is_default) selected @endif>
+                                    {{ $em->display_name }} ({{ $em->dimension }}d)
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label>{{ __('ui.llm_model') }}</label>
                         <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                             @foreach($llmModels as $model)
                                 <option value="{{ $model->model_id }}" @if($model->is_default) selected @endif>{{ $model->display_name }}</option>
@@ -134,12 +144,12 @@
                         </select>
                     </div>
                     <div>
-                        <label>Clustering Method</label>
+                        <label>{{ __('ui.clustering_method') }}</label>
                         <select name="clustering_method" id="clustering-method" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            <option value="hdbscan" selected>HDBSCAN</option>
-                            <option value="kmeans">K-Means</option>
-                            <option value="agglomerative">Agglomerative</option>
-                            <option value="leiden">Leiden</option>
+                            <option value="hdbscan" selected>HDBSCAN (density-based, auto)</option>
+                            <option value="kmeans">K-Means++ (spherical)</option>
+                            <option value="agglomerative">Agglomerative (hierarchical)</option>
+                            <option value="leiden">HNSW + Leiden (graph community)</option>
                         </select>
                     </div>
                 </div>
@@ -175,14 +185,18 @@
                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1d1d1f; cursor: pointer;">
                         <input type="checkbox" name="remove_language_bias" value="1" checked
                             style="width: 16px; height: 16px; accent-color: #0071e3;">
-                        Remove language bias (recommended for multilingual data)
+                        {{ __('ui.remove_language_bias') }}
                     </label>
                 </div>
-                <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
+                <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                     <button type="submit" class="btn btn-success" id="start-btn" disabled style="padding: 10px 24px; font-size: 14px;">
-                        🚀 Start Pipeline
+                        {{ __('ui.start_pipeline') }}
                     </button>
-                    <span id="col-count-msg" style="font-size: 13px; color: #5f6368;">Select at least one column</span>
+                    <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
+                        style="padding: 10px 24px; font-size: 14px; background: #ff9500; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+                        🧪 {{ __('ui.test_pipeline') ?? 'Test (max 500 rows)' }}
+                    </button>
+                    <span id="col-count-msg" style="font-size: 13px; color: #5f6368;">{{ __('ui.select_one_column') }}</span>
                 </div>
             </div>
 
@@ -258,6 +272,8 @@
 
             dropZone.style.display = selectedColumns.length === 0 ? 'block' : 'none';
             startBtn.disabled = selectedColumns.length === 0;
+            const testBtn = document.getElementById('test-btn');
+            if (testBtn) testBtn.disabled = selectedColumns.length === 0;
             colCountMsg.textContent = selectedColumns.length === 0
                 ? 'Select at least one column'
                 : `${selectedColumns.length} column(s) selected`;

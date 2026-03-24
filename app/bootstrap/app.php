@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Set locale from session before anything else
+        $middleware->appendToGroup('web', \App\Http\Middleware\SetLocale::class);
+
         // Set PostgreSQL RLS tenant scope after authentication
         $middleware->appendToGroup('web', \App\Http\Middleware\SetTenantScope::class);
 

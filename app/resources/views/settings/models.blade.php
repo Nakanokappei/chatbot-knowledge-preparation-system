@@ -15,8 +15,8 @@
 @section('body')
     <div class="page-content">
         <div class="page-container">
-            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">LLM Models</h1>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">Manage available models for cluster analysis.</p>
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.llm_models') }}</h1>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.llm_models_desc') }}</p>
 
             @if(session('success'))
                 <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✓ {{ session('success') }}</div>
@@ -26,16 +26,16 @@
             @endif
 
             <div class="card">
-                <h2>Add Model from AWS Bedrock</h2>
+                <h2>{{ __('ui.add_model') }}</h2>
                 <form method="POST" action="{{ route('settings.models.store') }}">
                     @csrf
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
-                            <label for="model_id">Select Model</label>
+                            <label for="model_id">{{ __('ui.select_model') }}</label>
                             <select id="model_id" name="model_id" required
                                 style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
                                 onchange="updateDisplayName(this)">
-                                <option value="">-- Choose a model --</option>
+                                <option value="">{{ __('ui.choose_model') }}</option>
                                 @php $prevProvider = ''; @endphp
                                 @foreach($bedrockModels as $bm)
                                     @if($bm['provider'] !== $prevProvider)
@@ -55,10 +55,10 @@
                             </select>
                         </div>
                         <div class="form-group" style="flex: 1;">
-                            <label for="display_name">Display Name (auto-filled)</label>
+                            <label for="display_name">{{ __('ui.display_name_auto') }}</label>
                             <input type="text" id="display_name" name="display_name" placeholder="Auto-generated from selection">
                         </div>
-                        <div><button type="submit" class="btn btn-primary">Add</button></div>
+                        <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
                     </div>
                     @if(empty($bedrockModels))
                         <p style="color: #ff9500; font-size: 12px; margin-top: 8px;">
@@ -69,13 +69,13 @@
             </div>
 
             <div class="card">
-                <h2>Registered Models</h2>
+                <h2>{{ __('ui.registered_models') }}</h2>
                 @if($models->isEmpty())
-                    <div class="empty">No models registered yet.</div>
+                    <div class="empty">{{ __('ui.no_models') }}</div>
                 @else
                     <table>
                         <thead>
-                            <tr><th>Display Name</th><th>Model ID</th><th>Input Cost</th><th>Output Cost</th><th>Status</th><th></th></tr>
+                            <tr><th>{{ __('ui.display_name') }}</th><th>{{ __('ui.model_id') }}</th><th>{{ __('ui.input_cost') }}</th><th>{{ __('ui.output_cost') }}</th><th>{{ __('ui.status') }}</th><th></th></tr>
                         </thead>
                         <tbody>
                             @foreach($models as $model)
@@ -99,19 +99,19 @@
                                 </td>
                                 <td>
                                     @if($model->is_default)
-                                        <span class="badge" style="background: #0071e3; color: #fff;">Default</span>
+                                        <span class="badge" style="background: #0071e3; color: #fff;">{{ __('ui.default') }}</span>
                                     @else
                                         <span class="badge {{ $model->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                            {{ $model->is_active ? 'Active' : 'Inactive' }}
+                                            {{ $model->is_active ? __('ui.active') : __('ui.inactive') }}
                                         </span>
                                     @endif
                                 </td>
                                 <td>
                                     <div class="actions">
                                         @if(!$model->is_default)
-                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">Set Default</button></form>
-                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? 'Deactivate' : 'Activate' }}</button></form>
-                                            <form method="POST" action="{{ route('settings.models.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">Delete</button></form>
+                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">{{ __('ui.set_default') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.models.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
                                     </div>
                                 </td>
@@ -124,20 +124,20 @@
 
             {{-- ── Embedding Models ────────────────────────────── --}}
             <hr style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
-            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Embedding Models</h1>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">Manage available embedding models for vector generation.</p>
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.embedding_models') }}</h1>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.embedding_models_desc') }}</p>
 
             <div class="card">
-                <h2>Add Embedding Model from AWS Bedrock</h2>
+                <h2>{{ __('ui.add_embedding_model') }}</h2>
                 <form method="POST" action="{{ route('settings.embedding.store') }}">
                     @csrf
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
-                            <label for="emb_model_id">Select Model</label>
+                            <label for="emb_model_id">{{ __('ui.select_model') }}</label>
                             <select id="emb_model_id" name="model_id" required
                                 style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
                                 onchange="updateEmbDisplayName(this)">
-                                <option value="">-- Choose an embedding model --</option>
+                                <option value="">{{ __('ui.choose_embedding_model') }}</option>
                                 @php $prevEmbProvider = ''; @endphp
                                 @foreach($bedrockEmbeddingModels as $bm)
                                     @if($bm['provider'] !== $prevEmbProvider)
@@ -157,27 +157,27 @@
                             </select>
                         </div>
                         <div class="form-group" style="flex: 1;">
-                            <label for="emb_display_name">Display Name</label>
+                            <label for="emb_display_name">{{ __('ui.display_name') }}</label>
                             <input type="text" id="emb_display_name" name="display_name" placeholder="Auto-generated">
                         </div>
                         <div class="form-group" style="width: 90px; flex: none;">
-                            <label for="emb_dimension">Dimension</label>
+                            <label for="emb_dimension">{{ __('ui.dimension') }}</label>
                             <input type="number" id="emb_dimension" name="dimension" value="1024" min="1" max="8192"
                                 style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
                         </div>
-                        <div><button type="submit" class="btn btn-primary">Add</button></div>
+                        <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
                     </div>
                 </form>
             </div>
 
             <div class="card">
-                <h2>Registered Embedding Models</h2>
+                <h2>{{ __('ui.registered_models') }}</h2>
                 @if($embeddingModels->isEmpty())
-                    <div class="empty">No embedding models registered yet.</div>
+                    <div class="empty">{{ __('ui.no_embedding_models') }}</div>
                 @else
                     <table>
                         <thead>
-                            <tr><th>Display Name</th><th>Model ID</th><th>Dimension</th><th>Cost</th><th>Status</th><th></th></tr>
+                            <tr><th>{{ __('ui.display_name') }}</th><th>{{ __('ui.model_id') }}</th><th>{{ __('ui.dimension') }}</th><th>{{ __('ui.cost') }}</th><th>{{ __('ui.status') }}</th><th></th></tr>
                         </thead>
                         <tbody>
                             @foreach($embeddingModels as $em)
@@ -195,19 +195,19 @@
                                 </td>
                                 <td>
                                     @if($em->is_default)
-                                        <span class="badge" style="background: #0071e3; color: #fff;">Default</span>
+                                        <span class="badge" style="background: #0071e3; color: #fff;">{{ __('ui.default') }}</span>
                                     @else
                                         <span class="badge {{ $em->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                            {{ $em->is_active ? 'Active' : 'Inactive' }}
+                                            {{ $em->is_active ? __('ui.active') : __('ui.inactive') }}
                                         </span>
                                     @endif
                                 </td>
                                 <td>
                                     <div class="actions">
                                         @if(!$em->is_default)
-                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">Set Default</button></form>
-                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? 'Deactivate' : 'Activate' }}</button></form>
-                                            <form method="POST" action="{{ route('settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">Delete</button></form>
+                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">{{ __('ui.set_default') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
                                     </div>
                                 </td>

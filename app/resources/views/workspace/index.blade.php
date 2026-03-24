@@ -67,7 +67,7 @@
                         <path d="M8 1v9M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    Upload CSV
+                    {{ __('ui.upload_csv') }}
                 </a>
             </div>
             <div class="sidebar-tree">
@@ -85,7 +85,7 @@
                             <span class="tree-dataset-count">{{ $ds->row_count }}</span>
                         </div>
                         <div class="tree-children {{ !$hasActiveChild && !$loop->first ? 'collapsed' : '' }}"
-                             style="max-height: {{ ($hasActiveChild || $loop->first) ? ($ds->embeddings->count() * 40 + 40) . 'px' : '0' }};">
+                             style="max-height: {{ ($hasActiveChild || $loop->first) ? ($ds->embeddings->count() * 40 + 80) . 'px' : '0' }};">
                             @forelse($ds->embeddings as $emb)
                                 <a href="{{ route('workspace.embedding', ['embeddingId' => $emb->id]) }}"
                                    class="tree-emb {{ $current && $current->id === $emb->id ? 'active' : '' }}">
@@ -100,31 +100,32 @@
                                     <span class="tree-emb-count">{{ $emb->row_count }}</span>
                                 </a>
                             @empty
-                                <div style="padding: 4px 8px; font-size: 11px; color: #aaa;">No embeddings</div>
+                                <div style="padding: 4px 32px; font-size: 11px; color: #aaa;">{{ __('ui.no_embeddings') }}</div>
+                                <form method="POST" action="{{ route('dataset.destroy', $ds) }}" style="padding: 2px 32px;"
+                                    onsubmit="return confirm('{{ __('ui.confirm_delete_dataset') }}')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" style="background: none; border: none; color: #ff3b30; font-size: 11px; cursor: pointer; padding: 2px 0;">
+                                        {{ __('ui.delete_dataset') }}
+                                    </button>
+                                </form>
                             @endforelse
-                            <a href="{{ route('dataset.configure', $ds->id) }}" class="tree-create-link"
-                               style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 11px; color: #0071e3; text-decoration: none; border-radius: 4px; margin-top: 2px;"
-                               onmouseover="this.style.background='#e5e5e7'" onmouseout="this.style.background='transparent'">
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><line x1="6" y1="2" x2="6" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-                                Create embedding
-                            </a>
                         </div>
                     </div>
                 @empty
                     <div style="padding: 24px; text-align: center; color: #5f6368; font-size: 12px;">
-                        No datasets yet.
+                        {{ __('ui.no_datasets') }}
                     </div>
                 @endforelse
 
                 <!-- Pipeline section -->
                 <div style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
-                    <div style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">Pipeline</div>
+                    <div style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('ui.pipeline') }}</div>
 
                     <a href="?pipeline=jobs&pf=all"
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'all') ? 'active' : '' }}"
                        style="padding-left: 16px; margin-right: 8px;">
                         <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/><line x1="4" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="7.5" x2="10" y2="7.5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="10" x2="7.5" y2="10" stroke="currentColor" stroke-width="1"/></svg>
-                        <span class="tree-emb-label">All Jobs</span>
+                        <span class="tree-emb-label">{{ __('ui.all_jobs') }}</span>
                         <span class="tree-emb-count">{{ $jobStats['total'] }}</span>
                     </a>
 
@@ -132,7 +133,7 @@
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'completed') ? 'active' : '' }}"
                        style="padding-left: 16px; margin-right: 8px;">
                         <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="tree-emb-label">Completed</span>
+                        <span class="tree-emb-label">{{ __('ui.completed') }}</span>
                         <span class="tree-emb-count">{{ $jobStats['completed'] }}</span>
                     </a>
 
@@ -140,7 +141,7 @@
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'processing') ? 'active' : '' }}"
                        style="padding-left: 16px; margin-right: 8px;">
                         <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7 4v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="tree-emb-label">Processing</span>
+                        <span class="tree-emb-label">{{ __('ui.processing') }}</span>
                         <span class="tree-emb-count">{{ $jobStats['processing'] }}</span>
                     </a>
 
@@ -148,7 +149,7 @@
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'failed') ? 'active' : '' }}"
                        style="padding-left: 16px; margin-right: 8px;">
                         <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><line x1="5" y1="5" x2="9" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="5" x2="5" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-                        <span class="tree-emb-label">Failed</span>
+                        <span class="tree-emb-label">{{ __('ui.failed') }}</span>
                         <span class="tree-emb-count">{{ $jobStats['failed'] }}</span>
                     </a>
 
@@ -168,7 +169,7 @@
                     <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
                         <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
                         <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px;">No {{ $pipelineFilter !== 'all' ? $pipelineFilter : '' }} jobs</div>
-                        <div style="font-size: 13px;">Run a pipeline to get started.</div>
+                        <div style="font-size: 13px;">{{ __('ui.no_jobs_hint') }}</div>
                     </div>
                 @else
                     <table class="ku-table" id="job-list">
@@ -193,7 +194,7 @@
                                         @endif
                                     </div>
                                     <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                        @if($nNoise !== null) {{ $nNoise }} noise points
+                                        @if($nNoise !== null) {{ $nNoise }} {{ __('ui.noise_points') }}
                                         @elseif($job->error_detail) {{ Str::limit($job->error_detail, 80) }}
                                         @endif
                                     </div>
@@ -227,7 +228,7 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <h2 id="emb-title" style="font-size: 18px; font-weight: 600; cursor: pointer;"
                                 onclick="startRename()" title="Click to rename">{{ $current->name }}</h2>
-                            <button onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #5f6368; font-size: 13px;" title="Rename">✏️</button>
+                            <button onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #5f6368; font-size: 13px;" title="{{ __('ui.rename') }}">✏️</button>
                         </div>
                         <!-- Rename form (hidden) -->
                         <form id="rename-form" method="POST" action="{{ route('workspace.rename', $current->id) }}"
@@ -236,8 +237,8 @@
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <input type="text" name="name" value="{{ $current->name }}" id="rename-input"
                                        style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 14px; width: 300px;">
-                                <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                                <button type="button" class="btn btn-sm btn-outline" onclick="cancelRename()">Cancel</button>
+                                <button type="submit" class="btn btn-sm btn-primary">{{ __('ui.save') }}</button>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="cancelRename()">{{ __('ui.cancel') }}</button>
                             </div>
                         </form>
 
@@ -255,7 +256,7 @@
                             @if($cl)
                                 <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;">
                                     <div style="font-size: 20px; font-weight: 700;">{{ $cl['n_clusters'] ?? '?' }}</div>
-                                    <div style="font-size: 11px; color: #5f6368;">Clusters</div>
+                                    <div style="font-size: 11px; color: #5f6368;">{{ __('ui.clusters') }}</div>
                                 </div>
                                 @if(isset($cl['silhouette_score']))
                                 @php
@@ -263,22 +264,22 @@
                                     // than numeric data due to high dimensionality and soft cluster
                                     // boundaries. Thresholds are calibrated for text clustering.
                                     $sil = $cl['silhouette_score'];
-                                    if ($sil >= 0.5)       { $silBg = '#d4edda'; $silColor = '#155724'; $silLabel = 'Excellent'; }
-                                    elseif ($sil >= 0.3)   { $silBg = '#e8f5e9'; $silColor = '#2e7d32'; $silLabel = 'Good'; }
-                                    elseif ($sil >= 0.1)   { $silBg = '#e3f2fd'; $silColor = '#1565c0'; $silLabel = 'Typical'; }
-                                    elseif ($sil >= 0.0)   { $silBg = '#F6F6F6'; $silColor = '#555';    $silLabel = 'Typical for text'; }
-                                    else                   { $silBg = '#f8d7da'; $silColor = '#721c24'; $silLabel = 'Poor'; }
+                                    if ($sil >= 0.5)       { $silBg = '#d4edda'; $silColor = '#155724'; $silLabel = __('ui.silhouette_excellent'); }
+                                    elseif ($sil >= 0.3)   { $silBg = '#e8f5e9'; $silColor = '#2e7d32'; $silLabel = __('ui.silhouette_good'); }
+                                    elseif ($sil >= 0.1)   { $silBg = '#e3f2fd'; $silColor = '#1565c0'; $silLabel = __('ui.silhouette_typical_text'); }
+                                    elseif ($sil >= 0.0)   { $silBg = '#F6F6F6'; $silColor = '#555';    $silLabel = __('ui.silhouette_typical'); }
+                                    else                   { $silBg = '#f8d7da'; $silColor = '#721c24'; $silLabel = __('ui.silhouette_poor'); }
                                 @endphp
                                 <div style="background: {{ $silBg }}; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;"
                                      title="Text embeddings typically score 0.0–0.3 due to high dimensionality. Scores above 0.1 indicate meaningful cluster separation.">
                                     <div style="font-size: 20px; font-weight: 700; color: {{ $silColor }};">{{ number_format($sil, 3) }}</div>
-                                    <div style="font-size: 11px; color: {{ $silColor }};">Silhouette · {{ $silLabel }}</div>
+                                    <div style="font-size: 11px; color: {{ $silColor }};">{{ __('ui.silhouette') }} · {{ $silLabel }}</div>
                                 </div>
                                 @endif
                                 @if(isset($cl['n_noise']))
                                 <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;">
                                     <div style="font-size: 20px; font-weight: 700;">{{ $cl['n_noise'] }}</div>
-                                    <div style="font-size: 11px; color: #5f6368;">Noise</div>
+                                    <div style="font-size: 11px; color: #5f6368;">{{ __('ui.noise') }}</div>
                                 </div>
                                 @endif
                             @endif
@@ -315,8 +316,16 @@
                             <table style="border-collapse: collapse; width: auto;">
                                 @if(isset($cl['clustering_method']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none; vertical-align: top;">Method</td>
-                                    <td style="padding: 3px 0; font-weight: 500; border: none;">{{ strtoupper($cl['clustering_method']) }}
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none; vertical-align: top;">{{ __('ui.method') }}</td>
+                                    @php
+                                        $methodNames = [
+                                            'hdbscan' => 'HDBSCAN (density-based, auto)',
+                                            'kmeans' => 'K-Means++ (spherical)',
+                                            'agglomerative' => 'Agglomerative (hierarchical)',
+                                            'leiden' => 'HNSW + Leiden (graph community)',
+                                        ];
+                                    @endphp
+                                    <td style="padding: 3px 0; font-weight: 500; border: none;">{{ $methodNames[$cl['clustering_method']] ?? strtoupper($cl['clustering_method']) }}
                                         @if(isset($cl['clustering_params']))
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px 16px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e0e0e2;">
                                             @foreach($cl['clustering_params'] as $pKey => $pVal)
@@ -331,39 +340,39 @@
                                 @endif
                                 @if(isset($cl['remove_language_bias']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">Lang Debias</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.lang_debias') }}</td>
                                     <td style="padding: 3px 0; border: none;">
                                         @if($cl['remove_language_bias'])
-                                            <span style="color: #30d158;">Enabled</span>
+                                            <span style="color: #30d158;">{{ __('ui.enabled') }}</span>
                                             @if(isset($cl['language_stats']) && is_array($cl['language_stats']) && count($cl['language_stats']) > 1)
                                                 <span style="font-size: 11px; color: #5f6368; margin-left: 6px;">
                                                     ({{ collect($cl['language_stats'])->map(fn($cnt, $lang) => strtoupper($lang) . ": {$cnt}")->implode(', ') }})
                                                 </span>
                                             @endif
                                         @else
-                                            <span style="color: #5f6368;">Disabled</span>
+                                            <span style="color: #5f6368;">{{ __('ui.disabled') }}</span>
                                         @endif
                                     </td>
                                 </tr>
                                 @endif
                                 @if($ca && isset($ca['model']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">LLM</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.llm') }}</td>
                                     <td style="padding: 3px 0; font-weight: 500; border: none;">{{ Str::afterLast(Str::beforeLast($ca['model'], ':'), '.') }}</td>
                                 </tr>
                                 @endif
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">Created</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.created') }}</td>
                                     <td style="padding: 3px 0; border: none;">{{ $current->created_at->format('Y/m/d H:i') }}</td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">Rows</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.rows') }}</td>
                                     <td style="padding: 3px 0; border: none;">{{ $current->row_count }}</td>
                                 </tr>
                             </table>
                             <button onclick="openChatOverlay()" class="btn btn-primary"
                                 style="padding: 12px 28px; font-size: 15px; border-radius: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; align-self: flex-start;">
-                                💬 Chat with this data
+                                💬 {{ __('ui.chat_with_data') }}
                             </button>
                         </div>
                     </div>
@@ -371,13 +380,13 @@
                     <!-- Action buttons -->
                     <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
                         <a href="{{ route('workspace.export', $current->id) }}" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;">
-                            ⬇️ Export
+                            ⬇️ {{ __('ui.export') }}
                         </a>
                         <form method="POST" action="{{ route('workspace.destroy', $current->id) }}"
                               onsubmit="return confirm('Delete &quot;{{ $current->name }}&quot; and all its KUs? This cannot be undone.')">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline" style="color: #ff3b30; border-color: #ff3b30;">
-                                🗑 Delete
+                                🗑 {{ __('ui.delete') }}
                             </button>
                         </form>
                     </div>
@@ -390,8 +399,8 @@
                 @if($knowledgeUnits->isEmpty())
                     <div class="empty">
                         <div class="empty-icon">📊</div>
-                        <div class="empty-title">No clusters yet</div>
-                        <p>Run the pipeline to generate clusters from this embedding.</p>
+                        <div class="empty-title">{{ __('ui.no_clusters_yet') }}</div>
+                        <p>{{ __('ui.run_pipeline_to_generate') }}</p>
                     </div>
                 @else
                     <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" id="bulk-form">
@@ -413,22 +422,22 @@
                                             <button type="submit" name="new_status" value="draft"
                                                     style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
                                                     onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                ✏️ Draft
+                                                ✏️ {{ __('ui.set_draft') }}
                                             </button>
                                             <button type="submit" name="new_status" value="reviewed"
                                                     style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
                                                     onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                👁️ Reviewed
+                                                👁️ {{ __('ui.set_reviewed') }}
                                             </button>
                                             <button type="submit" name="new_status" value="approved"
                                                     style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
                                                     onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                ✅ Approved
+                                                ✅ {{ __('ui.set_approved') }}
                                             </button>
                                             <button type="submit" name="new_status" value="rejected"
                                                     style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
                                                     onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                ❌ Rejected
+                                                ❌ {{ __('ui.set_rejected') }}
                                             </button>
                                         </div>
                                     </th>
@@ -451,7 +460,7 @@
                                             @endif
                                         </td>
                                         <td style="text-align: right; vertical-align: top; padding-top: 10px; white-space: nowrap;">
-                                            <div style="font-size: 13px; color: #5f6368;">{{ $ku->row_count }} rows</div>
+                                            <div style="font-size: 13px; color: #5f6368;">{{ $ku->row_count }} {{ __('ui.rows') }}</div>
                                             <div style="height: 18px;"></div>
                                             <div title="{{ $ku->review_status }}" style="font-size: 14px; text-align: right;">
                                                 @switch($ku->review_status)
@@ -472,8 +481,8 @@
             @else
                 <div class="empty">
                     <div class="empty-icon">🗂</div>
-                    <div class="empty-title">Select an embedding</div>
-                    <p>Choose an embedding from the sidebar, or upload a CSV to create one.</p>
+                    <div class="empty-title">{{ __('ui.select_embedding') }}</div>
+                    <p>{{ __('ui.select_embedding_hint') }}</p>
                 </div>
             @endif
         </div>
@@ -487,7 +496,7 @@
         <!-- Modal header (draggable look) -->
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
             background: #1d1d1f; border-radius: 12px 12px 0 0; cursor: default;">
-            <span style="font-size: 14px; font-weight: 600; color: #fff;">Run Pipeline</span>
+            <span style="font-size: 14px; font-weight: 600; color: #fff;">{{ __('ui.run_pipeline') }}</span>
             <button onclick="closeDispatchModal()" style="background: none; border: none; cursor: pointer;
                 color: #fff; font-size: 18px; line-height: 1; padding: 0 4px;">✕</button>
         </div>
@@ -501,12 +510,12 @@
                     style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     @csrf
                     <input type="file" name="csv_file" accept=".csv,.txt" required style="font-size: 13px; flex: 1;">
-                    <button type="submit" class="btn btn-primary" style="font-size: 13px;">Upload & Configure</button>
+                    <button type="submit" class="btn btn-primary" style="font-size: 13px;">{{ __('ui.upload_and_configure') }}</button>
                 </form>
             </div>
 
             <p style="font-size: 12px; color: #5f6368; margin-top: 8px;">
-                After uploading, you'll configure columns, clustering method, and pipeline settings.
+                {{ __('ui.after_upload_hint') }}
             </p>
         </div>
     </div>
@@ -521,7 +530,7 @@
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px;
             background: #1d1d1f; border-radius: 12px 12px 0 0; flex-shrink: 0;">
             <div>
-                <div style="font-size: 14px; font-weight: 600; color: #fff;">Chat with {{ Str::limit($current->name, 30) }}</div>
+                <div style="font-size: 14px; font-weight: 600; color: #fff;">{{ __('ui.chat') }} — {{ Str::limit($current->name, 30) }}</div>
                 <div style="font-size: 11px; color: #aaa;">{{ $knowledgeUnits->where('review_status', 'approved')->count() }} approved clusters as knowledge source</div>
             </div>
             <div style="display: flex; gap: 8px;">
@@ -545,7 +554,7 @@
                     autocomplete="off">
                 <button type="submit" id="chat-send-btn"
                     style="background: #0071e3; color: #fff; border: none; border-radius: 20px; padding: 10px 18px; font-size: 14px; cursor: pointer; font-weight: 500;">
-                    Send
+                    {{ __('ui.send') }}
                 </button>
             </form>
         </div>

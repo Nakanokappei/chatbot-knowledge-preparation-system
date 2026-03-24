@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — Knowledge Preparation System</title>
+    <title>{{ __('ui.login') }} — {{ __('ui.app_name') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -22,7 +22,7 @@
 </head>
 <body>
     <div class="login-card">
-        <h1>Knowledge Preparation System</h1>
+        <h1>{{ __('ui.app_name') }}</h1>
         <p class="subtitle">Sign in to continue</p>
 
         @if($errors->any())
@@ -31,14 +31,14 @@
 
         <form method="POST" action="{{ route('login') }}">
             @csrf
-            <label for="email">Email</label>
+            <label for="email">{{ __('ui.email') }}</label>
             <input type="email" id="email" name="email" value="{{ old('email') }}" autofocus required>
 
-            <label for="password">Password</label>
+            <label for="password">{{ __('ui.password') }}</label>
             <input type="password" id="password" name="password" required>
 
             <label class="remember">
-                <input type="checkbox" name="remember"> Remember me
+                <input type="checkbox" name="remember"> {{ __('ui.remember_me') }}
             </label>
 
             <button type="submit" class="btn btn-primary">Sign In</button>

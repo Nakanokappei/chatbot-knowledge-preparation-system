@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Dataset;
 use App\Models\DatasetRow;
+use App\Models\EmbeddingModel;
 use App\Models\LlmModel;
 use Aws\Sqs\SqsClient;
 use Illuminate\Http\RedirectResponse;
@@ -172,7 +173,14 @@ class DatasetWizardController extends Controller
         }
         fclose($handle);
 
-        $llmModels = LlmModel::where('tenant_id', auth()->user()->tenant_id)
+        $tenantId = auth()->user()->tenant_id;
+
+        $llmModels = LlmModel::where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->get();
+
+        $embeddingModels = EmbeddingModel::where('tenant_id', $tenantId)
             ->where('is_active', true)
             ->orderByDesc('is_default')
             ->get();
@@ -184,6 +192,7 @@ class DatasetWizardController extends Controller
             'detectedEncoding' => $schema['detected_encoding'] ?? 'UTF-8',
             'totalLines' => $schema['total_lines'] ?? 0,
             'llmModels' => $llmModels,
+            'embeddingModels' => $embeddingModels,
         ]);
     }
 
@@ -471,5 +480,35 @@ class DatasetWizardController extends Controller
         if ($dataset->tenant_id !== auth()->user()->tenant_id) {
             abort(403);
         }
+    }
+
+    /**
+     * Delete a dataset that has no embeddings.
+     *
+     * Only allowed when the dataset has zero embeddings to prevent
+     * accidental deletion of data that is actively in use.
+     */
+    public function destroy(Dataset $dataset): RedirectResponse
+    {
+        $this->authorizeDataset($dataset);
+
+        // Safety check: only allow deletion if no embeddings reference this dataset
+        $embeddingCount = \App\Models\Embedding::where('dataset_id', $dataset->id)->count();
+        if ($embeddingCount > 0) {
+            return redirect()->route('workspace.index')
+                ->with('error', 'Cannot delete a dataset that has embeddings.');
+        }
+
+        $name = $dataset->name;
+
+        // Delete related pipeline jobs first (they reference dataset_id)
+        \App\Models\PipelineJob::where('dataset_id', $dataset->id)->delete();
+
+        // Delete rows (cascade should handle this, but be explicit)
+        DatasetRow::where('dataset_id', $dataset->id)->delete();
+        $dataset->delete();
+
+        return redirect()->route('workspace.index')
+            ->with('success', "Dataset \"{$name}\" deleted.");
     }
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Knowledge Preparation System')</title>
+    <title>@yield('title', __('ui.app_name'))</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -84,9 +84,9 @@
             </button>
             <h1>KPS</h1>
             <nav class="topbar-nav">
-                <a href="{{ route('workspace.index') }}" class="{{ request()->routeIs('workspace.*') ? 'active' : '' }}">Workspace</a>
+                <a href="{{ route('workspace.index') }}" class="{{ request()->routeIs('workspace.*') ? 'active' : '' }}">{{ __('ui.nav_workspace') }}</a>
                 <a href="{{ route('cost') }}" class="{{ request()->routeIs('cost') ? 'active' : '' }}">Cost</a>
-                <a href="{{ route('settings.models') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">Settings</a>
+                <a href="{{ route('settings.models') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
             </nav>
         </div>
         <div class="topbar-right">
@@ -100,10 +100,14 @@
                         <div class="name">{{ auth()->user()->name }}</div>
                         <div class="email">{{ auth()->user()->email }}</div>
                     </div>
-                    <a href="{{ route('profile.edit') }}">Profile</a>
+                    <a href="{{ route('profile.edit') }}">{{ __('ui.nav_profile') }}</a>
+                    <div style="display: flex; gap: 4px; padding: 6px 12px; border-top: 1px solid #e5e5e7; margin-top: 4px;">
+                        <a href="{{ route('locale.switch', 'en') }}" style="padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; {{ app()->getLocale() === 'en' ? 'background: #0071e3; color: #fff;' : 'color: #5f6368;' }}">EN</a>
+                        <a href="{{ route('locale.switch', 'ja') }}" style="padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; {{ app()->getLocale() === 'ja' ? 'background: #0071e3; color: #fff;' : 'color: #5f6368;' }}">JA</a>
+                    </div>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button type="submit" class="logout">Logout</button>
+                        <button type="submit" class="logout">{{ __('ui.logout') }}</button>
                     </form>
                 </div>
             </div>

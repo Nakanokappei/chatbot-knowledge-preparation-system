@@ -56,15 +56,15 @@
                     @csrf
                     @method('PUT')
                     <div class="field">
-                        <label>Topic</label>
+                        <label>{{ __('ui.topic') }}</label>
                         <input type="text" name="topic" value="{{ $ku->topic }}">
                     </div>
                     <div class="field">
-                        <label>Intent</label>
+                        <label>{{ __('ui.intent') }}</label>
                         <input type="text" name="intent" value="{{ $ku->intent }}">
                     </div>
                     <div class="field">
-                        <label>Summary</label>
+                        <label>{{ __('ui.summary') }}</label>
                         <textarea name="summary">{{ $ku->summary }}</textarea>
                     </div>
                     <div class="field">
@@ -89,7 +89,7 @@
 
             <!-- Keywords -->
             <div class="card">
-                <h2>Keywords</h2>
+                <h2>{{ __('ui.keywords') }}</h2>
                 <div class="keywords">
                     @foreach($ku->keywords_json ?? [] as $kw)
                         <span class="keyword">{{ $kw }}</span>
@@ -102,7 +102,7 @@
 
             @if($ku->representative_rows_json)
             <div class="card">
-                <h2>Representative Rows</h2>
+                <h2>{{ __('ui.representative_rows') }}</h2>
                 @foreach($ku->representative_rows_json as $i => $row)
                     <div style="padding: 8px 0; border-bottom: 1px solid #f0f0f2; font-size: 13px; line-height: 1.5;">
                         <span style="color: #5f6368; font-size: 11px;">#{{ $i + 1 }}</span>
