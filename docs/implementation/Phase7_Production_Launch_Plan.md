@@ -1,8 +1,21 @@
-# Phase 7 Production Launch Plan
+# Phase 7 Production Launch Plan (Revised)
 
 **Date**: 2026-03-24
-**Approval**: CTO_Phase6_Completion_Review_Phase7_Launch.md
+**Approval**: CTO_Phase6_Completion_Review_Phase7_Launch.md + CTO_Phase7_Plan_Review.md
 **Goal**: Deploy the system to production on AWS with full verification
+
+## CTO Review Corrections Applied
+
+| Item | Original | Corrected |
+|------|----------|-----------|
+| RDS instance | db.t3.medium | **db.r6g.large** (r-series for stability) |
+| PostgreSQL | 15 | **17** (match dev environment) |
+| Secrets | .env files | **ECS task def secrets injection** |
+| ECS topology | Unspecified | **app: 2+, worker: 1+, ALB on app only** |
+| HTTPS | Basic | **+ HSTS, ALB access logs, /health endpoint** |
+| Launch strategy | Single cutover | **Staged: staging → internal → limited → full** |
+| Production gates | Implicit | **8 explicit gates before production** |
+| Additional items | — | **Smoke test script, runbook, DB migration plan** |
 
 ---
 
@@ -45,9 +58,9 @@ aws ecs create-cluster --cluster-name ckps-production --region ap-northeast-1
 # Use Multi-AZ, automated backups, non-public, encrypted
 aws rds create-db-instance \
   --db-instance-identifier ckps-production \
-  --db-instance-class db.t3.medium \
+  --db-instance-class db.r6g.large \
   --engine postgres \
-  --engine-version 15 \
+  --engine-version 17 \
   --master-username ckps_admin \
   --allocated-storage 50 \
   --backup-retention-period 7 \
@@ -186,13 +199,56 @@ If production deploy fails:
 
 ---
 
-## 5. Post-Launch Monitoring (Day 7+)
+## 5. Production Readiness Gates (CTO Mandate)
 
-First 48 hours:
-- Watch CloudWatch dashboards continuously
-- Monitor error rates and latency
-- Verify cost tracking accuracy
-- Check DLQ for failed messages
+**All gates must pass before production deploy.**
+
+| Gate | Condition | Verified |
+|------|-----------|----------|
+| 1 | Staging deploy successful | [ ] |
+| 2 | Phase 6 infra-dependent tests pass | [ ] |
+| 3 | Load test SLO achieved | [ ] |
+| 4 | Restore drill successful | [ ] |
+| 5 | RLS enforced with non-owner DB user | [ ] |
+| 6 | CloudWatch alarms + dashboards visible | [ ] |
+| 7 | Budget enforcement verified | [ ] |
+| 8 | Rollback rehearsal completed | [ ] |
+
+---
+
+## 6. Launch Strategy (CTO: Staged Rollout)
+
+1. Staging deploy
+2. Infrastructure tests
+3. Production deploy
+4. **Internal-only verification** (team only)
+5. **Limited tenant rollout** (1 tenant, 1 dataset, retrieve + chat, 24h monitoring)
+6. Full rollout
+
+---
+
+## 7. Post-Launch Monitoring (First 48 Hours)
+
+| Metric | Threshold |
+|--------|-----------|
+| Retrieval p95 | < 800ms |
+| Retrieval p99 | < 2s |
+| Chat p95 | < 5s |
+| Chat p99 | < 12s |
+| Error rate | < 1% |
+| DLQ messages | 0 |
+| Token cost spike | No anomaly |
+| 429 rate limit | Within expectations |
+| Budget blocks | Per-tenant valid |
+
+---
+
+## 8. Additional Deliverables
+
+| Deliverable | File |
+|------------|------|
+| Smoke Test Script | `scripts/smoke_test.sh` |
+| Operations Runbook | `docs/deployment/Runbook.md` |
 
 ---
 
