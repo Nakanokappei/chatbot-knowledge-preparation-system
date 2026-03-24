@@ -16,38 +16,38 @@
         .sidebar.collapsed .tree-dataset-count { font-size: 9px; position: absolute; bottom: -2px; right: 2px; }
         .sidebar.collapsed .tree-icon { margin: 0 auto; }
         .sidebar.collapsed .tree-dataset-header { position: relative; flex-direction: column; gap: 0; align-items: center; }
-        .sidebar-tree { flex: 1; overflow-y: auto; padding: 4px 8px; }
+        .sidebar-tree { flex: 1; overflow-y: auto; padding: 4px 0 4px 0; }
 
         /* Tree: dataset node (parent) */
         .tree-dataset { margin-bottom: 2px; }
-        .tree-dataset-header { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 0 6px 6px 0; margin-left: -8px; padding-left: 16px; cursor: pointer; transition: background 0.15s; user-select: none; }
+        .tree-dataset-header { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; border-radius: 0 6px 6px 0; cursor: pointer; transition: background 0.15s; user-select: none; margin-right: 8px; }
         .tree-dataset-header:hover { background: #E9E9E9; }
-        .tree-toggle { font-size: 9px; color: #86868b; width: 12px; text-align: center; flex-shrink: 0; transition: transform 0.15s; }
+        .tree-toggle { font-size: 9px; color: #5f6368; width: 12px; text-align: center; flex-shrink: 0; transition: transform 0.15s; }
         .tree-toggle.open { transform: rotate(90deg); }
-        .tree-icon { flex-shrink: 0; color: #86868b; }
+        .tree-icon { flex-shrink: 0; color: #5f6368; }
         .tree-dataset-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .tree-dataset-count { font-size: 11px; color: #86868b; flex-shrink: 0; }
+        .tree-dataset-count { font-size: 11px; color: #5f6368; flex-shrink: 0; }
 
-        /* Tree: embedding node (child) */
-        .tree-children { padding-left: 12px; overflow: hidden; transition: max-height 0.2s ease; }
+        /* Tree: embedding node (child) — left edge flush with window */
+        .tree-children { padding-left: 0; margin-left: 0; overflow: hidden; transition: max-height 0.2s ease; }
         .tree-children.collapsed { max-height: 0 !important; }
-        .tree-emb { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 0 6px 6px 0; margin-left: -20px; padding-left: 28px; cursor: pointer; text-decoration: none; color: #1d1d1f; margin-bottom: 1px; transition: background 0.15s; }
+        .tree-emb { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 32px; border-radius: 0 6px 6px 0; cursor: pointer; text-decoration: none; color: #1d1d1f; margin-bottom: 1px; transition: background 0.15s; margin-right: 8px; }
         .tree-emb:hover { background: #E9E9E9; }
         .tree-emb:hover .tree-emb-icon { color: #1d1d1f; }
-        .tree-emb:hover .tree-emb-count { color: #86868b; }
+        .tree-emb:hover .tree-emb-count { color: #5f6368; }
         .tree-emb.active { background: #DBDBDB; }
-        .tree-emb.active .tree-emb-count { color: #86868b; }
-        .tree-emb-icon { flex-shrink: 0; color: #86868b; }
+        .tree-emb.active .tree-emb-count { color: #5f6368; }
+        .tree-emb-icon { flex-shrink: 0; color: #5f6368; }
         .tree-emb.active .tree-emb-icon { color: #1d1d1f; }
         .tree-emb-label { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .tree-emb-count { font-size: 11px; color: #86868b; flex-shrink: 0; margin-left: auto; }
+        .tree-emb-count { font-size: 11px; color: #5f6368; flex-shrink: 0; margin-left: auto; }
 
         .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; }
         .main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .main-header h2 { font-size: 20px; font-weight: 600; margin-bottom: 0; }
         .main-actions { display: flex; gap: 8px; }
         .ku-table { width: 100%; border-collapse: collapse; background: #FEFEFE; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .ku-table th { text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #86868b; background: #FEFEFE; border-bottom: 1px solid #e5e5e7; }
+        .ku-table th { text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #5f6368; background: #FEFEFE; border-bottom: 1px solid #e5e5e7; }
         .ku-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f2; font-size: 14px; }
         .ku-table tr:last-child td { border-bottom: none; }
         .ku-table tr:hover td { background: #F6F6F6; }
@@ -111,43 +111,43 @@
                         </div>
                     </div>
                 @empty
-                    <div style="padding: 24px; text-align: center; color: #86868b; font-size: 12px;">
+                    <div style="padding: 24px; text-align: center; color: #5f6368; font-size: 12px;">
                         No datasets yet.
                     </div>
                 @endforelse
 
                 <!-- Pipeline section -->
                 <div style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
-                    <div style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px;">Pipeline</div>
+                    <div style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">Pipeline</div>
 
                     <a href="?pipeline=jobs&pf=all"
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'all') ? 'active' : '' }}"
-                       style="margin-left: -8px; padding-left: 16px;">
-                        <span style="width: 16px; text-align: center; flex-shrink: 0;">📋</span>
+                       style="padding-left: 16px; margin-right: 8px;">
+                        <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/><line x1="4" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="7.5" x2="10" y2="7.5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="10" x2="7.5" y2="10" stroke="currentColor" stroke-width="1"/></svg>
                         <span class="tree-emb-label">All Jobs</span>
                         <span class="tree-emb-count">{{ $jobStats['total'] }}</span>
                     </a>
 
                     <a href="?pipeline=jobs&pf=completed"
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'completed') ? 'active' : '' }}"
-                       style="margin-left: -8px; padding-left: 16px;">
-                        <span style="width: 16px; text-align: center; flex-shrink: 0;">✅</span>
+                       style="padding-left: 16px; margin-right: 8px;">
+                        <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         <span class="tree-emb-label">Completed</span>
                         <span class="tree-emb-count">{{ $jobStats['completed'] }}</span>
                     </a>
 
                     <a href="?pipeline=jobs&pf=processing"
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'processing') ? 'active' : '' }}"
-                       style="margin-left: -8px; padding-left: 16px;">
-                        <span style="width: 16px; text-align: center; flex-shrink: 0;">⏳</span>
+                       style="padding-left: 16px; margin-right: 8px;">
+                        <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7 4v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         <span class="tree-emb-label">Processing</span>
                         <span class="tree-emb-count">{{ $jobStats['processing'] }}</span>
                     </a>
 
                     <a href="?pipeline=jobs&pf=failed"
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'failed') ? 'active' : '' }}"
-                       style="margin-left: -8px; padding-left: 16px;">
-                        <span style="width: 16px; text-align: center; flex-shrink: 0;">❌</span>
+                       style="padding-left: 16px; margin-right: 8px;">
+                        <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><line x1="5" y1="5" x2="9" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="5" x2="5" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
                         <span class="tree-emb-label">Failed</span>
                         <span class="tree-emb-count">{{ $jobStats['failed'] }}</span>
                     </a>
@@ -165,7 +165,7 @@
                 @endif
 
                 @if($jobs->isEmpty())
-                    <div style="text-align: center; padding: 60px 20px; color: #86868b;">
+                    <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
                         <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
                         <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px;">No {{ $pipelineFilter !== 'all' ? $pipelineFilter : '' }} jobs</div>
                         <div style="font-size: 13px;">Run a pipeline to get started.</div>
@@ -183,7 +183,7 @@
                             <tr>
                                 <td style="max-width: 0; width: 100%;">
                                     <div style="font-size: 14px; font-weight: 500;">{{ $job->dataset->name ?? 'Unknown Dataset' }}</div>
-                                    <div style="font-size: 13px; color: #86868b; margin-top: 2px;">
+                                    <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($nClusters !== null)
                                             {{ $nClusters }} clusters
                                             @if($silhouette !== null) · silhouette {{ number_format($silhouette, 3) }} @endif
@@ -199,8 +199,8 @@
                                     </div>
                                 </td>
                                 <td style="white-space: nowrap; text-align: right; vertical-align: top;">
-                                    <div style="font-size: 12px; color: #86868b;">{{ $job->created_at->format('m/d H:i') }}</div>
-                                    <div style="font-size: 13px; color: #86868b; margin-top: 2px;">
+                                    <div style="font-size: 12px; color: #5f6368;">{{ $job->created_at->format('m/d H:i') }}</div>
+                                    <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($job->progress > 0 && $job->progress < 100)
                                             <div style="width: 60px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle;">
                                                 <div style="height: 100%; background: #ff9500; width: {{ $job->progress }}%; border-radius: 2px;"></div>
@@ -227,7 +227,7 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <h2 id="emb-title" style="font-size: 18px; font-weight: 600; cursor: pointer;"
                                 onclick="startRename()" title="Click to rename">{{ $current->name }}</h2>
-                            <button onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #86868b; font-size: 13px;" title="Rename">✏️</button>
+                            <button onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #5f6368; font-size: 13px;" title="Rename">✏️</button>
                         </div>
                         <!-- Rename form (hidden) -->
                         <form id="rename-form" method="POST" action="{{ route('workspace.rename', $current->id) }}"
@@ -255,7 +255,7 @@
                             @if($cl)
                                 <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;">
                                     <div style="font-size: 20px; font-weight: 700;">{{ $cl['n_clusters'] ?? '?' }}</div>
-                                    <div style="font-size: 11px; color: #86868b;">Clusters</div>
+                                    <div style="font-size: 11px; color: #5f6368;">Clusters</div>
                                 </div>
                                 @if(isset($cl['silhouette_score']))
                                 @php
@@ -278,15 +278,15 @@
                                 @if(isset($cl['n_noise']))
                                 <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;">
                                     <div style="font-size: 20px; font-weight: 700;">{{ $cl['n_noise'] }}</div>
-                                    <div style="font-size: 11px; color: #86868b;">Noise</div>
+                                    <div style="font-size: 11px; color: #5f6368;">Noise</div>
                                 </div>
                                 @endif
                             @endif
 
                             @if($statusCounts->get('draft', 0) > 0)
                             <div style="background: #f0f0f2; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
-                                <div style="font-size: 20px; font-weight: 700; color: #86868b;">{{ $statusCounts['draft'] }}</div>
-                                <div style="font-size: 11px; color: #86868b;">Draft</div>
+                                <div style="font-size: 20px; font-weight: 700; color: #5f6368;">{{ $statusCounts['draft'] }}</div>
+                                <div style="font-size: 11px; color: #5f6368;">Draft</div>
                             </div>
                             @endif
                             @if($statusCounts->get('reviewed', 0) > 0)
@@ -315,12 +315,12 @@
                             <table style="border-collapse: collapse; width: auto;">
                                 @if(isset($cl['clustering_method']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #86868b; width: 100px; border: none; vertical-align: top;">Method</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none; vertical-align: top;">Method</td>
                                     <td style="padding: 3px 0; font-weight: 500; border: none;">{{ strtoupper($cl['clustering_method']) }}
                                         @if(isset($cl['clustering_params']))
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px 16px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e0e0e2;">
                                             @foreach($cl['clustering_params'] as $pKey => $pVal)
-                                            <div style="font-size: 11px; font-weight: 400; color: #86868b;">
+                                            <div style="font-size: 11px; font-weight: 400; color: #5f6368;">
                                                 {{ $pKey }}: <span style="color: #555;">{{ $pVal }}</span>
                                             </div>
                                             @endforeach
@@ -329,18 +329,35 @@
                                     </td>
                                 </tr>
                                 @endif
+                                @if(isset($cl['remove_language_bias']))
+                                <tr>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">Lang Debias</td>
+                                    <td style="padding: 3px 0; border: none;">
+                                        @if($cl['remove_language_bias'])
+                                            <span style="color: #30d158;">Enabled</span>
+                                            @if(isset($cl['language_stats']) && is_array($cl['language_stats']) && count($cl['language_stats']) > 1)
+                                                <span style="font-size: 11px; color: #5f6368; margin-left: 6px;">
+                                                    ({{ collect($cl['language_stats'])->map(fn($cnt, $lang) => strtoupper($lang) . ": {$cnt}")->implode(', ') }})
+                                                </span>
+                                            @endif
+                                        @else
+                                            <span style="color: #5f6368;">Disabled</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endif
                                 @if($ca && isset($ca['model']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #86868b; width: 100px; border: none;">LLM</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">LLM</td>
                                     <td style="padding: 3px 0; font-weight: 500; border: none;">{{ Str::afterLast(Str::beforeLast($ca['model'], ':'), '.') }}</td>
                                 </tr>
                                 @endif
                                 <tr>
-                                    <td style="padding: 3px 0; color: #86868b; width: 100px; border: none;">Created</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">Created</td>
                                     <td style="padding: 3px 0; border: none;">{{ $current->created_at->format('Y/m/d H:i') }}</td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 3px 0; color: #86868b; width: 100px; border: none;">Rows</td>
+                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">Rows</td>
                                     <td style="padding: 3px 0; border: none;">{{ $current->row_count }}</td>
                                 </tr>
                             </table>
@@ -387,7 +404,7 @@
                                             <input type="checkbox" id="select-all" style="cursor: pointer;"
                                                    onchange="toggleAllCheckboxes(this)">
                                             <button type="button" id="bulk-dropdown-btn"
-                                                    style="background: none; border: none; cursor: pointer; font-size: 10px; color: #86868b; padding: 0 2px;"
+                                                    style="background: none; border: none; cursor: pointer; font-size: 10px; color: #5f6368; padding: 0 2px;"
                                                     onclick="toggleBulkDropdown(event)">▼</button>
                                         </div>
                                         <div id="bulk-dropdown" style="display: none; position: absolute; top: 100%; left: 0; z-index: 100;
@@ -428,13 +445,13 @@
                                         </td>
                                         <td style="max-width: 0; width: 100%;">
                                             <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $ku->intent }}</div>
-                                            <div style="font-size: 13px; color: #86868b; margin-top: 2px;">{{ $ku->topic }}</div>
+                                            <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">{{ $ku->topic }}</div>
                                             @if($ku->summary)
                                                 <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $ku->summary }}</div>
                                             @endif
                                         </td>
                                         <td style="text-align: right; vertical-align: top; padding-top: 10px; white-space: nowrap;">
-                                            <div style="font-size: 13px; color: #86868b;">{{ $ku->row_count }} rows</div>
+                                            <div style="font-size: 13px; color: #5f6368;">{{ $ku->row_count }} rows</div>
                                             <div style="height: 18px;"></div>
                                             <div title="{{ $ku->review_status }}" style="font-size: 14px; text-align: right;">
                                                 @switch($ku->review_status)
@@ -479,7 +496,7 @@
         <div style="padding: 20px; overflow-y: auto; flex: 1;">
             <!-- Upload Dataset -->
             <div style="margin-bottom: 20px;">
-                <div style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 8px;">UPLOAD DATASET</div>
+                <div style="font-size: 13px; font-weight: 600; color: #5f6368; margin-bottom: 8px;">UPLOAD DATASET</div>
                 <form method="POST" action="{{ route('dataset.upload') }}" enctype="multipart/form-data"
                     style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     @csrf
@@ -488,75 +505,9 @@
                 </form>
             </div>
 
-            <div style="border-top: 1px solid #e5e5e7; margin-bottom: 20px;"></div>
-
-            <!-- Dispatch Pipeline -->
-            <div>
-                <div style="font-size: 13px; font-weight: 600; color: #86868b; margin-bottom: 8px;">DISPATCH PIPELINE</div>
-                <form method="POST" action="{{ route('dashboard.dispatch-pipeline') }}">
-                    @csrf
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <div>
-                            <label style="font-size: 12px; color: #86868b; display: block; margin-bottom: 4px;">Dataset</label>
-                            <select name="dataset_id" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                                @foreach($datasets as $dataset)
-                                    <option value="{{ $dataset->id }}">{{ $dataset->name }} ({{ $dataset->row_count }} rows)</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 12px; color: #86868b; display: block; margin-bottom: 4px;">LLM Model</label>
-                            <select name="llm_model_id" required style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                                <option value="">-- Select LLM --</option>
-                                @foreach($llmModels as $model)
-                                    <option value="{{ $model->model_id }}">{{ $model->display_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 12px; color: #86868b; display: block; margin-bottom: 4px;">Clustering Method</label>
-                            <select name="clustering_method" id="modal-clustering-method" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                                <option value="hdbscan" selected>HDBSCAN (auto clusters)</option>
-                                <option value="kmeans">K-Means (fixed clusters)</option>
-                                <option value="agglomerative">Agglomerative (hierarchical)</option>
-                                <option value="leiden">HNSW + Leiden (graph)</option>
-                            </select>
-                        </div>
-                        <div id="modal-params" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                            <div id="modal-params-hdbscan">
-                                <label style="font-size: 12px; color: #86868b;">min_cluster_size</label>
-                                <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">min_samples</label>
-                                <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width: 60px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                            </div>
-                            <div id="modal-params-kmeans" style="display: none;">
-                                <label style="font-size: 12px; color: #86868b;">n_clusters</label>
-                                <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                            </div>
-                            <div id="modal-params-agglomerative" style="display: none;">
-                                <label style="font-size: 12px; color: #86868b;">n_clusters</label>
-                                <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">linkage</label>
-                                <select name="agglomerative_linkage" style="padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                    <option value="ward">ward</option><option value="complete">complete</option>
-                                    <option value="average">average</option><option value="single">single</option>
-                                </select>
-                            </div>
-                            <div id="modal-params-leiden" style="display: none;">
-                                <label style="font-size: 12px; color: #86868b;">n_neighbors</label>
-                                <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">resolution</label>
-                                <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                            </div>
-                        </div>
-                        <div style="margin-top: 4px;">
-                            <button type="submit" class="btn btn-primary" style="background: #30d158; width: 100%; padding: 10px; font-size: 14px;">
-                                🚀 Run Full Pipeline
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+            <p style="font-size: 12px; color: #5f6368; margin-top: 8px;">
+                After uploading, you'll configure columns, clustering method, and pipeline settings.
+            </p>
         </div>
     </div>
 
@@ -581,7 +532,7 @@
 
         <!-- Messages area -->
         <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
-            <div style="text-align: center; color: #86868b; font-size: 12px; padding: 20px 0;">
+            <div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">
                 Ask a question about the data in this embedding's clusters.
             </div>
         </div>
@@ -687,7 +638,7 @@
         function clearChat() {
             chatHistory = [];
             const container = document.getElementById('chat-messages');
-            container.innerHTML = '<div style="text-align: center; color: #86868b; font-size: 12px; padding: 20px 0;">Ask a question about the data in this embedding\'s clusters.</div>';
+            container.innerHTML = '<div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">Ask a question about the data in this embedding\'s clusters.</div>';
         }
 
         function appendChatMessage(role, content, meta) {
@@ -715,7 +666,7 @@
             if (!isUser && meta) {
                 if (meta.sources && meta.sources.length > 0) {
                     const sourcesDiv = document.createElement('div');
-                    sourcesDiv.style.cssText = 'align-self: flex-start; font-size: 11px; color: #86868b; padding: 2px 4px;';
+                    sourcesDiv.style.cssText = 'align-self: flex-start; font-size: 11px; color: #5f6368; padding: 2px 4px;';
                     const topicList = meta.sources.map(s => s.topic + ' (' + (s.similarity * 100).toFixed(1) + '%)').join(', ');
                     sourcesDiv.textContent = 'Sources: ' + topicList;
                     container.appendChild(sourcesDiv);
@@ -755,7 +706,7 @@
             const container = document.getElementById('chat-messages');
             const typing = document.createElement('div');
             typing.id = 'typing-indicator';
-            typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #86868b;';
+            typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #5f6368;';
             typing.textContent = 'Thinking...';
             container.appendChild(typing);
             container.scrollTop = container.scrollHeight;
@@ -815,16 +766,7 @@
             if (e.key === 'Escape') closeDispatchModal();
         });
 
-        // Clustering method parameter toggle (modal)
-        const modalMethodSelect = document.getElementById('modal-clustering-method');
-        if (modalMethodSelect) {
-            modalMethodSelect.addEventListener('change', function() {
-                ['modal-params-hdbscan', 'modal-params-kmeans', 'modal-params-agglomerative', 'modal-params-leiden'].forEach(
-                    id => document.getElementById(id).style.display = 'none'
-                );
-                document.getElementById('modal-params-' + this.value).style.display = '';
-            });
-        }
+        // (Pipeline settings moved to dataset/configure page)
 
         // Auto-open modal if redirected with success/error from dispatch
         @if(session('success') && !$current && !$pipelineView)

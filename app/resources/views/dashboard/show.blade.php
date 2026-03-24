@@ -9,7 +9,7 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
         .container { max-width: 960px; margin: 0 auto; padding: 24px; }
         h1 { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
-        .subtitle { color: #86868b; font-size: 14px; margin-bottom: 24px; }
+        .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
         a { color: #0071e3; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .back { font-size: 14px; margin-bottom: 16px; display: inline-block; }
@@ -18,18 +18,18 @@
         .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
         .stat-card { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .stat-value { font-size: 28px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #86868b; margin-top: 4px; }
+        .stat-label { font-size: 12px; color: #5f6368; margin-top: 4px; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { text-align: left; padding: 8px 12px; color: #86868b; font-weight: 500; border-bottom: 1px solid #e5e5e7; }
+        th { text-align: left; padding: 8px 12px; color: #5f6368; font-weight: 500; border-bottom: 1px solid #e5e5e7; }
         td { padding: 10px 12px; border-bottom: 1px solid #f0f0f2; }
         .bar { height: 8px; background: #0071e3; border-radius: 4px; min-width: 2px; }
         .cluster-detail { margin-top: 12px; padding: 12px 16px; background: #f5f5f7; border-radius: 8px; font-size: 13px; }
         .cluster-detail p { margin-bottom: 6px; line-height: 1.5; color: #424245; }
-        .cluster-detail .rank { color: #86868b; font-size: 11px; font-weight: 500; }
+        .cluster-detail .rank { color: #5f6368; font-size: 11px; font-weight: 500; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
         .badge-blue { background: #e3f2fd; color: #1565c0; }
         .badge-green { background: #d4edda; color: #155724; }
-        .step-outputs { font-size: 12px; color: #86868b; }
+        .step-outputs { font-size: 12px; color: #5f6368; }
         .step-outputs dt { font-weight: 500; color: #1d1d1f; display: inline; }
         .step-outputs dd { display: inline; margin-left: 4px; margin-right: 16px; }
     </style>
@@ -62,7 +62,7 @@
                 <div class="stat-label">Clusters</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" style="color: #86868b;">{{ $nNoise }}</div>
+                <div class="stat-value" style="color: #5f6368;">{{ $nNoise }}</div>
                 <div class="stat-label">Noise Points</div>
             </div>
             <div class="stat-card">
@@ -100,7 +100,7 @@
             <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <h2 style="margin-bottom: 4px;">Knowledge Units</h2>
-                    <span style="font-size: 13px; color: #86868b;">
+                    <span style="font-size: 13px; color: #5f6368;">
                         {{ $job->step_outputs_json['knowledge_unit_generation']['knowledge_units_created'] ?? 0 }} KUs generated
                     </span>
                 </div>
@@ -117,7 +117,7 @@
             <h2>Clusters ({{ $clusters->count() }})</h2>
 
             @if($clusters->isEmpty())
-                <p style="color: #86868b; text-align: center; padding: 24px;">No clusters found for this job.</p>
+                <p style="color: #5f6368; text-align: center; padding: 24px;">No clusters found for this job.</p>
             @else
                 @foreach($clusters as $cluster)
                     @php
@@ -135,7 +135,7 @@
                                     <span class="badge badge-blue">{{ $cluster->topic_name }}</span>
                                 @endif
                             </div>
-                            <div style="font-size: 13px; color: #86868b;">
+                            <div style="font-size: 13px; color: #5f6368;">
                                 <strong>{{ $cluster->row_count }}</strong> rows ({{ $pct }}%)
                             </div>
                         </div>
@@ -146,7 +146,7 @@
 
                         @if($clusterReps->isNotEmpty())
                             <div class="cluster-detail">
-                                <div style="font-size: 12px; font-weight: 600; color: #86868b; margin-bottom: 8px;">
+                                <div style="font-size: 12px; font-weight: 600; color: #5f6368; margin-bottom: 8px;">
                                     Representative Rows (closest to centroid)
                                 </div>
                                 @foreach($clusterReps as $rep)
@@ -162,7 +162,7 @@
 
                 <!-- Noise summary -->
                 @if($nNoise > 0)
-                    <div style="padding: 12px 16px; background: #f5f5f7; border-radius: 8px; font-size: 13px; color: #86868b;">
+                    <div style="padding: 12px 16px; background: #f5f5f7; border-radius: 8px; font-size: 13px; color: #5f6368;">
                         <strong>{{ $nNoise }}</strong> rows classified as noise ({{ $totalRows > 0 ? round($nNoise / $totalRows * 100, 1) : 0 }}%)
                         — not assigned to any cluster.
                     </div>

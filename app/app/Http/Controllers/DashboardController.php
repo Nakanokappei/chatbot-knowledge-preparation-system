@@ -280,6 +280,7 @@ class DashboardController extends Controller
                 'embedding_dimension' => 1024,
                 'clustering_method' => $clusteringMethod,
                 'clustering_params' => $clusteringParams,
+                'remove_language_bias' => $request->has('remove_language_bias'),
                 'dataset_name' => $datasetName,
             ],
         ]);

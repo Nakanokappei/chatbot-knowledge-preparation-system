@@ -61,6 +61,125 @@ NUM_REPRESENTATIVES = 5
 
 
 # ---------------------------------------------------------------------------
+# Language direction removal (multilingual debiasing)
+# ---------------------------------------------------------------------------
+
+def detect_languages(row_ids: list[int]) -> dict[int, str]:
+    """
+    Detect the language of each row by inspecting raw_text from the DB.
+
+    Uses a fast heuristic: character script distribution (CJK, Cyrillic,
+    Arabic, Latin, etc.) to classify without external libraries.
+    Returns a dict mapping row_id -> ISO 639-1 language code.
+    """
+    import unicodedata
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            placeholders = ",".join(["%s"] * len(row_ids))
+            cur.execute(
+                f"SELECT id, raw_text FROM dataset_rows WHERE id IN ({placeholders})",
+                row_ids,
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    lang_map = {}
+    for row_id, text in rows:
+        # Count script categories in the first 200 characters
+        sample = (text or "")[:200]
+        scripts = {"CJK": 0, "HANGUL": 0, "CYRILLIC": 0, "ARABIC": 0, "LATIN": 0, "OTHER": 0}
+
+        for ch in sample:
+            if ch.isspace() or ch.isdigit():
+                continue
+            name = unicodedata.name(ch, "UNKNOWN").upper()
+            if "CJK" in name or "HIRAGANA" in name or "KATAKANA" in name:
+                scripts["CJK"] += 1
+            elif "HANGUL" in name:
+                scripts["HANGUL"] += 1
+            elif "CYRILLIC" in name:
+                scripts["CYRILLIC"] += 1
+            elif "ARABIC" in name:
+                scripts["ARABIC"] += 1
+            elif "LATIN" in name:
+                scripts["LATIN"] += 1
+            else:
+                scripts["OTHER"] += 1
+
+        # Pick dominant script
+        dominant = max(scripts, key=scripts.get)
+        lang_code = {
+            "CJK": "ja",
+            "HANGUL": "ko",
+            "CYRILLIC": "ru",
+            "ARABIC": "ar",
+            "LATIN": "en",
+            "OTHER": "en",
+        }.get(dominant, "en")
+
+        lang_map[row_id] = lang_code
+
+    return lang_map
+
+
+def remove_language_direction(
+    embeddings: np.ndarray,
+    row_ids: list[int],
+) -> tuple[np.ndarray, dict]:
+    """
+    Remove language bias from embedding vectors.
+
+    For each language group, computes the mean vector (language direction),
+    then subtracts it from every vector in that group. Finally, all vectors
+    are re-normalized to unit length for cosine-based methods.
+
+    Returns (debiased_embeddings, language_stats).
+    """
+    # Detect languages
+    lang_map = detect_languages(row_ids)
+
+    # Group indices by language
+    lang_groups: dict[str, list[int]] = {}
+    for i, row_id in enumerate(row_ids):
+        lang = lang_map.get(row_id, "en")
+        lang_groups.setdefault(lang, []).append(i)
+
+    # Log language distribution
+    lang_stats = {lang: len(indices) for lang, indices in lang_groups.items()}
+    logger.info("Language distribution: %s", lang_stats)
+
+    # Skip debiasing if only one language detected
+    if len(lang_groups) <= 1:
+        logger.info("Single language detected, skipping language direction removal")
+        return embeddings, lang_stats
+
+    # Compute global mean
+    global_mean = embeddings.mean(axis=0)
+
+    # Debias: subtract per-language mean, add back global mean
+    debiased = embeddings.copy()
+    for lang, indices in lang_groups.items():
+        idx_array = np.array(indices)
+        lang_mean = embeddings[idx_array].mean(axis=0)
+        debiased[idx_array] = debiased[idx_array] - lang_mean + global_mean
+
+    # Re-normalize to unit length (important for cosine similarity)
+    norms = np.linalg.norm(debiased, axis=1, keepdims=True)
+    norms = np.where(norms == 0, 1, norms)  # Avoid division by zero
+    debiased = debiased / norms
+
+    logger.info(
+        "Language direction removed for %d languages across %d vectors",
+        len(lang_groups), len(embeddings),
+    )
+
+    return debiased, lang_stats
+
+
+# ---------------------------------------------------------------------------
 # Clustering algorithm implementations
 # ---------------------------------------------------------------------------
 
@@ -516,6 +635,16 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     update_job_status(job_id, status="clustering", progress=20)
 
+    # Step 1.5: Language direction removal (optional, enabled by default)
+    remove_lang_bias = pipeline_config.get("remove_language_bias", True)
+    lang_stats = {}
+    if remove_lang_bias:
+        logger.info("Applying language direction removal...")
+        embeddings, lang_stats = remove_language_direction(embeddings, row_ids)
+        logger.info("Language debiasing complete")
+    else:
+        logger.info("Language direction removal disabled")
+
     # Step 2: Run selected clustering algorithm
     clustering_method = pipeline_config.get("clustering_method", "hdbscan")
     clustering_params = pipeline_config.get("clustering_params", {})
@@ -618,6 +747,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         "silhouette_score": quality_score,
         "clustering_method": method_used,
         "clustering_params": effective_params,
+        "remove_language_bias": remove_lang_bias,
+        "language_stats": lang_stats,
         "results_s3_path": results_s3_path,
     })
 

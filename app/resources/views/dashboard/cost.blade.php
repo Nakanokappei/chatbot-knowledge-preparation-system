@@ -5,7 +5,7 @@
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
         .stat { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .stat-value { font-size: 24px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #86868b; text-transform: uppercase; margin-top: 4px; }
+        .stat-label { font-size: 12px; color: #5f6368; text-transform: uppercase; margin-top: 4px; }
         .budget-ok { background: #d4edda; color: #155724; }
         .budget-warning { background: #fff3cd; color: #856404; }
         .budget-exceeded { background: #f8d7da; color: #721c24; }
@@ -17,7 +17,7 @@
     <div class="page-content">
         <div class="page-container">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Cost Dashboard</h1>
-            <p style="color: #86868b; font-size: 13px; margin-bottom: 24px;">Token usage, costs, and budget status</p>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">Token usage, costs, and budget status</p>
 
             @php
                 $budgetClass = match($budgetStatus) {

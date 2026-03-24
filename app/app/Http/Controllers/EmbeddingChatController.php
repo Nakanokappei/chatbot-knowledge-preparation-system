@@ -101,11 +101,15 @@ PROMPT;
             }
             $messages[] = ['role' => 'user', 'content' => $request->message];
 
-            // Step 5: Get LLM model
+            // Step 5: Get LLM model (prefer default, fall back to first active)
             $modelId = LlmModel::where('tenant_id', $tenantId)
                 ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->value('model_id');
+                ->where('is_default', true)
+                ->value('model_id')
+                ?? LlmModel::where('tenant_id', $tenantId)
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->value('model_id');
 
             if (!$modelId) {
                 return response()->json(['error' => 'No LLM model configured. Add one in Settings.'], 400);

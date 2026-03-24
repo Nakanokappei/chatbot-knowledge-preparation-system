@@ -9,16 +9,16 @@
         .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; }
 
         /* Sidebar menu items */
-        .sidebar-section { padding: 12px 12px 6px; font-size: 11px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sidebar-section { padding: 12px 12px 6px; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; }
         .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 0 6px 6px 0; margin-left: -8px; padding-left: 20px; cursor: pointer; text-decoration: none; color: #1d1d1f; font-size: 14px; transition: background 0.15s; margin-bottom: 1px; }
         .sidebar-item:hover { background: #E9E9E9; }
         .sidebar-item:hover .sidebar-icon { color: #1d1d1f; }
-        .sidebar-item:hover .sidebar-count { color: #86868b; }
+        .sidebar-item:hover .sidebar-count { color: #5f6368; }
         .sidebar-item.active { background: #DBDBDB; }
         .sidebar-item.active .sidebar-icon { color: #1d1d1f; }
-        .sidebar-item.active .sidebar-count { color: #86868b; }
-        .sidebar-icon { flex-shrink: 0; color: #86868b; width: 18px; text-align: center; }
-        .sidebar-count { font-size: 11px; color: #86868b; margin-left: auto; }
+        .sidebar-item.active .sidebar-count { color: #5f6368; }
+        .sidebar-icon { flex-shrink: 0; color: #5f6368; width: 18px; text-align: center; }
+        .sidebar-count { font-size: 11px; color: #5f6368; margin-left: auto; }
 
         /* Dispatch card */
         .dispatch-card { background: #f9f9fb; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
@@ -26,7 +26,7 @@
 
         /* Job table (same design as KU table) */
         .job-table { width: 100%; border-collapse: collapse; background: #FEFEFE; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .job-table th { text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #86868b; background: #FEFEFE; border-bottom: 1px solid #e5e5e7; }
+        .job-table th { text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #5f6368; background: #FEFEFE; border-bottom: 1px solid #e5e5e7; }
         .job-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f2; font-size: 14px; vertical-align: top; }
         .job-table tr:last-child td { border-bottom: none; }
         .job-table tr:hover td { background: #F6F6F6; cursor: pointer; }
@@ -125,19 +125,19 @@
                         </div>
                         <div id="clustering-params" style="margin-top: 10px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                             <div id="params-hdbscan">
-                                <label style="font-size: 12px; color: #86868b;">min_cluster_size</label>
+                                <label style="font-size: 12px; color: #5f6368;">min_cluster_size</label>
                                 <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">min_samples</label>
+                                <label style="font-size: 12px; color: #5f6368; margin-left: 8px;">min_samples</label>
                                 <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width: 60px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
                             </div>
                             <div id="params-kmeans" style="display: none;">
-                                <label style="font-size: 12px; color: #86868b;">n_clusters</label>
+                                <label style="font-size: 12px; color: #5f6368;">n_clusters</label>
                                 <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
                             </div>
                             <div id="params-agglomerative" style="display: none;">
-                                <label style="font-size: 12px; color: #86868b;">n_clusters</label>
+                                <label style="font-size: 12px; color: #5f6368;">n_clusters</label>
                                 <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">linkage</label>
+                                <label style="font-size: 12px; color: #5f6368; margin-left: 8px;">linkage</label>
                                 <select name="agglomerative_linkage" style="padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
                                     <option value="ward" selected>ward</option>
                                     <option value="complete">complete</option>
@@ -146,9 +146,9 @@
                                 </select>
                             </div>
                             <div id="params-leiden" style="display: none;">
-                                <label style="font-size: 12px; color: #86868b;">n_neighbors</label>
+                                <label style="font-size: 12px; color: #5f6368;">n_neighbors</label>
                                 <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                <label style="font-size: 12px; color: #86868b; margin-left: 8px;">resolution</label>
+                                <label style="font-size: 12px; color: #5f6368; margin-left: 8px;">resolution</label>
                                 <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
                             </div>
                         </div>
@@ -161,7 +161,7 @@
                 @endif
 
                 @if($jobs->isEmpty())
-                    <div style="text-align: center; padding: 60px 20px; color: #86868b;">
+                    <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
                         <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
                         <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px;">No {{ $filter !== 'all' ? $filter : '' }} jobs</div>
                         <div style="font-size: 13px;">
@@ -186,7 +186,7 @@
                                 <!-- Info column -->
                                 <td style="max-width: 0; width: 100%;">
                                     <div style="font-size: 14px; font-weight: 500;">{{ $job->dataset->name ?? 'Unknown Dataset' }}</div>
-                                    <div style="font-size: 13px; color: #86868b; margin-top: 2px;">
+                                    <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($nClusters !== null)
                                             {{ $nClusters }} clusters
                                             @if($silhouette !== null)
@@ -209,8 +209,8 @@
                                 </td>
                                 <!-- Right: date + status icon -->
                                 <td style="white-space: nowrap; text-align: right; vertical-align: top;">
-                                    <div style="font-size: 12px; color: #86868b;">{{ $job->created_at->format('m/d H:i') }}</div>
-                                    <div style="font-size: 13px; color: #86868b; margin-top: 2px;">
+                                    <div style="font-size: 12px; color: #5f6368;">{{ $job->created_at->format('m/d H:i') }}</div>
+                                    <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($job->progress > 0 && $job->progress < 100)
                                             <div class="progress-bar" style="width: 60px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle;">
                                                 <div style="height: 100%; background: #ff9500; width: {{ $job->progress }}%; border-radius: 2px;"></div>

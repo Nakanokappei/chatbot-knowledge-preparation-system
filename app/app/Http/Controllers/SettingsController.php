@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EmbeddingModel;
 use App\Models\LlmModel;
 use Aws\BedrockRuntime\BedrockRuntimeClient;
 use Illuminate\Http\RedirectResponse;
@@ -33,13 +34,22 @@ class SettingsController extends Controller
             ->orderBy('sort_order')
             ->get();
 
+        // Embedding models
+        $embeddingModels = EmbeddingModel::where('tenant_id', $tenantId)
+            ->orderBy('sort_order')
+            ->get();
+
         // Fetch available Bedrock models (cached for 1 hour)
         $bedrockModels = $this->fetchBedrockModels();
+        $bedrockEmbeddingModels = $this->fetchBedrockEmbeddingModels();
 
         // Fetch pricing from AWS Price List API (cached 24 hours)
         $pricing = $this->fetchBedrockPricing();
 
-        return view('settings.models', compact('models', 'bedrockModels', 'pricing'));
+        return view('settings.models', compact(
+            'models', 'embeddingModels', 'bedrockModels',
+            'bedrockEmbeddingModels', 'pricing',
+        ));
     }
 
     /**
@@ -113,6 +123,48 @@ class SettingsController extends Controller
                 return $result;
             } catch (\Exception $e) {
                 Log::warning('Failed to fetch Bedrock models: ' . $e->getMessage());
+                return [];
+            }
+        });
+    }
+
+    /**
+     * Fetch embedding-capable foundation models from Bedrock API.
+     *
+     * Returns models where output modality is EMBEDDING.
+     */
+    private function fetchBedrockEmbeddingModels(): array
+    {
+        return Cache::remember('bedrock_embedding_models_list', 3600, function () {
+            try {
+                $client = new \Aws\Bedrock\BedrockClient([
+                    'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
+                    'version' => 'latest',
+                ]);
+
+                $response = $client->listFoundationModels();
+                $result = [];
+
+                foreach ($response['modelSummaries'] as $m) {
+                    $output = $m['outputModalities'] ?? [];
+                    if (!in_array('EMBEDDING', $output)) {
+                        continue;
+                    }
+
+                    $result[] = [
+                        'model_id' => $m['modelId'],
+                        'display_name' => $m['modelName'],
+                        'provider' => $m['providerName'],
+                    ];
+                }
+
+                usort($result, function ($a, $b) {
+                    return [$a['provider'], $a['display_name']] <=> [$b['provider'], $b['display_name']];
+                });
+
+                return $result;
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch Bedrock embedding models: ' . $e->getMessage());
                 return [];
             }
         });
@@ -231,9 +283,14 @@ class SettingsController extends Controller
             'claude-haiku-4' => 'claude haiku 4',
             'claude-sonnet-4' => 'claude sonnet 4',
             'claude-opus-4' => 'claude opus 4',
+            'titan-embed-text-v2' => 'titan text embeddings v2',
+            'titan-embed-text-v1' => 'titan embeddings g1',
             'titan-embed' => 'titan multimodal embeddings',
             'titan-text-express' => 'titan text express',
             'titan-text-lite' => 'titan text lite',
+            'embed-english-v3' => 'embed english',
+            'embed-multilingual-v3' => 'embed multilingual',
+            'embed-v4' => 'embed v4',
             'llama3' => 'llama 3',
             'mistral-7b' => 'mistral 7b',
             'mixtral-8x7b' => 'mixtral 8x7b',
@@ -300,17 +357,21 @@ class SettingsController extends Controller
 
         $maxSort = LlmModel::where('tenant_id', $tenantId)->max('sort_order') ?? -1;
 
+        // First model registered becomes the default automatically
+        $isFirst = LlmModel::where('tenant_id', $tenantId)->count() === 0;
+
         LlmModel::create([
             'tenant_id' => $tenantId,
             'display_name' => $displayName,
             'model_id' => $modelId,
-            'is_default' => false,
+            'is_default' => $isFirst,
             'sort_order' => $maxSort + 1,
             'is_active' => true,
         ]);
 
+        $suffix = $isFirst ? ' (set as default)' : '';
         return redirect()->route('settings.models')
-            ->with('success', "{$displayName} added.");
+            ->with('success', "{$displayName} added{$suffix}.");
     }
 
     /**
@@ -326,6 +387,16 @@ class SettingsController extends Controller
 
             return redirect()->route('settings.models')
                 ->with('success', "{$llmModel->display_name} {$status}.");
+        }
+
+        // Set this model as the default (exclusive — clears all others)
+        if ($action === 'set_default') {
+            $tenantId = auth()->user()->tenant_id;
+            LlmModel::where('tenant_id', $tenantId)->update(['is_default' => false]);
+            $llmModel->update(['is_default' => true]);
+
+            return redirect()->route('settings.models')
+                ->with('success', "{$llmModel->display_name} is now the default model.");
         }
 
         // Generic field update (display_name, sort_order)
@@ -348,6 +419,99 @@ class SettingsController extends Controller
         $name = $llmModel->display_name;
         $llmModel->delete();
 
+        return redirect()->route('settings.models')
+            ->with('success', "{$name} deleted.");
+    }
+
+    // ── Embedding Model CRUD ──────────────────────────────────────
+
+    /**
+     * Add a new embedding model to the registry.
+     */
+    public function storeEmbedding(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'model_id' => 'required|string|max:200',
+            'display_name' => 'nullable|string|max:100',
+            'dimension' => 'nullable|integer|min:1|max:8192',
+        ]);
+
+        $tenantId = auth()->user()->tenant_id;
+        $modelId = $request->input('model_id');
+
+        $exists = EmbeddingModel::where('tenant_id', $tenantId)
+            ->where('model_id', $modelId)
+            ->exists();
+
+        if ($exists) {
+            return redirect()->route('settings.models')
+                ->with('error', 'This embedding model is already registered.');
+        }
+
+        $displayName = $request->input('display_name');
+        if (!$displayName) {
+            $bedrockModels = $this->fetchBedrockEmbeddingModels();
+            foreach ($bedrockModels as $bm) {
+                if ($bm['model_id'] === $modelId) {
+                    $displayName = $bm['provider'] . ' ' . $bm['display_name'];
+                    break;
+                }
+            }
+        }
+        if (!$displayName) {
+            $displayName = $modelId;
+        }
+
+        $maxSort = EmbeddingModel::where('tenant_id', $tenantId)->max('sort_order') ?? -1;
+        $isFirst = EmbeddingModel::where('tenant_id', $tenantId)->count() === 0;
+
+        EmbeddingModel::create([
+            'tenant_id' => $tenantId,
+            'display_name' => $displayName,
+            'model_id' => $modelId,
+            'dimension' => $request->input('dimension', 1024),
+            'is_default' => $isFirst,
+            'sort_order' => $maxSort + 1,
+            'is_active' => true,
+        ]);
+
+        $suffix = $isFirst ? ' (set as default)' : '';
+        return redirect()->route('settings.models')
+            ->with('success', "{$displayName} added{$suffix}.");
+    }
+
+    /**
+     * Update an existing embedding model.
+     */
+    public function updateEmbedding(Request $request, EmbeddingModel $embeddingModel): RedirectResponse
+    {
+        $action = $request->input('action');
+
+        if ($action === 'toggle_active') {
+            $embeddingModel->update(['is_active' => !$embeddingModel->is_active]);
+            $status = $embeddingModel->is_active ? 'activated' : 'deactivated';
+            return redirect()->route('settings.models')
+                ->with('success', "{$embeddingModel->display_name} {$status}.");
+        }
+
+        if ($action === 'set_default') {
+            $tenantId = auth()->user()->tenant_id;
+            EmbeddingModel::where('tenant_id', $tenantId)->update(['is_default' => false]);
+            $embeddingModel->update(['is_default' => true]);
+            return redirect()->route('settings.models')
+                ->with('success', "{$embeddingModel->display_name} is now the default embedding model.");
+        }
+
+        return redirect()->route('settings.models');
+    }
+
+    /**
+     * Remove an embedding model from the registry.
+     */
+    public function destroyEmbedding(EmbeddingModel $embeddingModel): RedirectResponse
+    {
+        $name = $embeddingModel->display_name;
+        $embeddingModel->delete();
         return redirect()->route('settings.models')
             ->with('success', "{$name} deleted.");
     }

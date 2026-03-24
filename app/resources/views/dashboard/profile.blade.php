@@ -2,7 +2,7 @@
 @section('title', 'Profile — KPS')
 
 @section('extra-styles')
-        label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; color: #86868b; }
+        label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; color: #5f6368; }
         input[type="text"], input[type="email"], input[type="password"] {
             width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px;
             font-size: 14px; margin-bottom: 12px;
@@ -13,7 +13,7 @@
     <div class="page-content">
         <div class="page-container" style="max-width: 600px;">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Profile Settings</h1>
-            <p style="color: #86868b; font-size: 13px; margin-bottom: 24px;">
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">
                 Tenant: {{ $user->tenant->name ?? 'N/A' }} · Joined: {{ $user->created_at->format('Y-m-d') }}
             </p>
 

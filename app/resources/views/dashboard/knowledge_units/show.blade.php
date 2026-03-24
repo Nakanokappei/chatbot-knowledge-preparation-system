@@ -9,7 +9,7 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
         .container { max-width: 960px; margin: 0 auto; padding: 24px; }
         h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-        .subtitle { color: #86868b; font-size: 14px; margin-bottom: 24px; }
+        .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
         a { color: #0071e3; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .back { font-size: 14px; margin-bottom: 16px; display: inline-block; }
@@ -32,12 +32,12 @@
         .btn-outline { background: transparent; border: 1px solid #d2d2d7; color: #1d1d1f; }
         .btn-outline:hover { background: #f5f5f7; text-decoration: none; }
         .btn-sm { padding: 5px 14px; font-size: 13px; }
-        label { display: block; font-size: 13px; color: #86868b; font-weight: 500; margin-bottom: 4px; }
+        label { display: block; font-size: 13px; color: #5f6368; font-weight: 500; margin-bottom: 4px; }
         input[type="text"], textarea { width: 100%; padding: 10px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; font-family: inherit; }
         textarea { resize: vertical; min-height: 80px; }
         .form-group { margin-bottom: 16px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: #86868b; margin-bottom: 16px; }
+        .meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: #5f6368; margin-bottom: 16px; }
         .meta strong { color: #1d1d1f; }
         .keywords { display: flex; gap: 6px; flex-wrap: wrap; }
         .keyword { background: #f0f0f2; padding: 2px 8px; border-radius: 6px; font-size: 12px; color: #424245; }
@@ -189,7 +189,7 @@
                 <h2>Typical Cases</h2>
                 @foreach($ku->typical_cases_json as $i => $case)
                     <div class="typical-case">
-                        <span style="font-size: 11px; font-weight: 600; color: #86868b;">Case {{ $i + 1 }}</span><br>
+                        <span style="font-size: 11px; font-weight: 600; color: #5f6368;">Case {{ $i + 1 }}</span><br>
                         {{ $case }}
                     </div>
                 @endforeach

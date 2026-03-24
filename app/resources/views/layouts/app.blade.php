@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Knowledge Preparation System')</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1d1d1f; height: 100vh; display: flex; flex-direction: column; }
+        body { font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1d1d1f; height: 100vh; display: flex; flex-direction: column; font-size: 14px; line-height: 20px; }
 
         /* ── Top navigation bar ─────────────────────────────── */
         .topbar { background: #F6F6F6; border-bottom: none; padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
@@ -16,7 +19,7 @@
         .hamburger:hover { background: #E9E9E9; }
         .hamburger svg { width: 18px; height: 18px; color: #1d1d1f; }
         .topbar-nav { display: flex; gap: 4px; }
-        .topbar-nav a { font-size: 14px; color: #86868b; text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: all 0.15s; }
+        .topbar-nav a { font-size: 14px; color: #5f6368; text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: all 0.15s; }
         .topbar-nav a:hover { background: #E9E9E9; color: #1d1d1f; }
         .topbar-nav a.active { background: #0071e3; color: #fff; }
         .topbar-right { display: flex; align-items: center; gap: 12px; }
@@ -29,7 +32,7 @@
         .user-dropdown.show { display: block; }
         .user-dropdown-header { padding: 10px 14px; border-bottom: 1px solid #f0f0f2; }
         .user-dropdown-header .name { font-size: 13px; font-weight: 600; }
-        .user-dropdown-header .email { font-size: 11px; color: #86868b; }
+        .user-dropdown-header .email { font-size: 11px; color: #5f6368; }
         .user-dropdown a, .user-dropdown button { display: block; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px; text-decoration: none; color: #1d1d1f; background: none; border: none; cursor: pointer; }
         .user-dropdown a:hover, .user-dropdown button:hover { background: #f5f5f7; }
         .user-dropdown .logout { color: #ff3b30; border-top: 1px solid #f0f0f2; }
@@ -45,23 +48,23 @@
         .btn-danger { background: #ff3b30; color: #fff; }
         .btn-sm { padding: 4px 10px; font-size: 12px; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
-        .badge-draft { background: #f0f0f2; color: #86868b; }
+        .badge-draft { background: #f0f0f2; color: #5f6368; }
         .badge-reviewed { background: #fff3cd; color: #856404; }
         .badge-approved { background: #d4edda; color: #155724; }
         .badge-rejected { background: #f8d7da; color: #721c24; }
         .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { text-align: left; padding: 8px 12px; color: #86868b; font-weight: 500; border-bottom: 1px solid #e5e5e7; }
+        th { text-align: left; padding: 8px 12px; color: #5f6368; font-weight: 500; border-bottom: 1px solid #e5e5e7; }
         td { padding: 10px 12px; border-bottom: 1px solid #f0f0f2; }
         .status { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-        .status-submitted { background: #f0f0f2; color: #86868b; }
+        .status-submitted { background: #f0f0f2; color: #5f6368; }
         .status-validating, .status-preprocessing, .status-embedding, .status-clustering { background: #fff3cd; color: #856404; }
         .status-completed { background: #d4edda; color: #155724; }
         .status-failed { background: #f8d7da; color: #721c24; }
         .progress-bar { width: 100%; height: 6px; background: #e5e5e7; border-radius: 3px; overflow: hidden; }
         .progress-bar-fill { height: 100%; background: #34c759; border-radius: 3px; transition: width 0.5s; }
-        .empty { text-align: center; padding: 40px; color: #86868b; }
+        .empty { text-align: center; padding: 40px; color: #5f6368; }
 
         /* Page content area */
         .page-content { flex: 1; overflow-y: auto; padding: 24px; }

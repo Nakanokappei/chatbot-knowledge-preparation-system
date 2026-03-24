@@ -9,7 +9,7 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
         .container { max-width: 960px; margin: 0 auto; padding: 24px; }
         h1 { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
-        .subtitle { color: #86868b; font-size: 14px; margin-bottom: 24px; }
+        .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
         a { color: #0071e3; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .back { font-size: 14px; margin-bottom: 16px; display: inline-block; }
@@ -18,7 +18,7 @@
         .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
         .stat-card { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .stat-value { font-size: 28px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #86868b; margin-top: 4px; }
+        .stat-label { font-size: 12px; color: #5f6368; margin-top: 4px; }
         .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
         .badge-draft { background: #fff3cd; color: #856404; }
         .badge-reviewed { background: #cce5ff; color: #004085; }
@@ -30,14 +30,14 @@
         .ku-card { border: 1px solid #e5e5e7; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
         .ku-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
         .ku-topic { font-size: 17px; font-weight: 600; }
-        .ku-intent { font-size: 13px; color: #86868b; margin-top: 2px; }
+        .ku-intent { font-size: 13px; color: #5f6368; margin-top: 2px; }
         .ku-summary { font-size: 14px; line-height: 1.6; color: #424245; margin-bottom: 12px; }
-        .ku-meta { display: flex; gap: 20px; font-size: 12px; color: #86868b; flex-wrap: wrap; }
+        .ku-meta { display: flex; gap: 20px; font-size: 12px; color: #5f6368; flex-wrap: wrap; }
         .ku-meta strong { color: #1d1d1f; }
         .keywords { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
         .keyword { background: #f0f0f2; padding: 2px 8px; border-radius: 6px; font-size: 11px; color: #424245; }
         .typical-case { background: #f5f5f7; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 13px; color: #424245; line-height: 1.5; }
-        .typical-case-label { font-size: 11px; font-weight: 600; color: #86868b; margin-bottom: 6px; }
+        .typical-case-label { font-size: 11px; font-weight: 600; color: #5f6368; margin-bottom: 6px; }
         .export-bar { display: flex; gap: 8px; align-items: center; }
     </style>
 </head>

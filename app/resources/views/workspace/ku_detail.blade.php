@@ -3,7 +3,7 @@
 
 @section('extra-styles')
         .field { margin-bottom: 16px; }
-        .field label { display: block; font-size: 12px; font-weight: 500; color: #86868b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .field label { display: block; font-size: 12px; font-weight: 500; color: #5f6368; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
         textarea, input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; font-family: inherit; }
         textarea { min-height: 80px; resize: vertical; }
         .keywords { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -28,7 +28,7 @@
                     <div>
                         <h2 style="margin-bottom: 8px;">{{ $ku->topic }}</h2>
                         <span class="badge badge-{{ $ku->review_status }}">{{ $ku->review_status }}</span>
-                        <span style="font-size: 12px; color: #86868b; margin-left: 8px;">{{ $ku->row_count }} rows · {{ $ku->language ?? 'en' }}</span>
+                        <span style="font-size: 12px; color: #5f6368; margin-left: 8px;">{{ $ku->row_count }} rows · {{ $ku->language ?? 'en' }}</span>
                     </div>
                     <div class="actions">
                         @if($ku->review_status === 'draft')
@@ -95,7 +95,7 @@
                         <span class="keyword">{{ $kw }}</span>
                     @endforeach
                     @if(empty($ku->keywords_json))
-                        <span style="color: #86868b; font-size: 13px;">No keywords</span>
+                        <span style="color: #5f6368; font-size: 13px;">No keywords</span>
                     @endif
                 </div>
             </div>
@@ -105,7 +105,7 @@
                 <h2>Representative Rows</h2>
                 @foreach($ku->representative_rows_json as $i => $row)
                     <div style="padding: 8px 0; border-bottom: 1px solid #f0f0f2; font-size: 13px; line-height: 1.5;">
-                        <span style="color: #86868b; font-size: 11px;">#{{ $i + 1 }}</span>
+                        <span style="color: #5f6368; font-size: 11px;">#{{ $i + 1 }}</span>
                         {{ Str::limit(is_array($row) ? json_encode($row, JSON_UNESCAPED_UNICODE) : (string) $row, 200) }}
                     </div>
                 @endforeach

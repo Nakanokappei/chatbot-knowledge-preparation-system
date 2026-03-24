@@ -5,18 +5,18 @@
         input[type="text"] { padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%; }
         .form-row { display: flex; gap: 12px; align-items: flex-end; }
         .form-group { flex: 1; }
-        .form-group label { display: block; font-size: 12px; color: #86868b; margin-bottom: 4px; font-weight: 500; }
-        .mono { font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; color: #86868b; }
+        .form-group label { display: block; font-size: 12px; color: #5f6368; margin-bottom: 4px; font-weight: 500; }
+        .mono { font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; color: #5f6368; }
         .actions { display: flex; gap: 6px; }
         .badge-active { background: #d4edda; color: #155724; }
-        .badge-inactive { background: #f0f0f2; color: #86868b; }
+        .badge-inactive { background: #f0f0f2; color: #5f6368; }
 @endsection
 
 @section('body')
     <div class="page-content">
         <div class="page-container">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">LLM Models</h1>
-            <p style="color: #86868b; font-size: 13px; margin-bottom: 24px;">Manage available models for cluster analysis.</p>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">Manage available models for cluster analysis.</p>
 
             @if(session('success'))
                 <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✓ {{ session('success') }}</div>
@@ -85,27 +85,130 @@
                                 <td><span class="mono">{{ $model->model_id }}</span></td>
                                 <td style="white-space: nowrap; font-size: 12px;">
                                     @if($p && $p['input'] !== null)
-                                        ${{ number_format($p['input'], 6) }}<span style="color: #86868b;">/{{ $p['unit'] ?? '1K tokens' }}</span>
+                                        ${{ number_format($p['input'], 6) }}<span style="color: #5f6368;">/{{ $p['unit'] ?? '1K tokens' }}</span>
                                     @else
                                         <span style="color: #d2d2d7;">N/A</span>
                                     @endif
                                 </td>
                                 <td style="white-space: nowrap; font-size: 12px;">
                                     @if($p && $p['output'] !== null)
-                                        ${{ number_format($p['output'], 6) }}<span style="color: #86868b;">/{{ $p['unit'] ?? '1K tokens' }}</span>
+                                        ${{ number_format($p['output'], 6) }}<span style="color: #5f6368;">/{{ $p['unit'] ?? '1K tokens' }}</span>
                                     @else
                                         <span style="color: #d2d2d7;">N/A</span>
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="badge {{ $model->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                        {{ $model->is_active ? 'Active' : 'Inactive' }}
-                                    </span>
+                                    @if($model->is_default)
+                                        <span class="badge" style="background: #0071e3; color: #fff;">Default</span>
+                                    @else
+                                        <span class="badge {{ $model->is_active ? 'badge-active' : 'badge-inactive' }}">
+                                            {{ $model->is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    @endif
                                 </td>
                                 <td>
                                     <div class="actions">
-                                        <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? 'Deactivate' : 'Activate' }}</button></form>
-                                        <form method="POST" action="{{ route('settings.models.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">Delete</button></form>
+                                        @if(!$model->is_default)
+                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">Set Default</button></form>
+                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? 'Deactivate' : 'Activate' }}</button></form>
+                                            <form method="POST" action="{{ route('settings.models.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">Delete</button></form>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            </div>
+
+            {{-- ── Embedding Models ────────────────────────────── --}}
+            <hr style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Embedding Models</h1>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">Manage available embedding models for vector generation.</p>
+
+            <div class="card">
+                <h2>Add Embedding Model from AWS Bedrock</h2>
+                <form method="POST" action="{{ route('settings.embedding.store') }}">
+                    @csrf
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label for="emb_model_id">Select Model</label>
+                            <select id="emb_model_id" name="model_id" required
+                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
+                                onchange="updateEmbDisplayName(this)">
+                                <option value="">-- Choose an embedding model --</option>
+                                @php $prevEmbProvider = ''; @endphp
+                                @foreach($bedrockEmbeddingModels as $bm)
+                                    @if($bm['provider'] !== $prevEmbProvider)
+                                        @if($prevEmbProvider !== '') </optgroup> @endif
+                                        <optgroup label="{{ $bm['provider'] }}">
+                                        @php $prevEmbProvider = $bm['provider']; @endphp
+                                    @endif
+                                    @if(!$embeddingModels->contains('model_id', $bm['model_id']))
+                                    @php $ep = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bm['model_id']); @endphp
+                                    <option value="{{ $bm['model_id'] }}"
+                                        data-display="{{ $bm['provider'] }} {{ $bm['display_name'] }}">
+                                        {{ $bm['display_name'] }}@if($ep && $ep['input']) — ${{ number_format($ep['input'], 6) }} per {{ $ep['unit'] ?? '1K tokens' }}@endif
+                                    </option>
+                                    @endif
+                                @endforeach
+                                @if($prevEmbProvider !== '') </optgroup> @endif
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="emb_display_name">Display Name</label>
+                            <input type="text" id="emb_display_name" name="display_name" placeholder="Auto-generated">
+                        </div>
+                        <div class="form-group" style="width: 90px; flex: none;">
+                            <label for="emb_dimension">Dimension</label>
+                            <input type="number" id="emb_dimension" name="dimension" value="1024" min="1" max="8192"
+                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
+                        </div>
+                        <div><button type="submit" class="btn btn-primary">Add</button></div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Registered Embedding Models</h2>
+                @if($embeddingModels->isEmpty())
+                    <div class="empty">No embedding models registered yet.</div>
+                @else
+                    <table>
+                        <thead>
+                            <tr><th>Display Name</th><th>Model ID</th><th>Dimension</th><th>Cost</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach($embeddingModels as $em)
+                            @php $ep = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $em->model_id); @endphp
+                            <tr @if(!$em->is_active) style="opacity: 0.5;" @endif>
+                                <td style="font-weight: 500;">{{ $em->display_name }}</td>
+                                <td><span class="mono">{{ $em->model_id }}</span></td>
+                                <td style="text-align: center;">{{ $em->dimension }}</td>
+                                <td style="white-space: nowrap; font-size: 12px;">
+                                    @if($ep && $ep['input'] !== null)
+                                        ${{ number_format($ep['input'], 6) }}<span style="color: #5f6368;">/{{ $ep['unit'] ?? '1K tokens' }}</span>
+                                    @else
+                                        <span style="color: #d2d2d7;">N/A</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($em->is_default)
+                                        <span class="badge" style="background: #0071e3; color: #fff;">Default</span>
+                                    @else
+                                        <span class="badge {{ $em->is_active ? 'badge-active' : 'badge-inactive' }}">
+                                            {{ $em->is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="actions">
+                                        @if(!$em->is_default)
+                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">Set Default</button></form>
+                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? 'Deactivate' : 'Activate' }}</button></form>
+                                            <form method="POST" action="{{ route('settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">Delete</button></form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -119,10 +222,17 @@
 @endsection
 
 @section('scripts')
-        // Auto-fill display name when model is selected from dropdown
+        // Auto-fill display name for LLM model dropdown
         function updateDisplayName(select) {
             const option = select.options[select.selectedIndex];
             const displayName = option.getAttribute('data-display') || '';
             document.getElementById('display_name').value = displayName;
+        }
+
+        // Auto-fill display name for embedding model dropdown
+        function updateEmbDisplayName(select) {
+            const option = select.options[select.selectedIndex];
+            const displayName = option.getAttribute('data-display') || '';
+            document.getElementById('emb_display_name').value = displayName;
         }
 @endsection

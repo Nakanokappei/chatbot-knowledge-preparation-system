@@ -68,6 +68,13 @@ class EmbeddingController extends Controller
 
         // Pipeline data (for integrated pipeline section)
         $pipelineView = $request->query('pipeline');
+
+        // Pipeline and embedding selections are mutually exclusive
+        if ($pipelineView) {
+            $current = null;
+            $knowledgeUnits = collect();
+            $embeddingJob = null;
+        }
         $pipelineFilter = $request->query('pf', 'all');
 
         $allJobs = PipelineJob::with('dataset:id,name')

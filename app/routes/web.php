@@ -78,4 +78,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/models', [SettingsController::class, 'store'])->name('settings.models.store');
     Route::put('/settings/models/{llmModel}', [SettingsController::class, 'update'])->name('settings.models.update');
     Route::delete('/settings/models/{llmModel}', [SettingsController::class, 'destroy'])->name('settings.models.destroy');
+
+    // Embedding model management
+    Route::post('/settings/embedding-models', [SettingsController::class, 'storeEmbedding'])->name('settings.embedding.store');
+    Route::put('/settings/embedding-models/{embeddingModel}', [SettingsController::class, 'updateEmbedding'])->name('settings.embedding.update');
+    Route::delete('/settings/embedding-models/{embeddingModel}', [SettingsController::class, 'destroyEmbedding'])->name('settings.embedding.destroy');
 });

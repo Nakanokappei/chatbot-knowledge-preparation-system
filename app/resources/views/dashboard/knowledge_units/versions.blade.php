@@ -9,7 +9,7 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
         .container { max-width: 960px; margin: 0 auto; padding: 24px; }
         h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-        .subtitle { color: #86868b; font-size: 14px; margin-bottom: 24px; }
+        .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
         a { color: #0071e3; text-decoration: none; }
         a:hover { text-decoration: underline; }
         .back { font-size: 14px; margin-bottom: 16px; display: inline-block; }
@@ -23,9 +23,9 @@
         .dot-review { background: #ff9500; }
         .timeline-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
         .timeline-title { font-weight: 600; font-size: 14px; }
-        .timeline-date { font-size: 12px; color: #86868b; }
+        .timeline-date { font-size: 12px; color: #5f6368; }
         .snapshot { background: #f5f5f7; border-radius: 8px; padding: 12px 16px; font-size: 13px; line-height: 1.6; }
-        .snapshot dt { font-weight: 600; color: #86868b; font-size: 12px; margin-top: 8px; }
+        .snapshot dt { font-weight: 600; color: #5f6368; font-size: 12px; margin-top: 8px; }
         .snapshot dt:first-child { margin-top: 0; }
         .snapshot dd { color: #424245; margin-left: 0; }
         .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
@@ -33,7 +33,7 @@
         .badge-reviewed { background: #cce5ff; color: #004085; }
         .badge-approved { background: #d4edda; color: #155724; }
         .badge-rejected { background: #f8d7da; color: #721c24; }
-        .empty { text-align: center; padding: 40px; color: #86868b; }
+        .empty { text-align: center; padding: 40px; color: #5f6368; }
     </style>
 </head>
 <body>
