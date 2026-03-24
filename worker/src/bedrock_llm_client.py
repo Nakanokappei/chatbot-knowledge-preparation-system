@@ -41,9 +41,10 @@ def invoke_claude(
     temperature: float = 0.0,
     model_id: str = None,
     client=None,
+    expect_json: bool = True,
 ) -> dict:
     """
-    Invoke a Claude model via Bedrock and return the parsed JSON response.
+    Invoke a Claude model via Bedrock and return the response.
 
     Args:
         prompt: The user message to send to Claude.
@@ -51,11 +52,13 @@ def invoke_claude(
         temperature: Sampling temperature (0.0 for deterministic).
         model_id: Bedrock model ID to use. Falls back to DEFAULT_MODEL_ID.
         client: Optional pre-created Bedrock client.
+        expect_json: If True (default), attempts to parse response as JSON.
+                     If False, skips JSON parsing (for chat/text responses).
 
     Returns:
         A dict with:
           - "content": The raw text response from Claude.
-          - "parsed_json": The parsed JSON object (if response is valid JSON).
+          - "parsed_json": The parsed JSON object (only if expect_json=True and valid).
           - "input_tokens": Number of input tokens used.
           - "output_tokens": Number of output tokens used.
           - "model_id": The model ID that was actually used.
@@ -100,19 +103,19 @@ def invoke_claude(
             input_tokens = usage.get("input_tokens", 0)
             output_tokens = usage.get("output_tokens", 0)
 
-            # Try to parse as JSON
+            # Try to parse as JSON only when expected
             parsed_json = None
-            try:
-                # Handle case where response has markdown code fences
-                json_text = content_text.strip()
-                if json_text.startswith("```"):
-                    # Remove code fences
-                    lines = json_text.split("\n")
-                    lines = [l for l in lines if not l.strip().startswith("```")]
-                    json_text = "\n".join(lines)
-                parsed_json = json.loads(json_text)
-            except json.JSONDecodeError:
-                logger.warning("Claude response is not valid JSON. Raw: %s", content_text[:200])
+            if expect_json:
+                try:
+                    # Handle case where response has markdown code fences
+                    json_text = content_text.strip()
+                    if json_text.startswith("```"):
+                        lines = json_text.split("\n")
+                        lines = [l for l in lines if not l.strip().startswith("```")]
+                        json_text = "\n".join(lines)
+                    parsed_json = json.loads(json_text)
+                except json.JSONDecodeError:
+                    logger.warning("Claude response is not valid JSON. Raw: %s", content_text[:200])
 
             return {
                 "content": content_text,
