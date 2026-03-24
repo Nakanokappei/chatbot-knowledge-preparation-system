@@ -57,21 +57,47 @@ class SettingsController extends Controller
                     'version' => 'latest',
                 ]);
 
-                $response = $client->listFoundationModels();
                 $result = [];
 
+                // Prefer inference profiles — these are the IDs that actually
+                // work with InvokeModel for newer models (e.g. jp.anthropic...).
+                try {
+                    $profiles = $client->listInferenceProfiles();
+                    foreach ($profiles['inferenceProfileSummaries'] ?? [] as $p) {
+                        $result[] = [
+                            'model_id' => $p['inferenceProfileId'],
+                            'display_name' => $p['inferenceProfileName'],
+                            'provider' => 'Inference Profile',
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    Log::debug('Could not list inference profiles: ' . $e->getMessage());
+                }
+
+                // Also list foundation models as fallback (older models work
+                // with bare model IDs)
+                $response = $client->listFoundationModels();
+                $profileModelIds = array_column($result, 'model_id');
+
                 foreach ($response['modelSummaries'] as $m) {
-                    // Only text-in, text-out models (for LLM analysis)
                     $input = $m['inputModalities'] ?? [];
                     $output = $m['outputModalities'] ?? [];
                     if (!in_array('TEXT', $input) || !in_array('TEXT', $output)) {
                         continue;
                     }
-
-                    // Skip rerankers (not generation models)
                     if (str_contains(strtolower($m['modelName'] ?? ''), 'rerank')) {
                         continue;
                     }
+
+                    // Skip if already covered by an inference profile
+                    $dominated = false;
+                    foreach ($profileModelIds as $pid) {
+                        if (str_contains($pid, $m['modelId'])) {
+                            $dominated = true;
+                            break;
+                        }
+                    }
+                    if ($dominated) continue;
 
                     $result[] = [
                         'model_id' => $m['modelId'],
@@ -80,7 +106,6 @@ class SettingsController extends Controller
                     ];
                 }
 
-                // Sort by provider, then display_name
                 usort($result, function ($a, $b) {
                     return [$a['provider'], $a['display_name']] <=> [$b['provider'], $b['display_name']];
                 });
@@ -242,6 +267,11 @@ class SettingsController extends Controller
 
         $tenantId = auth()->user()->tenant_id;
         $modelId = $request->input('model_id');
+
+        // Bedrock on-demand inference for newer models requires an inference
+        // profile ID (e.g. "jp.anthropic.claude-...") rather than the bare
+        // model ID. The model_id from the Bedrock dropdown already includes
+        // the correct prefix, so we use it as-is.
 
         // Check for duplicate model_id within the tenant
         $exists = LlmModel::where('tenant_id', $tenantId)

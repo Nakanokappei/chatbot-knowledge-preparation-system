@@ -258,9 +258,21 @@
                                     <div style="font-size: 11px; color: #86868b;">Clusters</div>
                                 </div>
                                 @if(isset($cl['silhouette_score']))
-                                <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;">
-                                    <div style="font-size: 20px; font-weight: 700;">{{ number_format($cl['silhouette_score'], 3) }}</div>
-                                    <div style="font-size: 11px; color: #86868b;">Silhouette</div>
+                                @php
+                                    // Text embeddings produce structurally lower silhouette scores
+                                    // than numeric data due to high dimensionality and soft cluster
+                                    // boundaries. Thresholds are calibrated for text clustering.
+                                    $sil = $cl['silhouette_score'];
+                                    if ($sil >= 0.5)       { $silBg = '#d4edda'; $silColor = '#155724'; $silLabel = 'Excellent'; }
+                                    elseif ($sil >= 0.3)   { $silBg = '#e8f5e9'; $silColor = '#2e7d32'; $silLabel = 'Good'; }
+                                    elseif ($sil >= 0.1)   { $silBg = '#e3f2fd'; $silColor = '#1565c0'; $silLabel = 'Typical'; }
+                                    elseif ($sil >= 0.0)   { $silBg = '#F6F6F6'; $silColor = '#555';    $silLabel = 'Typical for text'; }
+                                    else                   { $silBg = '#f8d7da'; $silColor = '#721c24'; $silLabel = 'Poor'; }
+                                @endphp
+                                <div style="background: {{ $silBg }}; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;"
+                                     title="Text embeddings typically score 0.0–0.3 due to high dimensionality. Scores above 0.1 indicate meaningful cluster separation.">
+                                    <div style="font-size: 20px; font-weight: 700; color: {{ $silColor }};">{{ number_format($sil, 3) }}</div>
+                                    <div style="font-size: 11px; color: {{ $silColor }};">Silhouette · {{ $silLabel }}</div>
                                 </div>
                                 @endif
                                 @if(isset($cl['n_noise']))
@@ -298,22 +310,24 @@
 
                         </div>
 
-                        <!-- Detail list (contact-card style) -->
-                        <div style="margin-top: 12px; font-size: 13px; border-top: 1px solid #f0f0f2; padding-top: 10px;">
+                        <!-- Detail list (contact-card style) + Chat button -->
+                        <div style="margin-top: 12px; font-size: 13px; border-top: 1px solid #f0f0f2; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
                             <table style="border-collapse: collapse; width: auto;">
                                 @if(isset($cl['clustering_method']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #86868b; width: 100px; border: none;">Method</td>
-                                    <td style="padding: 3px 0; font-weight: 500; border: none;">{{ strtoupper($cl['clustering_method']) }}</td>
+                                    <td style="padding: 3px 0; color: #86868b; width: 100px; border: none; vertical-align: top;">Method</td>
+                                    <td style="padding: 3px 0; font-weight: 500; border: none;">{{ strtoupper($cl['clustering_method']) }}
+                                        @if(isset($cl['clustering_params']))
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px 16px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e0e0e2;">
+                                            @foreach($cl['clustering_params'] as $pKey => $pVal)
+                                            <div style="font-size: 11px; font-weight: 400; color: #86868b;">
+                                                {{ $pKey }}: <span style="color: #555;">{{ $pVal }}</span>
+                                            </div>
+                                            @endforeach
+                                        </div>
+                                        @endif
+                                    </td>
                                 </tr>
-                                @endif
-                                @if(isset($cl['clustering_params']))
-                                    @foreach($cl['clustering_params'] as $pKey => $pVal)
-                                    <tr>
-                                        <td style="padding: 3px 0; color: #86868b; width: 100px; border: none;">{{ $pKey }}</td>
-                                        <td style="padding: 3px 0; border: none;">{{ $pVal }}</td>
-                                    </tr>
-                                    @endforeach
                                 @endif
                                 @if($ca && isset($ca['model']))
                                 <tr>
@@ -330,14 +344,15 @@
                                     <td style="padding: 3px 0; border: none;">{{ $current->row_count }}</td>
                                 </tr>
                             </table>
+                            <button onclick="openChatOverlay()" class="btn btn-primary"
+                                style="padding: 12px 28px; font-size: 15px; border-radius: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; align-self: flex-start;">
+                                💬 Chat with this data
+                            </button>
                         </div>
                     </div>
 
                     <!-- Action buttons -->
                     <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
-                        <button onclick="openChatOverlay()" class="btn btn-sm btn-primary" style="display: flex; align-items: center; gap: 4px;">
-                            💬 Chat
-                        </button>
                         <a href="{{ route('workspace.export', $current->id) }}" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;">
                             ⬇️ Export
                         </a>
@@ -544,6 +559,47 @@
             </div>
         </div>
     </div>
+
+    <!-- Chat overlay (Gmail compose-style, bottom-right) -->
+    @if($current)
+    <div id="chat-overlay" style="display: none; position: fixed; bottom: 0; right: 24px; z-index: 1001;
+        width: 480px; height: 600px; background: #fff; border-radius: 12px 12px 0 0;
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.2); flex-direction: column;">
+
+        <!-- Header -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px;
+            background: #1d1d1f; border-radius: 12px 12px 0 0; flex-shrink: 0;">
+            <div>
+                <div style="font-size: 14px; font-weight: 600; color: #fff;">Chat with {{ Str::limit($current->name, 30) }}</div>
+                <div style="font-size: 11px; color: #aaa;">{{ $knowledgeUnits->where('review_status', 'approved')->count() }} approved clusters as knowledge source</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="clearChat()" style="background: none; border: none; cursor: pointer; color: #aaa; font-size: 12px;" title="Clear">Clear</button>
+                <button onclick="closeChatOverlay()" style="background: none; border: none; cursor: pointer; color: #fff; font-size: 18px; line-height: 1; padding: 0 4px;">✕</button>
+            </div>
+        </div>
+
+        <!-- Messages area -->
+        <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="text-align: center; color: #86868b; font-size: 12px; padding: 20px 0;">
+                Ask a question about the data in this embedding's clusters.
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div style="border-top: 1px solid #e5e5e7; padding: 12px 16px; flex-shrink: 0;">
+            <form onsubmit="sendChatMessage(event)" style="display: flex; gap: 8px;">
+                <input type="text" id="chat-input" placeholder="Type your question..."
+                    style="flex: 1; padding: 10px 14px; border: 1px solid #d2d2d7; border-radius: 20px; font-size: 14px; outline: none;"
+                    autocomplete="off">
+                <button type="submit" id="chat-send-btn"
+                    style="background: #0071e3; color: #fff; border: none; border-radius: 20px; padding: 10px 18px; font-size: 14px; cursor: pointer; font-weight: 500;">
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
 @endsection
 
 @section('scripts')
@@ -615,10 +671,135 @@
             document.getElementById('rename-form').style.display = 'none';
         }
 
-        // Chat overlay (placeholder - will integrate with existing chat API)
+        // Chat overlay
+        let chatHistory = [];
+        let chatSending = false;
+
         function openChatOverlay() {
-            // TODO: implement chat overlay similar to dispatch modal
-            alert('Chat feature coming soon — will use approved KUs as knowledge source.');
+            document.getElementById('chat-overlay').style.display = 'flex';
+            document.getElementById('chat-input').focus();
+        }
+
+        function closeChatOverlay() {
+            document.getElementById('chat-overlay').style.display = 'none';
+        }
+
+        function clearChat() {
+            chatHistory = [];
+            const container = document.getElementById('chat-messages');
+            container.innerHTML = '<div style="text-align: center; color: #86868b; font-size: 12px; padding: 20px 0;">Ask a question about the data in this embedding\'s clusters.</div>';
+        }
+
+        function appendChatMessage(role, content, meta) {
+            const container = document.getElementById('chat-messages');
+
+            // Remove placeholder if present
+            const placeholder = container.querySelector('[style*="text-align: center"]');
+            if (placeholder && role === 'user') placeholder.remove();
+
+            const bubble = document.createElement('div');
+            const isUser = role === 'user';
+
+            bubble.style.cssText = `
+                max-width: 85%; align-self: ${isUser ? 'flex-end' : 'flex-start'};
+                background: ${isUser ? '#0071e3' : '#F6F6F6'};
+                color: ${isUser ? '#fff' : '#1d1d1f'};
+                padding: 10px 14px; border-radius: ${isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px'};
+                font-size: 14px; line-height: 1.5; word-wrap: break-word;
+            `;
+            bubble.textContent = content;
+
+            container.appendChild(bubble);
+
+            // Show sources and meta for assistant messages
+            if (!isUser && meta) {
+                if (meta.sources && meta.sources.length > 0) {
+                    const sourcesDiv = document.createElement('div');
+                    sourcesDiv.style.cssText = 'align-self: flex-start; font-size: 11px; color: #86868b; padding: 2px 4px;';
+                    const topicList = meta.sources.map(s => s.topic + ' (' + (s.similarity * 100).toFixed(1) + '%)').join(', ');
+                    sourcesDiv.textContent = 'Sources: ' + topicList;
+                    container.appendChild(sourcesDiv);
+                }
+                if (meta.latency_ms || meta.usage) {
+                    const metaDiv = document.createElement('div');
+                    metaDiv.style.cssText = 'align-self: flex-start; font-size: 10px; color: #aaa; padding: 0 4px 4px;';
+                    const parts = [];
+                    if (meta.latency_ms) parts.push(meta.latency_ms + 'ms');
+                    if (meta.usage) parts.push((meta.usage.input_tokens + meta.usage.output_tokens) + ' tokens');
+                    if (meta.model) parts.push(meta.model.split('.').pop().split(':')[0]);
+                    metaDiv.textContent = parts.join(' · ');
+                    container.appendChild(metaDiv);
+                }
+            }
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message || chatSending) return;
+
+            chatSending = true;
+            input.value = '';
+            const sendBtn = document.getElementById('chat-send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
+
+            // Show user message
+            appendChatMessage('user', message);
+            chatHistory.push({ role: 'user', content: message });
+
+            // Show typing indicator
+            const container = document.getElementById('chat-messages');
+            const typing = document.createElement('div');
+            typing.id = 'typing-indicator';
+            typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #86868b;';
+            typing.textContent = 'Thinking...';
+            container.appendChild(typing);
+            container.scrollTop = container.scrollHeight;
+
+            try {
+                @if($current)
+                const response = await fetch('{{ route("workspace.chat", $current->id) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        history: chatHistory.slice(0, -1), // Exclude current message (server adds it)
+                    }),
+                });
+
+                const data = await response.json();
+
+                // Remove typing indicator
+                document.getElementById('typing-indicator')?.remove();
+
+                if (data.error) {
+                    appendChatMessage('assistant', 'Error: ' + data.error);
+                } else {
+                    appendChatMessage('assistant', data.message, {
+                        sources: data.sources,
+                        latency_ms: data.latency_ms,
+                        usage: data.usage,
+                        model: data.model,
+                    });
+                    chatHistory.push({ role: 'assistant', content: data.message });
+                }
+                @endif
+            } catch (err) {
+                document.getElementById('typing-indicator')?.remove();
+                appendChatMessage('assistant', 'Network error: ' + err.message);
+            }
+
+            chatSending = false;
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+            input.focus();
         }
 
         // Dispatch modal open/close
