@@ -300,4 +300,39 @@ return [
     'view_knowledge_units' => 'ナレッジユニットを表示',
     'no_clusters_found' => 'クラスターが見つかりません。',
     'back_to_dashboard' => 'ダッシュボードに戻る',
+
+    // Configure画面 — 説明カード
+    'descriptions' => '説明',
+    'descriptions_hint' => 'サンプル行から自動生成。編集可 — LLMがデータを理解する際の参考になります。',
+    'dataset_description' => 'データセットの説明',
+    'dataset_description_placeholder' => 'このデータセットの内容を記述…',
+    'column_descriptions' => '列の説明',
+    'column_description_placeholder' => '説明…',
+
+    // Configure画面 — カラムマッパー
+    'clustering_columns' => 'クラスタリング対象列',
+    'clustering_columns_hint' => '埋め込み・クラスタリングする列を選択。+で追加、ドラッグで並べ替え。',
+
+    // Configure画面 — ナレッジ構造
+    'knowledge_structure' => 'ナレッジ構造',
+    'knowledge_structure_hint' => 'CSV列をナレッジフィールドに割り当てるか、LLMで生成します。',
+    'generate_with_llm' => 'LLMで生成',
+    'extract_with_llm' => 'LLMで抽出',
+    'not_used' => '使用しない',
+    'required_field' => '必須',
+    'km_question' => '質問',
+    'km_symptoms' => '症状',
+    'km_root_cause' => '根本原因',
+    'km_resolution' => '解決策',
+    'km_primary_filter' => 'プライマリフィルタ',
+    'km_category' => 'カテゴリ',
+    'km_question_hint' => '代表行からFAQ形式の質問をLLMが生成',
+    'km_symptoms_hint' => 'エラーメッセージやユーザーが報告する現象',
+    'km_root_cause_hint' => '解決データから抽出される技術的な根本原因',
+    'km_resolution_hint' => '問題の解決手順 — resolution_summaryに対応',
+    'km_primary_filter_hint' => 'チャット検索時のフィルタ属性（例: 製品名、地域、部門）',
+    'km_category_hint' => 'ナレッジの分類タグ',
+    'llm_fallback' => 'LLMフォールバック',
+    'llm_fallback_hint' => 'マッピング列が空または低品質の場合、LLMで値を生成',
+    'preview_select_columns' => '上で列を選択するとプレビューが表示されます…',
 ];

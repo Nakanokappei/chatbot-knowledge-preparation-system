@@ -300,4 +300,39 @@ return [
     'view_knowledge_units' => 'View Knowledge Units',
     'no_clusters_found' => 'No clusters found for this job.',
     'back_to_dashboard' => 'Back to Dashboard',
+
+    // Configure screen — Descriptions card
+    'descriptions' => 'Descriptions',
+    'descriptions_hint' => 'Auto-generated from sample rows. Edit if needed — these help the LLM understand your data.',
+    'dataset_description' => 'Dataset Description',
+    'dataset_description_placeholder' => 'Describe what this dataset contains...',
+    'column_descriptions' => 'Column Descriptions',
+    'column_description_placeholder' => 'Description...',
+
+    // Configure screen — Column mapper
+    'clustering_columns' => 'Clustering Columns',
+    'clustering_columns_hint' => 'Select columns to embed and cluster. Click + to add, drag to reorder.',
+
+    // Configure screen — Knowledge structure
+    'knowledge_structure' => 'Knowledge Structure',
+    'knowledge_structure_hint' => 'Map CSV columns to knowledge fields, or let the LLM generate them.',
+    'generate_with_llm' => 'Generate with LLM',
+    'extract_with_llm' => 'Extract with LLM',
+    'not_used' => 'Not used',
+    'required_field' => 'required',
+    'km_question' => 'Question',
+    'km_symptoms' => 'Symptoms',
+    'km_root_cause' => 'Root Cause',
+    'km_resolution' => 'Resolution',
+    'km_primary_filter' => 'Primary Filter',
+    'km_category' => 'Category',
+    'km_question_hint' => 'LLM generates a FAQ-style question from representative rows',
+    'km_symptoms_hint' => 'Error messages and surface-level phenomena from user reports',
+    'km_root_cause_hint' => 'Underlying technical cause extracted from resolution data',
+    'km_resolution_hint' => 'How to resolve the issue — maps to resolution_summary',
+    'km_primary_filter_hint' => 'Key attribute for chat filtering (e.g. product, region, department)',
+    'km_category_hint' => 'Classification tag for organizing knowledge',
+    'llm_fallback' => 'LLM Fallback',
+    'llm_fallback_hint' => 'When a mapped column has empty or low-quality data, use LLM to generate the value',
+    'preview_select_columns' => 'Select columns above to see preview...',
 ];
