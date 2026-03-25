@@ -32,6 +32,9 @@
         .col-item .handle { cursor: grab; color: #c7c7cc; font-size: 14px; }
         .drop-zone { min-height: 60px; border: 2px dashed #d2d2d7; border-radius: 8px; padding: 16px; text-align: center; color: #5f6368; font-size: 13px; transition: all 0.15s; }
         .drop-zone.over { border-color: #0071e3; background: #f0f8ff; }
+        .insert-indicator { height: 3px; background: #0071e3; border-radius: 2px; margin: -1px 0; transition: opacity 0.1s; pointer-events: none; }
+        #available-list .col-item { cursor: grab; }
+        #available-list .col-item[draggable=true]:active { cursor: grabbing; }
 
         /* Preview */
         .preview-box { background: #1d1d1f; color: #e5e5e7; border-radius: 10px; padding: 16px; font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; line-height: 1.6; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
@@ -83,11 +86,12 @@
                 </div>
             </div>
 
-            <!-- Column Mapper -->
+            <!-- Column Mapper: Clustering -->
             <div class="card">
-                <h2>{{ __('ui.select_columns') }}</h2>
+                <h2>Clustering Columns</h2>
                 <p style="font-size: 12px; color: #5f6368; margin-bottom: 12px;">
-                    Click <strong>+</strong> to add columns. Drag to reorder. Edit the label shown before each value.
+                    Select columns to embed and cluster. These columns determine how rows are grouped into topics.
+                    Click <strong>+</strong> to add, drag to reorder. The label prefix appears before each value in the embedding text.
                 </p>
                 <div class="mapper">
                     <div class="mapper-panel" id="available-panel">
@@ -118,6 +122,97 @@
                 <h2>{{ __('ui.embedding_preview') }}</h2>
                 <div class="preview-box" id="preview-box">
                     <span style="color: #5f6368;">Select columns above to see preview...</span>
+                </div>
+            </div>
+
+            <!-- Knowledge Structure Mapping -->
+            <div class="card">
+                <h2>Knowledge Structure</h2>
+                <p style="font-size: 12px; color: #5f6368; margin-bottom: 16px;">
+                    Map CSV columns to knowledge fields. For each field, choose a source column or let the LLM generate/extract it from representative data.
+                    The <strong>Question</strong> field is used for chatbot similarity search — it should represent what a user would ask.
+                </p>
+
+                <div style="display: grid; grid-template-columns: 160px 1fr; gap: 10px; align-items: center;">
+                    {{-- Question --}}
+                    <label style="font-weight: 500; font-size: 13px;">Question</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select name="km_question_source" id="km-question-source" onchange="toggleKmLlm('question')"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            <option value="_llm">Generate with LLM</option>
+                            @foreach($columns as $i => $col)
+                                <option value="{{ $i }}">{{ $col }}</option>
+                            @endforeach
+                        </select>
+                        <span id="km-question-hint" style="font-size: 11px; color: #5f6368;">LLM generates a FAQ-style question from representative rows</span>
+                    </div>
+
+                    {{-- Symptoms --}}
+                    <label style="font-weight: 500; font-size: 13px;">Symptoms</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select name="km_symptoms_source" id="km-symptoms-source" onchange="toggleKmLlm('symptoms')"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            <option value="_llm">Extract with LLM</option>
+                            @foreach($columns as $i => $col)
+                                <option value="{{ $i }}">{{ $col }}</option>
+                            @endforeach
+                        </select>
+                        <span id="km-symptoms-hint" style="font-size: 11px; color: #5f6368;">Error messages, surface-level phenomena from user reports</span>
+                    </div>
+
+                    {{-- Root Cause --}}
+                    <label style="font-weight: 500; font-size: 13px;">Root Cause</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select name="km_root_cause_source" id="km-root_cause-source" onchange="toggleKmLlm('root_cause')"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            <option value="_llm">Extract with LLM</option>
+                            @foreach($columns as $i => $col)
+                                <option value="{{ $i }}">{{ $col }}</option>
+                            @endforeach
+                        </select>
+                        <span id="km-root_cause-hint" style="font-size: 11px; color: #5f6368;">Underlying technical cause extracted from resolution data</span>
+                    </div>
+
+                    {{-- Resolution --}}
+                    <label style="font-weight: 500; font-size: 13px;">Resolution</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select name="km_resolution_source" id="km-resolution-source" onchange="toggleKmLlm('resolution')"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            <option value="_llm">Generate with LLM</option>
+                            @foreach($columns as $i => $col)
+                                <option value="{{ $i }}">{{ $col }}</option>
+                            @endforeach
+                        </select>
+                        <span id="km-resolution-hint" style="font-size: 11px; color: #5f6368;">How to resolve the issue — maps to resolution_summary</span>
+                    </div>
+
+                    {{-- Product --}}
+                    <label style="font-weight: 500; font-size: 13px;">Product</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select name="km_product_source" id="km-product-source" onchange="toggleKmLlm('product')"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            <option value="_none">Not used</option>
+                            <option value="_llm">Extract with LLM</option>
+                            @foreach($columns as $i => $col)
+                                <option value="{{ $i }}">{{ $col }}</option>
+                            @endforeach
+                        </select>
+                        <span id="km-product-hint" style="font-size: 11px; color: #5f6368;">Product or service name for filtering</span>
+                    </div>
+
+                    {{-- Category --}}
+                    <label style="font-weight: 500; font-size: 13px;">Category</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select name="km_category_source" id="km-category-source" onchange="toggleKmLlm('category')"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            <option value="_none">Not used</option>
+                            <option value="_llm">Generate with LLM</option>
+                            @foreach($columns as $i => $col)
+                                <option value="{{ $i }}">{{ $col }}</option>
+                            @endforeach
+                        </select>
+                        <span id="km-category-hint" style="font-size: 11px; color: #5f6368;">Classification tag for organizing knowledge</span>
+                    </div>
                 </div>
             </div>
 
@@ -209,10 +304,17 @@
         const allColumns = @json($columns);
         const previewRows = @json($previewRows);
         let selectedColumns = [];
+        let dragSource = null;  // 'available' or 'selected'
+        let dragData = null;    // column index (available) or position (selected)
 
-        function addColumn(index, name) {
+        function addColumn(index, name, insertAt) {
             if (selectedColumns.find(c => c.index === index)) return;
-            selectedColumns.push({ index: index, label: name });
+            const col = { index: index, label: name };
+            if (insertAt !== undefined && insertAt >= 0) {
+                selectedColumns.splice(insertAt, 0, col);
+            } else {
+                selectedColumns.push(col);
+            }
             renderSelected();
             refreshPreview();
         }
@@ -231,10 +333,50 @@
 
         function moveColumn(fromIdx, toIdx) {
             if (toIdx < 0 || toIdx >= selectedColumns.length) return;
+            if (fromIdx === toIdx) return;
             const item = selectedColumns.splice(fromIdx, 1)[0];
-            selectedColumns.splice(toIdx, 0, item);
+            selectedColumns.splice(toIdx > fromIdx ? toIdx - 1 : toIdx, 0, item);
             renderSelected();
             refreshPreview();
+        }
+
+        function clearInsertIndicators() {
+            document.querySelectorAll('.insert-indicator').forEach(el => el.remove());
+        }
+
+        function showInsertIndicator(targetEl, position) {
+            clearInsertIndicators();
+            const indicator = document.createElement('div');
+            indicator.className = 'insert-indicator';
+            if (position === 'before') {
+                targetEl.parentNode.insertBefore(indicator, targetEl);
+            } else {
+                targetEl.parentNode.insertBefore(indicator, targetEl.nextSibling);
+            }
+        }
+
+        function getDropPosition(e, el) {
+            const rect = el.getBoundingClientRect();
+            return (e.clientY - rect.top) < rect.height / 2 ? 'before' : 'after';
+        }
+
+        // Make available items draggable to selected panel
+        function setupAvailableDrag() {
+            document.querySelectorAll('#available-list .col-item').forEach(item => {
+                item.draggable = true;
+                item.addEventListener('dragstart', (e) => {
+                    dragSource = 'available';
+                    dragData = parseInt(item.dataset.index);
+                    e.dataTransfer.effectAllowed = 'copy';
+                    item.classList.add('dragging');
+                });
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                    clearInsertIndicators();
+                    dragSource = null;
+                    dragData = null;
+                });
+            });
         }
 
         function renderSelected() {
@@ -260,17 +402,74 @@
                         onchange="updateLabel(${col.index}, this.value)" placeholder="Label">
                     <button type="button" class="remove-btn" onclick="removeColumn(${col.index})" title="Remove">×</button>
                 `;
-                div.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', pos); div.classList.add('dragging'); });
-                div.addEventListener('dragend', () => div.classList.remove('dragging'));
-                div.addEventListener('dragover', (e) => e.preventDefault());
-                div.addEventListener('drop', (e) => { e.preventDefault(); moveColumn(parseInt(e.dataTransfer.getData('text/plain')), pos); });
-                list.appendChild(div);
 
+                // Drag from selected (reorder)
+                div.addEventListener('dragstart', (e) => {
+                    dragSource = 'selected';
+                    dragData = pos;
+                    e.dataTransfer.effectAllowed = 'move';
+                    div.classList.add('dragging');
+                });
+                div.addEventListener('dragend', () => {
+                    div.classList.remove('dragging');
+                    clearInsertIndicators();
+                    dragSource = null;
+                    dragData = null;
+                });
+
+                // Drop target: show indicator and handle drop
+                div.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const position = getDropPosition(e, div);
+                    showInsertIndicator(div, position);
+                });
+                div.addEventListener('dragleave', () => clearInsertIndicators());
+                div.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    clearInsertIndicators();
+                    const targetPos = parseInt(div.dataset.pos);
+                    const position = getDropPosition(e, div);
+                    const insertAt = position === 'before' ? targetPos : targetPos + 1;
+
+                    if (dragSource === 'available') {
+                        if (!selectedColumns.find(c => c.index === dragData)) {
+                            addColumn(dragData, allColumns[dragData], insertAt);
+                        }
+                    } else if (dragSource === 'selected') {
+                        moveColumn(dragData, insertAt);
+                    }
+                });
+
+                list.appendChild(div);
                 hiddenInputs.innerHTML += `<input type="hidden" name="selected_columns[]" value="${col.index}">`;
                 hiddenInputs.innerHTML += `<input type="hidden" name="column_labels[${col.index}]" value="${col.label}">`;
             });
 
+            // Drop zone for empty list or appending to end
             dropZone.style.display = selectedColumns.length === 0 ? 'block' : 'none';
+            dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('over'); };
+            dropZone.ondragleave = () => dropZone.classList.remove('over');
+            dropZone.ondrop = (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('over');
+                if (dragSource === 'available' && !selectedColumns.find(c => c.index === dragData)) {
+                    addColumn(dragData, allColumns[dragData]);
+                }
+            };
+
+            // Also allow dropping after the last item in selected-list
+            list.ondragover = (e) => {
+                if (e.target === list) { e.preventDefault(); }
+            };
+            list.ondrop = (e) => {
+                if (e.target === list) {
+                    e.preventDefault();
+                    if (dragSource === 'available' && !selectedColumns.find(c => c.index === dragData)) {
+                        addColumn(dragData, allColumns[dragData]);
+                    }
+                }
+            };
+
             startBtn.disabled = selectedColumns.length === 0;
             const testBtn = document.getElementById('test-btn');
             if (testBtn) testBtn.disabled = selectedColumns.length === 0;
@@ -313,6 +512,25 @@
             return div.innerHTML;
         }
 
+        // Knowledge mapping hint toggle
+        const kmHints = {
+            question: { _llm: 'LLM generates a FAQ-style question from representative rows', _none: '', _col: 'Uses this column directly as the question text' },
+            symptoms: { _llm: 'Error messages, surface-level phenomena from user reports', _none: '', _col: 'Uses this column directly' },
+            root_cause: { _llm: 'Underlying technical cause extracted from resolution data', _none: '', _col: 'Uses this column directly' },
+            resolution: { _llm: 'LLM generates resolution steps from representative data', _none: '', _col: 'Uses this column directly as resolution' },
+            product: { _llm: 'LLM extracts product names from representative data', _none: 'This field will be empty', _col: 'Uses this column directly' },
+            category: { _llm: 'LLM generates a category from cluster content', _none: 'This field will be empty', _col: 'Uses this column directly' },
+        };
+        function toggleKmLlm(field) {
+            const select = document.getElementById('km-' + field + '-source');
+            const hint = document.getElementById('km-' + field + '-hint');
+            if (!select || !hint) return;
+            const val = select.value;
+            if (val === '_llm') hint.textContent = kmHints[field]._llm;
+            else if (val === '_none') hint.textContent = kmHints[field]._none;
+            else hint.textContent = kmHints[field]._col;
+        }
+
         // Clustering method parameter toggle
         document.getElementById('clustering-method').addEventListener('change', function() {
             ['params-hdbscan', 'params-kmeans', 'params-agglomerative', 'params-leiden'].forEach(
@@ -322,4 +540,5 @@
         });
 
         renderSelected();
+        setupAvailableDrag();
 @endsection

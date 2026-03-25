@@ -16,11 +16,12 @@ class Dataset extends Model
 
     protected $fillable = [
         'tenant_id', 'name', 'source_type', 'original_filename',
-        's3_raw_path', 'row_count', 'schema_json',
+        's3_raw_path', 'row_count', 'schema_json', 'knowledge_mapping_json',
     ];
 
     protected $casts = [
         'schema_json' => 'array',
+        'knowledge_mapping_json' => 'array',
     ];
 
     public function rows(): HasMany

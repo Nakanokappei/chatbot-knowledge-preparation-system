@@ -37,7 +37,7 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
-      APP_KEY: ${APP_KEY:-base64:placeholder_generate_with_artisan_key_generate}
+      APP_KEY: "${APP_KEY}"
       APP_URL: http://localhost:8000
       DB_CONNECTION: pgsql
       DB_HOST: db

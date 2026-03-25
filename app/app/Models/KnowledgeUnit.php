@@ -20,12 +20,15 @@ class KnowledgeUnit extends Model
 
     protected $fillable = [
         'tenant_id', 'dataset_id', 'pipeline_job_id', 'cluster_id',
-        'topic', 'intent', 'summary', 'typical_cases_json',
+        'topic', 'intent', 'summary', 'question', 'symptoms',
+        'root_cause', 'product', 'category',
+        'typical_cases_json',
         'cause_summary', 'resolution_summary', 'notes',
         'representative_rows_json', 'keywords_json', 'row_count',
         'confidence', 'review_status', 'source_refs_json',
         'pipeline_config_version', 'prompt_version', 'version',
         'edited_by_user_id', 'edited_at', 'edit_comment',
+        'embedding_id',
     ];
 
     protected $casts = [

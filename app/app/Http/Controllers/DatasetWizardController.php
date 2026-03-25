@@ -370,6 +370,14 @@ class DatasetWizardController extends Controller
                 ],
             ]);
 
+            // Save knowledge structure mapping
+            $knowledgeMapping = [];
+            foreach (['question', 'symptoms', 'root_cause', 'resolution', 'product', 'category'] as $field) {
+                $source = $request->input("km_{$field}_source", '_none');
+                $knowledgeMapping[$field] = $source;
+            }
+            $dataset->update(['knowledge_mapping_json' => $knowledgeMapping]);
+
             // Dispatch pipeline
             $pipelineJob = \App\Models\PipelineJob::create([
                 'tenant_id' => $tenantId,
@@ -395,6 +403,7 @@ class DatasetWizardController extends Controller
                 'leiden_n_neighbors', 'leiden_resolution',
             ]);
             $pipelineConfig['clustering_params'] = $clusteringParams;
+            $pipelineConfig['knowledge_mapping'] = $knowledgeMapping;
 
             // Send to SQS
             $sqsUrl = env('SQS_PREFIX', '') . '/' . env('SQS_QUEUE', 'ckps-pipeline-dev');
