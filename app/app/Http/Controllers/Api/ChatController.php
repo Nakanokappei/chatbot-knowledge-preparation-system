@@ -59,12 +59,13 @@ class ChatController extends Controller
             SELECT
                 ku.id, ku.topic, ku.intent, ku.summary,
                 ku.cause_summary, ku.resolution_summary,
-                1 - (ku.embedding <=> ?::vector) AS similarity
+                1 - (ku.search_embedding <=> ?::vector) AS similarity
             FROM knowledge_units ku
             JOIN knowledge_dataset_items kdi ON kdi.knowledge_unit_id = ku.id
             WHERE kdi.knowledge_dataset_id = ?
               AND ku.review_status = 'approved'
-            ORDER BY ku.embedding <=> ?::vector
+              AND ku.search_embedding IS NOT NULL
+            ORDER BY ku.search_embedding <=> ?::vector
             LIMIT ?
         ", [$vectorString, $dataset->id, $vectorString, $topK]);
 

@@ -54,12 +54,12 @@ class EmbeddingChatController extends Controller
             $retrievedKUs = DB::select("
                 SELECT
                     id, topic, intent, summary,
-                    1 - (embedding <=> ?::vector) AS similarity
+                    1 - (search_embedding <=> ?::vector) AS similarity
                 FROM knowledge_units
                 WHERE embedding_id = ?
                   AND review_status = 'approved'
-                  AND embedding IS NOT NULL
-                ORDER BY embedding <=> ?::vector
+                  AND search_embedding IS NOT NULL
+                ORDER BY search_embedding <=> ?::vector
                 LIMIT ?
             ", [$vectorString, $embeddingId, $vectorString, $topK]);
 
