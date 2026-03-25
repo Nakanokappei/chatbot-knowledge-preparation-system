@@ -39,7 +39,7 @@
         .tree-icon { flex-shrink: 0; color: #5f6368; }
         .tree-dataset-name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .tree-dataset-count { font-size: 12px; color: #5f6368; flex-shrink: 0; }
-        .tree-dataset-menu { display: none; flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: none; background: transparent; cursor: pointer; font-size: 14px; color: #5f6368; line-height: 24px; text-align: center; padding: 0; }
+        .tree-dataset-menu { display: none; flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: none; background: transparent; cursor: pointer; font-size: 14px; color: #5f6368; line-height: 24px; text-align: center; padding: 0; text-decoration: none; }
         .tree-dataset-header:hover .tree-dataset-menu { display: flex; align-items: center; justify-content: center; }
         .tree-dataset-header:hover .tree-dataset-count { display: none; }
         .tree-dataset-menu:hover { background: #dadce0; color: #202124; }

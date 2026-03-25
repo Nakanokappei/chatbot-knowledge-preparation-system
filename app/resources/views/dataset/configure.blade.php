@@ -12,7 +12,7 @@
         .configure-panel { background: #fff; border-radius: 12px; width: 90vw; max-width: 1100px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); overflow: hidden; }
         .configure-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: #F3F3F3; border-radius: 12px 12px 0 0; flex-shrink: 0; }
         .configure-titlebar h1 { font-size: 16px; font-weight: 400; margin: 0; }
-        .configure-titlebar .close-btn { background: none; border: none; font-size: 20px; color: #5f6368; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .configure-titlebar .close-btn { background: none; border: none; font-size: 20px; color: #5f6368; cursor: pointer; padding: 4px 8px; border-radius: 4px; text-decoration: none; }
         .configure-titlebar .close-btn:hover { background: #E9E9E9; }
         .configure-body { flex: 1; overflow-y: auto; padding: 24px; }
         .page-content { max-width: 100%; margin: 0; }
