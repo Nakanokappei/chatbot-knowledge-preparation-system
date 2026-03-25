@@ -551,6 +551,9 @@ class DatasetWizardController extends Controller
             $pipelineConfig['dataset_description'] = $datasetDescription;
             $pipelineConfig['column_descriptions'] = $columnDescriptions;
 
+            // Persist pipeline config snapshot for reproducibility
+            $pipelineJob->update(['pipeline_config_snapshot_json' => $pipelineConfig]);
+
             // Send to SQS
             $sqsUrl = env('SQS_QUEUE_URL');
             if (!$sqsUrl) {
