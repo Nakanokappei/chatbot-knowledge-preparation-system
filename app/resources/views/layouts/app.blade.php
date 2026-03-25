@@ -40,7 +40,7 @@
         .user-dropdown-header .email { font-size: 11px; color: #5f6368; }
         .user-dropdown a, .user-dropdown button { display: block; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px; text-decoration: none; color: #1d1d1f; background: none; border: none; cursor: pointer; }
         .user-dropdown a:hover, .user-dropdown button:hover { background: #f5f5f7; }
-        .user-dropdown .logout { color: #ff3b30; border-top: 1px solid #f0f0f2; }
+        .user-dropdown .logout { color: #1d1d1f; border-top: 1px solid #f0f0f2; }
 
         /* ── Common elements ─────────────────────────────────── */
         .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.15s; }
@@ -105,10 +105,6 @@
                         <div class="email">{{ auth()->user()->email }}</div>
                     </div>
                     <a href="{{ route('profile.edit') }}">{{ __('ui.nav_profile') }}</a>
-                    <div style="display: flex; gap: 4px; padding: 6px 12px; border-top: 1px solid #e5e5e7; margin-top: 4px;">
-                        <a href="{{ route('locale.switch', 'en') }}" style="padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; {{ app()->getLocale() === 'en' ? 'background: #0071e3; color: #fff;' : 'color: #5f6368;' }}">EN</a>
-                        <a href="{{ route('locale.switch', 'ja') }}" style="padding: 4px 10px; border-radius: 4px; font-size: 12px; text-decoration: none; {{ app()->getLocale() === 'ja' ? 'background: #0071e3; color: #fff;' : 'color: #5f6368;' }}">JA</a>
-                    </div>
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="logout">{{ __('ui.logout') }}</button>
