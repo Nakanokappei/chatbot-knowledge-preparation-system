@@ -402,25 +402,27 @@ PROMPT;
 
         $contextHint = '';
         if (!empty($existingContext['product'])) {
-            $contextHint = "\nNote: The user previously mentioned the product \"{$existingContext['product']}\".";
+            $contextHint = "\nNote: The user previously mentioned \"{$existingContext['product']}\".";
         }
 
         $prompt = <<<PROMPT
-Extract the product/device name and the user's question from this support message.
+Extract the primary filter value and the user's question from this message.
+The "product" field is a primary filter — it identifies the specific entity being asked about
+(e.g. a brand/model name, service name, region, department, or other distinguishing identifier).
 {$contextHint}
 
 User message: "{$userMessage}"
 
 Respond with JSON only, no explanation:
-{"product": "product name or null", "question": "the question or symptom description or null"}
+{"product": "specific identifier or null", "question": "the question or symptom description or null"}
 
 Rules:
-- "product" must be a specific brand, model, or product name (e.g. "LG Smart TV", "PlayStation", "iPhone 15", "Canon EOS", "Nest Thermostat")
-- Generic category words are NOT product names: テレビ, パソコン, カメラ, スマホ, TV, computer, phone → set "product" to null
-- The question should include the full symptom description, keeping general device words in it
-- If the message contains BOTH a specific product and a question, extract both
-- If the message is just a product/brand name (answering a follow-up), set "question" to null
-- If the message has no specific brand/model, set "product" to null
+- "product" must be a specific, named entity (e.g. "LG Smart TV", "PlayStation", "iPhone 15", "Tokyo Office", "Premium Plan")
+- Generic/category words are NOT valid identifiers: テレビ, パソコン, カメラ, スマホ, TV, computer, phone → set "product" to null
+- The question should include the full description, keeping general words in it
+- If the message contains BOTH a specific identifier and a question, extract both
+- If the message is just an identifier (answering a follow-up), set "question" to null
+- If the message has no specific named entity, set "product" to null
 - Keep the question in the original language
 
 Examples:

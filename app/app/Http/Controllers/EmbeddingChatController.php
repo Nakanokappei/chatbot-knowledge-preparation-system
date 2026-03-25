@@ -37,7 +37,7 @@ class EmbeddingChatController extends Controller
         ]);
 
         $tenantId = auth()->user()->tenant_id;
-        Embedding::where('tenant_id', $tenantId)->findOrFail($embeddingId);
+        $embedding = Embedding::where('tenant_id', $tenantId)->findOrFail($embeddingId);
 
         try {
             $rag = new RagService();
@@ -54,10 +54,15 @@ class EmbeddingChatController extends Controller
             $context = $chatResult['context'];
             $modelId = $chatResult['model_id'];
 
-            // Action: ask the user which product they mean
+            // Action: ask the user which primary filter value they mean
             if ($action === 'ask_product') {
+                // Resolve the CSV column name assigned to Primary Filter
+                $filterLabel = $this->resolvePrimaryFilterLabel($embedding);
+
                 return response()->json([
-                    'message' => 'どの製品についてのご質問ですか？',
+                    'message' => $filterLabel
+                        ? __('ui.chat_ask_filter_named', ['name' => $filterLabel])
+                        : __('ui.chat_ask_filter'),
                     'action' => 'ask_product',
                     'context' => $context,
                     'sources' => [],
@@ -119,5 +124,33 @@ class EmbeddingChatController extends Controller
             ]);
             return response()->json(['error' => 'Chat failed: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Resolve the CSV column name assigned to the Primary Filter field.
+     *
+     * Looks up the dataset's knowledge_mapping_json for the 'product' slot,
+     * then maps its column index back to the column name from schema_json.
+     * Returns null if the mapping is LLM-generated or missing.
+     */
+    private function resolvePrimaryFilterLabel(Embedding $embedding): ?string
+    {
+        $dataset = $embedding->dataset;
+        if (!$dataset) {
+            return null;
+        }
+
+        $mapping = $dataset->knowledge_mapping_json ?? [];
+        $source = $mapping['product'] ?? null;
+
+        // Only resolve if mapped to a specific CSV column (numeric index)
+        if (!$source || !is_numeric($source)) {
+            return null;
+        }
+
+        $columns = $dataset->schema_json['columns'] ?? [];
+        $colIndex = (int) $source;
+
+        return $columns[$colIndex] ?? null;
     }
 }

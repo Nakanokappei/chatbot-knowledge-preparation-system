@@ -72,7 +72,7 @@ def build_knowledge_extraction_prompt(
         "symptoms": "Observable symptoms, error messages, or surface-level phenomena reported by users (2-3 sentences)",
         "root_cause": "The underlying technical or procedural cause of the issue (1-2 sentences)",
         "resolution": "Step-by-step resolution or recommended action (2-3 sentences)",
-        "product": "The product or service name most relevant to this cluster (short string, or null if unclear)",
+        "product": "The primary filter value for this cluster — typically a product, service, region, or department name (short string, or null if unclear)",
         "category": "A classification tag for this knowledge (e.g., 'billing', 'technical', 'account')",
     }
 

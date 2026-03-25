@@ -230,18 +230,17 @@
                         <span id="km-resolution-hint" style="font-size: 11px; color: #5f6368;">How to resolve the issue — maps to resolution_summary</span>
                     </div>
 
-                    {{-- Product --}}
-                    <label style="font-weight: 500; font-size: 13px;">Product</label>
+                    {{-- Primary Filter (required) --}}
+                    <label style="font-weight: 500; font-size: 13px;">Primary Filter <sup style="color: #d93025; font-size: 9px; font-weight: normal;">required</sup></label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <select name="km_product_source" id="km-product-source" onchange="toggleKmLlm('product')"
+                        <select name="km_product_source" id="km-product-source" onchange="toggleKmLlm('product')" required
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
-                            <option value="_none">Not used</option>
                             <option value="_llm">Extract with LLM</option>
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-product-hint" style="font-size: 11px; color: #5f6368;">Product or service name for filtering</span>
+                        <span id="km-product-hint" style="font-size: 11px; color: #5f6368;">Key attribute for chat filtering (e.g. product, region, department)</span>
                     </div>
 
                     {{-- Category --}}

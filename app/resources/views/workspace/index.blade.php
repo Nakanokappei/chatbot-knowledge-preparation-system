@@ -856,9 +856,10 @@
             typing.id = 'typing-indicator';
             typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #5f6368;';
             const wasAskingProduct = chatContext.question && !chatContext.product;
+            const searchingTemplate = '{{ __("ui.chat_searching_for", ["name" => ":name"]) }}';
             typing.textContent = wasAskingProduct
-                ? message + ' について調べています...'
-                : (chatContext.product ? chatContext.product + ' について調べています...' : '{{ __("ui.thinking") }}');
+                ? searchingTemplate.replace(':name', message)
+                : (chatContext.product ? searchingTemplate.replace(':name', chatContext.product) : '{{ __("ui.thinking") }}');
             container.appendChild(typing);
             container.scrollTop = container.scrollHeight;
 
@@ -893,7 +894,7 @@
                     // Add note for broad/reference results
                     let responseMessage = data.message;
                     if (data.action === 'answer_broad') {
-                        responseMessage = '⚠️ ご指定の製品では情報が見つからなかったため、参考情報をお伝えします。\n\n' + responseMessage;
+                        responseMessage = '⚠️ {{ __("ui.chat_broad_match") }}\n\n' + responseMessage;
                     }
                     appendChatMessage('assistant', responseMessage, {
                         sources: data.sources,
