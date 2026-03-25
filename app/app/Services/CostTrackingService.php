@@ -47,6 +47,7 @@ class CostTrackingService
         ]);
 
         // Upsert daily cost summary
+        // Route cost to the appropriate daily summary column by endpoint type
         $costColumn = match (true) {
             str_contains($endpoint, 'chat') => 'chat_cost',
             str_contains($endpoint, 'embed') || str_contains($endpoint, 'retrieve') => 'embedding_cost',

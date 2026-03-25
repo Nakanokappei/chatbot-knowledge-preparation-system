@@ -1,3 +1,5 @@
+{{-- Pipeline dashboard: lists pipeline jobs with a sidebar for status filtering.
+     Includes a dispatch panel for uploading datasets and running the clustering pipeline. --}}
 @extends('layouts.app')
 @section('title', 'Pipeline — KPS')
 
@@ -34,7 +36,7 @@
 
 @section('body')
     <div class="layout">
-        <!-- Sidebar: status filters -->
+        {{-- Sidebar: navigation links that filter jobs by status (all, completed, processing, failed) --}}
         <div class="sidebar">
             <div class="sidebar-tree">
                 <div class="sidebar-section">Pipeline Jobs</div>
@@ -77,10 +79,10 @@
             </div>
         </div>
 
-        <!-- Main area -->
+        {{-- Main content area: either the dispatch form or the job list table --}}
         <div class="main" id="main-content">
             @if(request('show') === 'dispatch')
-                <!-- Dispatch form -->
+                {{-- Dispatch form: CSV upload and pipeline run with clustering method selection --}}
                 <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Run Pipeline</h2>
 
                 @if(session('success'))
@@ -155,7 +157,7 @@
                     </form>
                 </div>
             @else
-                <!-- Job list -->
+                {{-- Job list: clickable rows showing dataset name, cluster stats, and status --}}
                 @if(session('success'))
                     <div style="background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">✓ {{ session('success') }}</div>
                 @endif
@@ -235,7 +237,7 @@
 @endsection
 
 @section('scripts')
-        // Clustering method parameter toggle
+        // Toggle visibility of clustering algorithm-specific parameter inputs
         const methodSelect = document.getElementById('clustering-method');
         if (methodSelect) {
             methodSelect.addEventListener('change', function() {
@@ -245,7 +247,7 @@
             });
         }
 
-        // Auto-refresh job list every 5 seconds (only on list view)
+        // Auto-refresh job list and sidebar counts every 5 seconds to show real-time progress
         @if(request('show') !== 'dispatch')
         async function refreshJobList() {
             try {

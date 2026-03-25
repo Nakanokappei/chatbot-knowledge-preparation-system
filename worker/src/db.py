@@ -97,6 +97,7 @@ def update_job_status(job_id: int, status: str, progress: int = 0, error_detail:
     """
     now = datetime.now(timezone.utc)
     with db_cursor() as cur:
+        # Branch on status to set the appropriate timestamp columns
         if status == "completed":
             cur.execute(
                 """UPDATE pipeline_jobs
@@ -197,7 +198,8 @@ def record_token_usage(
     """
     try:
         with db_cursor() as cur:
-            # Look up model pricing
+            # Look up per-token pricing from the llm_models reference table
+
             cur.execute(
                 "SELECT input_price_per_1m, output_price_per_1m FROM llm_models WHERE model_id = %s LIMIT 1",
                 (model_id,),
@@ -274,6 +276,7 @@ def update_job_step_outputs(job_id: int, step_name: str, step_data: dict):
             "SELECT step_outputs_json FROM pipeline_jobs WHERE id = %s", (job_id,)
         )
         row = cur.fetchone()
+        # Handle both dict (psycopg2 json) and str (raw text) column types
         raw = row[0] if row else None
         current_outputs = (
             raw if isinstance(raw, dict)

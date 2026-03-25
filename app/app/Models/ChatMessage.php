@@ -25,6 +25,7 @@ class ChatMessage extends Model
         'created_at' => 'datetime',
     ];
 
+    /** The conversation this message belongs to. */
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(ChatConversation::class, 'conversation_id');

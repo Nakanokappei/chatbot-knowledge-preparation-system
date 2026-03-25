@@ -1,3 +1,5 @@
+{{-- Pipeline job detail page: shows cluster results for a completed pipeline job.
+     Displays summary stats, pipeline step outputs, KU generation link, and per-cluster breakdowns. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,7 +42,7 @@
         <h1>Job #{{ $job->id }} — Cluster Results</h1>
         <p class="subtitle">{{ $job->dataset->name ?? 'Unknown dataset' }} &middot; {{ $job->status }} &middot; {{ $job->completed_at?->format('Y-m-d H:i') ?? '' }}</p>
 
-        <!-- Summary Stats -->
+        {{-- Summary stats: total rows, cluster count, noise points, and silhouette score --}}
         @php
             $clusteringOutput = $job->step_outputs_json['clustering'] ?? [];
             $embeddingOutput = $job->step_outputs_json['embedding'] ?? [];
@@ -71,7 +73,7 @@
             </div>
         </div>
 
-        <!-- Pipeline Step Outputs -->
+        {{-- Pipeline step outputs: preprocess, embedding, and clustering parameters --}}
         <div class="card">
             <h2>Pipeline Steps</h2>
             <dl class="step-outputs">
@@ -95,7 +97,7 @@
             </dl>
         </div>
 
-        <!-- Knowledge Units Link -->
+        {{-- Knowledge units link: navigate to generated KUs with export options --}}
         @if($job->step_outputs_json && isset($job->step_outputs_json['knowledge_unit_generation']))
             <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
@@ -112,7 +114,7 @@
             </div>
         @endif
 
-        <!-- Cluster Table -->
+        {{-- Cluster table: each cluster with row count bar, topic label, and representative rows --}}
         <div class="card">
             <h2>Clusters ({{ $clusters->count() }})</h2>
 

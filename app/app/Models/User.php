@@ -12,6 +12,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * Authenticated user within a tenant.
+ *
+ * Uses Sanctum for API token authentication and belongs to exactly
+ * one Tenant for multi-tenant isolation.
+ */
 #[Fillable(['name', 'email', 'password', 'tenant_id'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable

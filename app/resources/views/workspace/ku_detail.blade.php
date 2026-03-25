@@ -1,3 +1,6 @@
+{{-- Knowledge unit detail page (workspace context): displays and edits a single KU
+     with review actions (approve/reject), editable fields (topic, intent, question, summary,
+     symptoms, root cause, resolution, product, category, notes), keywords, and representative rows. --}}
 @extends('layouts.app')
 @section('title', $ku->topic . ' — KPS')
 
@@ -22,7 +25,7 @@
                 <p style="color: #34c759; font-size: 13px; margin-bottom: 16px;">✓ {{ session('success') }}</p>
             @endif
 
-            <!-- KU Header -->
+            {{-- KU header: topic, review status badge, row count, and review action buttons --}}
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div>
@@ -49,7 +52,7 @@
                 </div>
             </div>
 
-            <!-- Editable Fields -->
+            {{-- Editable fields form: all KU content fields with save button --}}
             <div class="card">
                 <h2>Details</h2>
                 <form method="POST" action="{{ route('knowledge-units.update', $ku) }}">
@@ -109,7 +112,7 @@
                 </form>
             </div>
 
-            <!-- Keywords -->
+            {{-- Keywords card: displays extracted keyword tags --}}
             <div class="card">
                 <h2>{{ __('ui.keywords') }}</h2>
                 <div class="keywords">

@@ -1,3 +1,5 @@
+{{-- Knowledge datasets listing page: shows all datasets with their status badges,
+     KU counts, and creation dates. Links to individual dataset detail pages. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>

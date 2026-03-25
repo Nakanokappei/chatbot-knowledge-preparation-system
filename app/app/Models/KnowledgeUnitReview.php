@@ -22,11 +22,13 @@ class KnowledgeUnitReview extends Model
         'created_at' => 'datetime',
     ];
 
+    /** The knowledge unit this review pertains to. */
     public function knowledgeUnit(): BelongsTo
     {
         return $this->belongsTo(KnowledgeUnit::class);
     }
 
+    /** The user who performed this review action. */
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewer_user_id');

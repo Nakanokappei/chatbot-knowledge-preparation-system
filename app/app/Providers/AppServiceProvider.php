@@ -7,8 +7,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Application-wide service registration and bootstrapping.
+ *
+ * Configures tenant-based rate limiters for the Retrieval and Chat
+ * APIs, using per-tenant limits stored in the tenants table.
+ */
 class AppServiceProvider extends ServiceProvider
 {
+    /**
+     * Register application services (none at this time).
+     */
     public function register(): void
     {
         //

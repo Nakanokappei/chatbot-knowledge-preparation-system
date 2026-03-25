@@ -87,11 +87,13 @@ def detect_languages(row_ids: list[int]) -> dict[int, str]:
         conn.close()
 
     lang_map = {}
+    # Classify each row's language by its dominant Unicode script category
     for row_id, text in rows:
         # Count script categories in the first 200 characters
         sample = (text or "")[:200]
         scripts = {"CJK": 0, "HANGUL": 0, "CYRILLIC": 0, "ARABIC": 0, "LATIN": 0, "OTHER": 0}
 
+        # Tally script categories from the first 200 characters
         for ch in sample:
             if ch.isspace() or ch.isdigit():
                 continue
@@ -151,7 +153,7 @@ def remove_language_direction(
     lang_stats = {lang: len(indices) for lang, indices in lang_groups.items()}
     logger.info("Language distribution: %s", lang_stats)
 
-    # Skip debiasing if only one language detected
+    # Debiasing is unnecessary when all rows share the same language
     if len(lang_groups) <= 1:
         logger.info("Single language detected, skipping language direction removal")
         return embeddings, lang_stats
@@ -159,7 +161,7 @@ def remove_language_direction(
     # Compute global mean
     global_mean = embeddings.mean(axis=0)
 
-    # Debias: subtract per-language mean, add back global mean
+    # Debias each language group: subtract its mean direction, restore global mean
     debiased = embeddings.copy()
     for lang, indices in lang_groups.items():
         idx_array = np.array(indices)
@@ -299,6 +301,7 @@ def run_leiden(embeddings: np.ndarray, params: dict) -> tuple[np.ndarray, np.nda
     edges = []
     weights = []
 
+    # Convert k-NN results to edge list with cosine similarity weights
     for i in range(n_points):
         for j_idx in range(n_neighbors):
             j = int(neighbor_indices[i][j_idx])
@@ -368,6 +371,7 @@ def run_clustering(
     Returns:
         (labels, probabilities, method_name, effective_params) tuple.
     """
+    # Validate the requested clustering method before proceeding
     if method not in CLUSTERING_METHODS:
         raise ValueError(
             f"Unknown clustering method '{method}'. "
@@ -379,6 +383,7 @@ def run_clustering(
     # so strip the prefix and keep only params relevant to the selected method.
     effective_params = dict(DEFAULT_PARAMS.get(method, {}))
     if params:
+        # Strip method-specific prefixes (e.g., "hdbscan_min_cluster_size" -> "min_cluster_size")
         prefix = method + "_"
         cleaned = {}
         for key, value in params.items():
@@ -387,7 +392,7 @@ def run_clustering(
             elif "_" not in key or not any(key.startswith(m + "_") for m in CLUSTERING_METHODS):
                 # Keep params without a method prefix (generic params)
                 cleaned[key] = value
-        # Cast numeric strings to appropriate types
+        # Cast numeric strings from form inputs to int/float for sklearn
         for key, value in cleaned.items():
             if isinstance(value, str):
                 try:
@@ -448,6 +453,7 @@ def compute_centroids(embeddings: np.ndarray, labels: np.ndarray) -> dict[int, n
     centroids = {}
     unique_labels = set(labels)
 
+    # Compute mean vector for each non-noise cluster
     for label in unique_labels:
         if label == -1:
             continue  # Skip noise
@@ -473,6 +479,7 @@ def find_representatives(
     """
     representatives = {}
 
+    # For each cluster, rank members by proximity to the centroid
     for label, centroid in centroids.items():
         mask = labels == label
         indices = np.where(mask)[0]
@@ -690,7 +697,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     n_clusters = len(centroids)
     n_noise = int((labels == -1).sum())
 
-    # Silhouette score requires at least 2 clusters and non-noise points
+    # Silhouette score measures cluster separation; requires at least 2 clusters
     quality_score = -1.0
     non_noise_mask = labels != -1
     if n_clusters >= 2 and non_noise_mask.sum() > n_clusters:
@@ -717,7 +724,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         quality_score=quality_score,
     )
 
-    # Link clusters to embedding record and update its display name
+    # Link clusters to their parent embedding and rename with method details
     embedding_id = pipeline_config.get("embedding_id")
     if embedding_id:
         link_clusters_to_embedding(job_id, embedding_id)

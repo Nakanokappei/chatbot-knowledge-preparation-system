@@ -1,3 +1,5 @@
+{{-- Login page: standalone authentication form with inline styles (no layout extends).
+     Displays email/password inputs, remember-me checkbox, and validation errors. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,6 +23,7 @@
     </style>
 </head>
 <body>
+    {{-- Login card: centered form with app title and credential inputs --}}
     <div class="login-card">
         <h1>{{ __('ui.app_name') }}</h1>
         <p class="subtitle">Sign in to continue</p>

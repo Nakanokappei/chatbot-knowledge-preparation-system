@@ -1,3 +1,5 @@
+{{-- Version history timeline for a knowledge unit: merges version snapshots and
+     review status changes into a single chronological timeline with colored dots. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>

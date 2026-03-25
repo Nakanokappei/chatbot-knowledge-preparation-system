@@ -24,16 +24,19 @@ class Dataset extends Model
         'knowledge_mapping_json' => 'array',
     ];
 
+    /** Individual log entries parsed from the uploaded CSV. */
     public function rows(): HasMany
     {
         return $this->hasMany(DatasetRow::class);
     }
 
+    /** Pipeline jobs that have been run against this dataset. */
     public function pipelineJobs(): HasMany
     {
         return $this->hasMany(PipelineJob::class);
     }
 
+    /** Embedding configurations applied to this dataset. */
     public function embeddings(): HasMany
     {
         return $this->hasMany(Embedding::class);

@@ -1,3 +1,6 @@
+{{-- Knowledge unit detail/edit page: displays a single KU with review workflow actions,
+     editable fields (topic, intent, summary, cause/resolution, notes), metadata, keywords,
+     and typical cases. Approved KUs are locked from editing. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -70,7 +73,7 @@
             <div class="flash-error">&#10007; {{ session('error') }}</div>
         @endif
 
-        <!-- Review Actions -->
+        {{-- Review actions: status transition buttons (approve, review, reject, revert) --}}
         @if(count($allowedTransitions) > 0)
             <div class="card">
                 <h2>Review</h2>
@@ -103,7 +106,7 @@
             </div>
         @endif
 
-        <!-- Edit Form -->
+        {{-- Edit form: editable fields with version bump on save; disabled when KU is approved --}}
         <div class="card">
             <h2>Edit</h2>
 
@@ -159,7 +162,7 @@
             </form>
         </div>
 
-        <!-- Metadata & Keywords -->
+        {{-- Metadata card: row count, confidence score, version, pipeline job, and keyword tags --}}
         <div class="card">
             <h2>Metadata</h2>
             <div class="meta">
@@ -183,7 +186,7 @@
             @endif
         </div>
 
-        <!-- Typical Cases -->
+        {{-- Typical cases: representative example texts extracted from the cluster --}}
         @if($ku->typical_cases_json && count($ku->typical_cases_json) > 0)
             <div class="card">
                 <h2>Typical Cases</h2>

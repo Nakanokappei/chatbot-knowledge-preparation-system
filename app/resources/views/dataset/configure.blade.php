@@ -1,3 +1,8 @@
+{{-- Dataset configuration overlay: full-screen modal for configuring a CSV dataset before
+     running the pipeline. Includes basic settings (name, header row, encoding), LLM-generated
+     descriptions, drag-and-drop column mapper for embedding, knowledge structure mapping
+     (question, symptoms, root cause, resolution, product, category), embedding preview,
+     and pipeline settings (clustering method, model selection). --}}
 @extends('layouts.app')
 @section('title', "Configure Dataset — {$dataset->name}")
 
@@ -71,7 +76,7 @@
                 <form id="config-form" method="POST" action="{{ route('dataset.finalize', $dataset) }}">
                     @csrf
 
-            <!-- Basic Settings -->
+            {{-- Basic settings: dataset name, header row toggle, and character encoding --}}
             <div class="card">
                 <h2>{{ __('ui.basic_settings') }}</h2>
                 <div class="row">
@@ -98,7 +103,7 @@
                 </div>
             </div>
 
-            <!-- Dataset & Column Descriptions (LLM auto-generated, editable) -->
+            {{-- Descriptions: LLM-generated dataset and per-column descriptions (editable) --}}
             <div class="card">
                 <h2>Descriptions</h2>
                 <p style="font-size: 12px; color: #5f6368; margin-bottom: 12px;">
@@ -125,7 +130,7 @@
                 </div>
             </div>
 
-            <!-- Column Mapper: Clustering -->
+            {{-- Column mapper: drag-and-drop interface to select and order columns for embedding --}}
             <div class="card">
                 <h2>Clustering Columns</h2>
                 <p style="font-size: 12px; color: #5f6368; margin-bottom: 12px;">
@@ -156,7 +161,7 @@
                 </div>
             </div>
 
-            <!-- Preview -->
+            {{-- Embedding preview: dark terminal-style box showing how selected columns will be combined --}}
             <div class="card">
                 <h2>{{ __('ui.embedding_preview') }}</h2>
                 <div class="preview-box" id="preview-box">
@@ -164,7 +169,7 @@
                 </div>
             </div>
 
-            <!-- Knowledge Structure Mapping -->
+            {{-- Knowledge structure mapping: map CSV columns to KU fields or let LLM generate them --}}
             <div class="card">
                 <h2>Knowledge Structure</h2>
                 <p style="font-size: 12px; color: #5f6368; margin-bottom: 16px;">
@@ -267,7 +272,7 @@
                 </div>
             </div>
 
-            <!-- Pipeline Settings -->
+            {{-- Pipeline settings: embedding model, LLM model, clustering method, and run buttons --}}
             <div class="card">
                 <h2>{{ __('ui.pipeline_settings') }}</h2>
                 <div class="pipeline-options">
@@ -360,7 +365,7 @@
         let dragSource = null;  // 'available' or 'selected'
         let dragData = null;    // column index (available) or position (selected)
 
-        // Re-encode the CSV with a different character encoding and refresh columns
+        // Re-encode the CSV file with a different character encoding and rebuild all column-dependent UI
         async function reEncodeDataset(encoding) {
             const token = document.querySelector('meta[name="csrf-token"]')?.content
                 || document.querySelector('input[name="_token"]')?.value;
@@ -425,6 +430,7 @@
             }
         }
 
+        // Add a column to the selected embedding columns list at the specified position
         function addColumn(index, name, insertAt) {
             if (selectedColumns.find(c => c.index === index)) return;
             const col = { index: index, label: name };
@@ -497,6 +503,7 @@
             });
         }
 
+        // Render the selected columns panel with drag handles, label inputs, and hidden form fields
         function renderSelected() {
             const list = document.getElementById('selected-list');
             const dropZone = document.getElementById('drop-zone');
@@ -607,6 +614,7 @@
             });
         }
 
+        // Refresh the embedding preview box to show how selected columns will be formatted
         function refreshPreview() {
             const box = document.getElementById('preview-box');
             if (selectedColumns.length === 0) {
@@ -634,7 +642,7 @@
             return div.innerHTML;
         }
 
-        // Knowledge mapping hint toggle
+        // Update the hint text when a knowledge mapping source dropdown changes
         const kmHints = {
             question: { _llm: 'LLM generates a FAQ-style question from representative rows', _none: '', _col: 'Uses this column directly as the question text' },
             symptoms: { _llm: 'Error messages, surface-level phenomena from user reports', _none: '', _col: 'Uses this column directly' },
@@ -653,7 +661,7 @@
             else hint.textContent = kmHints[field]._col;
         }
 
-        // Clustering method parameter toggle
+        // Toggle visibility of clustering algorithm-specific parameter inputs
         document.getElementById('clustering-method').addEventListener('change', function() {
             ['params-hdbscan', 'params-kmeans', 'params-agglomerative', 'params-leiden'].forEach(
                 id => document.getElementById(id).style.display = 'none'

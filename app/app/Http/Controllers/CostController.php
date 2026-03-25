@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\DB;
  */
 class CostController extends Controller
 {
+    /**
+     * Display the cost dashboard with monthly summary, daily trend,
+     * and breakdowns by endpoint and model for the last 30 days.
+     */
     public function index()
     {
         $tenantId = auth()->user()->tenant_id;

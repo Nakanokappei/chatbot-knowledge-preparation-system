@@ -42,11 +42,13 @@ class KnowledgeDataset extends Model
         return $this->status === 'draft';
     }
 
+    /** The KU items included in this dataset, ordered by sort position. */
     public function items(): HasMany
     {
         return $this->hasMany(KnowledgeDatasetItem::class)->orderBy('sort_order');
     }
 
+    /** The user who created this dataset. */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

@@ -34,6 +34,7 @@ def normalize_text(text: str) -> str:
     4. Strip leading/trailing whitespace
     5. Remove placeholder tokens like {product_purchased}
     """
+    # Guard against null or non-string input
     if not text or not isinstance(text, str):
         return ""
 
@@ -146,6 +147,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     # Step 1: Load raw rows from database
     df = load_dataset_rows(dataset_id)
 
+    # Guard: abort early if the dataset has no rows to process
     if df.empty:
         update_job_status(job_id, status="failed", error_detail="No rows found for dataset")
         return
@@ -155,7 +157,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     # Step 2: Normalize text
     df["normalized_text"] = df["raw_text"].apply(normalize_text)
 
-    # Filter out empty rows after normalization
+    # Discard rows that became empty after normalization (e.g., placeholder-only text)
     valid_mask = df["normalized_text"].str.len() > 0
     dropped_count = (~valid_mask).sum()
     df = df[valid_mask].reset_index(drop=True)
@@ -205,6 +207,6 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         pipeline_config=kwargs.get("pipeline_config", {}),
     )
 
+    # If no next step exists, the pipeline ends here
     if next_step is None:
-        # No more steps; mark job as completed
         update_job_status(job_id, status="completed", progress=100)

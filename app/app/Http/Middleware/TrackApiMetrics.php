@@ -16,12 +16,17 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class TrackApiMetrics
 {
+    /**
+     * Wrap the request lifecycle to measure latency, then publish
+     * endpoint-specific metrics to CloudWatch after the response.
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $startTime = microtime(true);
 
         $response = $next($request);
 
+        // Record metrics in a try/catch so failures never block the response
         try {
             $latencyMs = (microtime(true) - $startTime) * 1000;
             $metrics = new MetricsService();

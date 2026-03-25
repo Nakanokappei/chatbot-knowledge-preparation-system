@@ -78,6 +78,7 @@ def check_cache_batch(cache_keys: list[str]) -> dict[str, list[float]]:
     Returns a dict mapping cache_key -> embedding vector (as list of floats)
     for keys that are found. Missing keys are not included.
     """
+    # Short-circuit when there are no keys to look up
     if not cache_keys:
         return {}
 
@@ -92,6 +93,7 @@ def check_cache_batch(cache_keys: list[str]) -> dict[str, list[float]]:
             )
             rows = cur.fetchall()
 
+        # No cache hits in the DB; return empty without touching S3
         if not rows:
             return {}
 
@@ -144,6 +146,7 @@ def save_cache_batch(entries: list[dict]):
 
     Each entry: {"hash": str, "embedding": list[float], "s3_path": str}
     """
+    # Nothing to save when the batch is empty
     if not entries:
         return
 
@@ -248,6 +251,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     update_job_status(job_id, status="embedding", progress=25)
 
     # Step 3: Generate embeddings for uncached rows (2-thread Bedrock calls)
+    # Identify rows that need Bedrock API calls (not found in cache)
     uncached_indices = [i for i, key in enumerate(all_keys) if key not in cached_embeddings]
     uncached_texts = [df.iloc[i]["normalized_text"] for i in uncached_indices]
 
@@ -286,7 +290,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     update_job_status(job_id, status="embedding", progress=80)
 
-    # Step 5: Assemble all embeddings in original row order
+    # Assemble all embeddings in original row order from cache and new results
     all_embeddings = []
     for key in all_keys:
         if key in cached_embeddings:

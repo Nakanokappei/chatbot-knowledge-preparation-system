@@ -28,8 +28,9 @@ PROMPT_VERSION = "cluster_analysis_v1"
 
 
 def _format_tickets(representative_texts: list[str]) -> str:
-    """Format representative texts with numbering and truncation."""
+    """Format representative texts with numbering and truncation for prompt inclusion."""
     formatted = ""
+    # Number each ticket and cap at 500 characters to stay within token limits
     for i, text in enumerate(representative_texts, 1):
         truncated = text[:500] + "..." if len(text) > 500 else text
         formatted += f"\n--- Ticket {i} ---\n{truncated}\n"
@@ -51,7 +52,7 @@ def build_analysis_prompt(
     """
     formatted_tickets = _format_tickets(representative_texts)
 
-    # Build dataset context section if descriptions are available
+    # Append dataset/column descriptions to help LLM understand domain context
     context_section = ""
     if dataset_description:
         context_section += f"\nDataset context: {dataset_description}\n"
@@ -135,7 +136,7 @@ def load_clusters_with_representatives(job_id: int) -> list[dict]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            # Get clusters for this job
+            # Fetch all clusters belonging to this pipeline job
             cur.execute(
                 """SELECT c.id, c.cluster_label, c.row_count
                    FROM clusters c
@@ -152,7 +153,7 @@ def load_clusters_with_representatives(job_id: int) -> list[dict]:
                     "representative_texts": [],
                 })
 
-            # Get representative texts for each cluster
+            # For each cluster, load its representative ticket texts for LLM analysis
             for cluster in clusters:
                 cur.execute(
                     """SELECT dr.raw_text
@@ -262,6 +263,7 @@ def _call_llm_for_cluster(cluster: dict, prompt: str, llm_model_id: str, job_id:
     )
 
     analysis = result["parsed_json"]
+    # If initial parse failed, retry with an explicit JSON-only instruction
     if analysis is None:
         logger.warning("Cluster %d: LLM response not valid JSON, retrying...", cluster["id"])
         retry_result = invoke_claude(
@@ -272,6 +274,7 @@ def _call_llm_for_cluster(cluster: dict, prompt: str, llm_model_id: str, job_id:
         input_tokens += retry_result["input_tokens"]
         output_tokens += retry_result["output_tokens"]
 
+    # Fall back to a generic placeholder when JSON parsing fails entirely
     if analysis is None:
         logger.error("Cluster %d: Failed to get valid JSON after retry", cluster["id"])
         analysis = {
@@ -317,6 +320,7 @@ def _resolve_duplicates(
     total_in = 0
     total_out = 0
 
+    # Iteratively rename clusters until all topic_names are unique
     for round_num in range(1, MAX_DEDUP_ROUNDS + 1):
         duplicates = _find_duplicates(clusters)
         if not duplicates:
@@ -336,10 +340,10 @@ def _resolve_duplicates(
         ]
 
         for dup_name, dup_clusters in duplicates.items():
-            # Sort by row_count descending — largest cluster keeps its name
+            # Sort by row_count descending so the largest cluster keeps its name
             dup_clusters.sort(key=lambda c: c["row_count"], reverse=True)
 
-            # Skip the first (largest) cluster; rename the rest
+            # Re-prompt all but the largest cluster with a unique-name constraint
             for cluster in dup_clusters[1:]:
                 # Build taken-names list excluding this cluster's current name once
                 other_names = [n for n in taken_names if n != cluster["analysis"]["topic_name"]]
@@ -373,6 +377,7 @@ def _resolve_duplicates(
                 # Update taken_names for subsequent renames in this round
                 taken_names = [c["analysis"]["topic_name"] for c in clusters]
     else:
+        # for/else: ran all rounds without early break — append numeric suffixes as last resort
         remaining = _find_duplicates(clusters)
         if remaining:
             logger.warning(
@@ -413,6 +418,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     clusters = load_clusters_with_representatives(job_id)
     logger.info("Loaded %d clusters for analysis", len(clusters))
 
+    # Guard: no clusters means a prior step failed or produced no output
     if not clusters:
         update_job_status(job_id, status="failed", error_detail="No clusters found for analysis")
         return
@@ -500,7 +506,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         "cluster_summaries": cluster_summaries,
     })
 
-    # Record aggregated token usage for cost tracking
+    # Record aggregated token usage only when LLM was actually invoked
     if total_input_tokens > 0 or total_output_tokens > 0:
         record_token_usage(
             tenant_id, "cluster_analysis", llm_model_id,
@@ -522,5 +528,6 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         pipeline_config=kwargs.get("pipeline_config", {}),
     )
 
+    # If no next step exists, this is the final step in the pipeline
     if next_step is None:
         update_job_status(job_id, status="completed", progress=100)

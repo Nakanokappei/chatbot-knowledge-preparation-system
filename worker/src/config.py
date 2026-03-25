@@ -15,7 +15,7 @@ env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
 
-# Database connection settings (RDS PostgreSQL)
+# Database connection settings (RDS PostgreSQL in production, localhost for dev)
 DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.environ.get("DB_PORT", "5432"))
 DB_NAME = os.environ.get("DB_NAME", "knowledge_prep")

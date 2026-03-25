@@ -1,3 +1,6 @@
+{{-- LLM and embedding model settings page: register AWS Bedrock models, set pricing,
+     toggle active/default status. Pricing updates save via AJAX without page reload.
+     Separated into two sections: LLM models and embedding models. --}}
 @extends('layouts.app')
 @section('title', 'Settings — LLM Models')
 
@@ -33,6 +36,7 @@
                 <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✗ {{ session('error') }}</div>
             @endif
 
+            {{-- Add LLM model form: dropdown of available Bedrock models with auto-fill display name --}}
             <div class="card">
                 <h2>{{ __('ui.add_model') }}</h2>
                 <form method="POST" action="{{ route('settings.models.store') }}">
@@ -76,6 +80,7 @@
                 </form>
             </div>
 
+            {{-- Registered LLM models table: editable pricing, status toggle, set default --}}
             <div class="card">
                 <h2>{{ __('ui.registered_models') }}</h2>
                 @if($models->isEmpty())
@@ -135,7 +140,7 @@
                 @endif
             </div>
 
-            {{-- ── Embedding Models ────────────────────────────── --}}
+            {{-- Embedding models section: separate registration and management for embedding models --}}
             <hr style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.embedding_models') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.embedding_models_desc') }}</p>

@@ -25,6 +25,7 @@ class Export extends Model
         'created_at' => 'datetime',
     ];
 
+    /** The pipeline job that produced this export artifact. */
     public function pipelineJob(): BelongsTo
     {
         return $this->belongsTo(PipelineJob::class);

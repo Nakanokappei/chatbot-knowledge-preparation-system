@@ -27,21 +27,25 @@ class Embedding extends Model
         'column_config_json' => 'array',
     ];
 
+    /** The source dataset this embedding was generated from. */
     public function dataset(): BelongsTo
     {
         return $this->belongsTo(Dataset::class);
     }
 
+    /** Knowledge units produced from this embedding's clusters. */
     public function knowledgeUnits(): HasMany
     {
         return $this->hasMany(KnowledgeUnit::class);
     }
 
+    /** Clusters generated during the clustering pipeline step. */
     public function clusters(): HasMany
     {
         return $this->hasMany(Cluster::class);
     }
 
+    /** Pipeline jobs associated with this embedding. */
     public function pipelineJobs(): HasMany
     {
         return $this->hasMany(PipelineJob::class);

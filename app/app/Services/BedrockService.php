@@ -22,6 +22,9 @@ class BedrockService
     private const EMBEDDING_MODEL = 'amazon.titan-embed-text-v2:0';
     private const EMBEDDING_DIMENSIONS = 1024;
 
+    /**
+     * Initialize the Bedrock Runtime client using the configured AWS region.
+     */
     public function __construct()
     {
         $this->region = config('services.bedrock.region', 'ap-northeast-1');
@@ -122,6 +125,7 @@ class BedrockService
         ], $maxTokens);
 
         $jsonText = trim($result['content']);
+        // Strip markdown code fences that LLMs sometimes wrap around JSON
         if (str_starts_with($jsonText, '```')) {
             $lines = explode("\n", $jsonText);
             $lines = array_filter($lines, fn($l) => !str_starts_with(trim($l), '```'));

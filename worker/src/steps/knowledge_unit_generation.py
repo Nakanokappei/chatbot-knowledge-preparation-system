@@ -46,7 +46,7 @@ def build_knowledge_extraction_prompt(
     product names, and actual content fields.
     Includes dataset and column descriptions for better context.
     """
-    # Build column role context from the mapping configuration
+    # Build column role context so the LLM knows which columns are directly mapped
     column_roles = []
     if column_names:
         for field, source in mapping.items():
@@ -65,7 +65,7 @@ def build_knowledge_extraction_prompt(
             if value and str(value).strip():
                 rows_text += f"{key}: {str(value)[:300]}\n"
 
-    # Determine which fields the LLM needs to generate
+    # Collect fields marked as "_llm" in the mapping — the LLM must generate these
     llm_fields = []
     field_instructions = {
         "question": "A natural FAQ-style question that a user would ask about this issue (one sentence)",
@@ -80,6 +80,7 @@ def build_knowledge_extraction_prompt(
         if source == "_llm":
             llm_fields.append(field)
 
+    # No LLM fields requested — skip prompt generation entirely
     if not llm_fields:
         return None
 
@@ -190,7 +191,7 @@ def extract_knowledge_fields(
         "category": None,
     }
 
-    # Direct column mappings: aggregate values from representative rows
+    # Direct column mappings: aggregate top values from representative rows
     for field, source in mapping.items():
         if source and source not in ("_llm", "_none") and source.isdigit():
             col_idx = int(source)
@@ -202,7 +203,7 @@ def extract_knowledge_fields(
             if values:
                 result[field] = "; ".join(list(values)[:3])
 
-    # Quality check: detect low-quality direct-mapped values and fallback to LLM
+    # Quality gate: detect sparse or short direct-mapped values and fall back to LLM
     fallback_fields = []
     if llm_fallback:
         for field, source in mapping.items():
@@ -220,6 +221,7 @@ def extract_knowledge_fields(
     llm_fields = [f for f, s in mapping.items() if s == "_llm"]
     all_llm_fields = list(dict.fromkeys(llm_fields + fallback_fields))
 
+    # Invoke the LLM if any fields need generation (explicit or fallback)
     if all_llm_fields:
         # Temporarily override mapping so prompt builder includes fallback fields
         augmented_mapping = dict(mapping)
@@ -450,6 +452,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     clusters = load_analyzed_clusters(job_id)
     logger.info("Loaded %d analyzed clusters for KU generation", len(clusters))
 
+    # Guard: no analyzed clusters means cluster_analysis step produced no output
     if not clusters:
         update_job_status(
             job_id, status="failed",
@@ -475,6 +478,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     else:
         logger.info("No LLM extraction needed — using direct column mappings only")
 
+    # Process each cluster sequentially: extract fields, generate embedding, create KU
     ku_ids = []
     total_ku_input_tokens = 0
     total_ku_output_tokens = 0
@@ -506,7 +510,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
                 knowledge_fields.get("product", "N/A"),
             )
 
-        # Generate search_embedding from question field
+        # Generate a search embedding from the question field for vector retrieval
         search_embedding = None
         question = knowledge_fields.get("question")
         if question:
@@ -529,14 +533,14 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             cluster["topic_name"], cluster["row_count"],
         )
 
-    # Record aggregated token usage for cost tracking
+    # Record aggregated LLM token usage only when extraction was performed
     if total_ku_input_tokens > 0 or total_ku_output_tokens > 0:
         record_token_usage(
             tenant_id, "knowledge_extraction", llm_model_id,
             total_ku_input_tokens, total_ku_output_tokens,
         )
 
-    # Step 3: Link KUs to embedding and mark embedding as ready
+    # Link newly created KUs to their parent embedding and mark it as ready
     pipeline_config = kwargs.get("pipeline_config") or {}
     embedding_id = pipeline_config.get("embedding_id")
     if embedding_id:

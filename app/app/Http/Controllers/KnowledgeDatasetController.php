@@ -70,6 +70,7 @@ class KnowledgeDatasetController extends Controller
             ->whereIn('id', $request->knowledge_unit_ids)
             ->get();
 
+        // Ensure the count matches — some IDs may have been non-approved or wrong tenant
         if ($selectedKUs->count() !== count($request->knowledge_unit_ids)) {
             return back()->withErrors(['knowledge_unit_ids' => 'All selected units must be approved.']);
         }
@@ -123,7 +124,7 @@ class KnowledgeDatasetController extends Controller
             return back()->withErrors(['status' => 'Only draft datasets can be published.']);
         }
 
-        // Archive any currently published dataset with the same name for this tenant
+        // Demote any existing published dataset with the same name to archived
         KnowledgeDataset::where('tenant_id', $dataset->tenant_id)
             ->where('name', $dataset->name)
             ->where('status', 'published')
@@ -139,6 +140,7 @@ class KnowledgeDatasetController extends Controller
      */
     public function newVersion(KnowledgeDataset $dataset)
     {
+        // Only published datasets can spawn new versions
         if ($dataset->status !== 'published') {
             return back()->withErrors(['status' => 'Can only create new version from a published dataset.']);
         }
@@ -216,6 +218,7 @@ class KnowledgeDatasetController extends Controller
      */
     public function chat(KnowledgeDataset $dataset)
     {
+        // Chat is restricted to published datasets only
         if (! $dataset->isPublished()) {
             return redirect()->route('kd.show', $dataset)
                 ->withErrors(['status' => 'Chat is only available for published datasets.']);

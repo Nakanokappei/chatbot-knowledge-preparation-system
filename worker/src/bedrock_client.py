@@ -120,6 +120,7 @@ def generate_embedding(text: str, client=None) -> list[float]:
     Raises:
         RuntimeError: After MAX_RETRIES failures.
     """
+    # Lazily create a client if none was provided by the caller
     if client is None:
         client = get_bedrock_client()
 
@@ -129,6 +130,7 @@ def generate_embedding(text: str, client=None) -> list[float]:
         "normalize": True,
     })
 
+    # Retry loop with adaptive rate limiting per attempt
     for attempt in range(MAX_RETRIES):
         # Wait for rate limit clearance before making the request
         _wait_for_rate_limit()
@@ -220,6 +222,7 @@ def generate_embeddings_batch(
             for idx, text in enumerate(texts)
         }
 
+        # Collect results as they complete, preserving original order via index
         for future in as_completed(future_to_idx):
             idx = future_to_idx[future]
             try:

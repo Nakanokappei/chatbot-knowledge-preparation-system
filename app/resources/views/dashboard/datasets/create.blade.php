@@ -1,3 +1,5 @@
+{{-- Create knowledge dataset page: form for naming a new dataset and selecting
+     which approved knowledge units to include. Supports select all/deselect all. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,6 +54,7 @@
                 <div class="error">{{ $message }}</div>
             @enderror
 
+            {{-- Knowledge unit selection list with select/deselect all controls --}}
             <label>Select Approved Knowledge Units ({{ $approvedKUs->count() }} available)</label>
 
             <div class="ku-list">
@@ -89,6 +92,7 @@
 </div>
 
 <script>
+// Update the selected checkbox count display
 function updateCount() {
     const checked = document.querySelectorAll('.ku-checkbox:checked').length;
     document.getElementById('selected-count').textContent = checked + ' selected';

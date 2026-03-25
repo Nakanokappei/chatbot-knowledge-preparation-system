@@ -1,3 +1,5 @@
+{{-- Dataset detail page: shows a single knowledge dataset with metadata, action buttons
+     (publish, new version, export, chat), summary stats, and a table of included KUs. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -79,7 +81,7 @@
         @endif
     </div>
 
-    <!-- Stats -->
+    {{-- Stats card: KU count, status, version, and creator --}}
     <div class="card">
         <div class="meta-grid">
             <div class="meta-item">
@@ -101,7 +103,7 @@
         </div>
     </div>
 
-    <!-- KU Items Table -->
+    {{-- KU items table: lists each knowledge unit with topic, intent, row count, and version --}}
     <div class="card">
         <h2 style="margin-bottom: 12px;">Knowledge Units</h2>
         <table>

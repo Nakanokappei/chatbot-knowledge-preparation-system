@@ -1,3 +1,6 @@
+{{-- Knowledge units listing for a pipeline job: displays all KUs generated from clustering.
+     Includes summary stats, bulk approve action, export links, and individual KU cards
+     with topic, intent, summary, keywords, and typical cases. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,7 +50,7 @@
         <h1>Job #{{ $job->id }} — Knowledge Units</h1>
         <p class="subtitle">{{ $job->dataset->name ?? 'Unknown dataset' }} &middot; {{ $knowledgeUnits->count() }} Knowledge Units &middot; review_status: draft</p>
 
-        <!-- Stats -->
+        {{-- Stats grid: total KUs, total rows, draft count, and approved count --}}
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-value" style="color: #0071e3;">{{ $knowledgeUnits->count() }}</div>
@@ -67,7 +70,7 @@
             </div>
         </div>
 
-        <!-- Bulk Actions -->
+        {{-- Bulk actions: approve all draft/reviewed KUs at once --}}
         @if($knowledgeUnits->where('review_status', 'draft')->count() > 0 || $knowledgeUnits->where('review_status', 'reviewed')->count() > 0)
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -87,7 +90,7 @@
         </div>
         @endif
 
-        <!-- Export -->
+        {{-- Export section: JSON/CSV download links for approved or all KUs --}}
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <h2 style="margin-bottom: 0;">Export</h2>
@@ -100,7 +103,7 @@
             </div>
         </div>
 
-        <!-- Knowledge Unit Cards -->
+        {{-- Individual KU cards: topic, intent, summary, metadata, keywords, and typical cases --}}
         @foreach($knowledgeUnits as $ku)
             <div class="ku-card">
                 <div class="ku-header">

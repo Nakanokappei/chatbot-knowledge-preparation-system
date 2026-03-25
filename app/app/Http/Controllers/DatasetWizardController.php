@@ -103,6 +103,7 @@ class DatasetWizardController extends Controller
         }
         fclose($handle);
 
+        // Abort if any rows have mismatched column counts
         if (!empty($invalidLines)) {
             $lineNos = implode(', ', $invalidLines);
             $suffix = count($invalidLines) >= 10 ? ' (and more)' : '';
@@ -110,6 +111,7 @@ class DatasetWizardController extends Controller
                 ->with('error', "Column count mismatch on lines: {$lineNos}{$suffix}. Expected {$headerCount} columns.");
         }
 
+        // A header-only CSV is not useful — require at least one data row
         if ($totalDataRows === 0) {
             return redirect()->route('dashboard')
                 ->with('error', 'CSV must contain at least one data row.');
@@ -151,7 +153,7 @@ class DatasetWizardController extends Controller
             $file->getClientOriginalName(), $headerCols, $sampleRows
         );
 
-        // Use LLM-generated name if available, otherwise fall back to filename
+        // Prefer the LLM-generated name over the raw filename
         if (!empty($llmMetadata['dataset_name'])) {
             $datasetName = $llmMetadata['dataset_name'];
         }
@@ -665,7 +667,7 @@ class DatasetWizardController extends Controller
     {
         $this->authorizeDataset($dataset);
 
-        // Safety check: only allow deletion if no embeddings reference this dataset
+        // Guard: prevent deletion of datasets with active embeddings
         $embeddingCount = \App\Models\Embedding::where('dataset_id', $dataset->id)->count();
         if ($embeddingCount > 0) {
             return redirect()->route('workspace.index')

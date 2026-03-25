@@ -18,6 +18,7 @@ services:
       POSTGRES_PASSWORD: ckps_local_password
     ports:
       - "5433:5432"
+    # Persist DB data and run init SQL on first start
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
@@ -52,6 +53,7 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+    # Shared volume for uploaded CSV files between app and host
     volumes:
       - csv-uploads:/var/www/html/storage/app/private/csv-uploads
     depends_on:
@@ -101,6 +103,9 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
 
+# Named volumes for persistent data across container restarts
 volumes:
+  # PostgreSQL data directory
   pgdata:
+  # Uploaded CSV files shared between app container and host
   csv-uploads:

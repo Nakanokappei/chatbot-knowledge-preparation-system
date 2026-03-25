@@ -39,6 +39,7 @@ def put_metric(metric_name, value, unit="None", dimensions=None):
             "Value": value,
             "Unit": unit,
         }
+        # Attach optional key-value dimensions for metric filtering
         if dimensions:
             metric_data["Dimensions"] = [
                 {"Name": k, "Value": str(v)} for k, v in dimensions.items()
@@ -92,7 +93,7 @@ def timed_step(step_name):
             start = time.time()
             tenant_id = "unknown"
 
-            # Extract tenant_id from kwargs or first arg (message dict)
+            # Try to extract tenant_id from kwargs or positional message dict
             if "message" in kwargs:
                 tenant_id = str(kwargs["message"].get("tenant_id", "unknown"))
             elif args and isinstance(args[0], dict):
@@ -100,10 +101,12 @@ def timed_step(step_name):
 
             try:
                 result = func(*args, **kwargs)
+                # Record duration on success
                 duration = time.time() - start
                 record_step_duration(step_name, tenant_id, duration)
                 return result
             except Exception as e:
+                # Record both duration and error on failure before re-raising
                 duration = time.time() - start
                 record_step_duration(step_name, tenant_id, duration)
                 record_step_error(step_name, type(e).__name__)

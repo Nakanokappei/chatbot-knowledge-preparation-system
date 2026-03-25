@@ -17,6 +17,9 @@ class SetLocale
 {
     private const SUPPORTED = ['en', 'ja'];
 
+    /**
+     * Resolve the locale from session or browser headers and apply it.
+     */
     public function handle(Request $request, Closure $next)
     {
         $locale = session('locale');

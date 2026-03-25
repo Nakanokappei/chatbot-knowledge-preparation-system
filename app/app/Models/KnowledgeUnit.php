@@ -49,26 +49,31 @@ class KnowledgeUnit extends Model
         return $this->review_status !== 'approved';
     }
 
+    /** The cluster this KU was derived from. */
     public function cluster(): BelongsTo
     {
         return $this->belongsTo(Cluster::class);
     }
 
+    /** The pipeline job that generated this KU. */
     public function pipelineJob(): BelongsTo
     {
         return $this->belongsTo(PipelineJob::class);
     }
 
+    /** The source dataset this KU traces back to. */
     public function dataset(): BelongsTo
     {
         return $this->belongsTo(Dataset::class);
     }
 
+    /** Immutable version snapshots for audit trail. */
     public function versions(): HasMany
     {
         return $this->hasMany(KnowledgeUnitVersion::class);
     }
 
+    /** Immutable review action records. */
     public function reviews(): HasMany
     {
         return $this->hasMany(KnowledgeUnitReview::class);

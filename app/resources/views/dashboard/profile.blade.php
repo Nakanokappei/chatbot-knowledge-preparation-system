@@ -1,3 +1,5 @@
+{{-- Profile settings page: allows the user to update their name, email, and password.
+     Shows tenant info and join date. --}}
 @extends('layouts.app')
 @section('title', 'Profile — KPS')
 
@@ -24,6 +26,7 @@
                 <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✗ {{ $errors->first() }}</div>
             @endif
 
+            {{-- Profile update form: name and email --}}
             <div class="card">
                 <h2>Profile</h2>
                 <form method="POST" action="{{ route('profile.update') }}">
@@ -36,6 +39,7 @@
                 </form>
             </div>
 
+            {{-- Password change form: current password + new password with confirmation --}}
             <div class="card">
                 <h2>Change Password</h2>
                 <form method="POST" action="{{ route('profile.password') }}">

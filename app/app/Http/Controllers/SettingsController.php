@@ -89,12 +89,15 @@ class SettingsController extends Controller
                 $response = $client->listFoundationModels();
                 $profileModelIds = array_column($result, 'model_id');
 
+                // Filter foundation models to text-in/text-out only
                 foreach ($response['modelSummaries'] as $m) {
                     $input = $m['inputModalities'] ?? [];
                     $output = $m['outputModalities'] ?? [];
+                    // Exclude non-text models (image, audio)
                     if (!in_array('TEXT', $input) || !in_array('TEXT', $output)) {
                         continue;
                     }
+                    // Exclude reranker models (not usable for generation)
                     if (str_contains(strtolower($m['modelName'] ?? ''), 'rerank')) {
                         continue;
                     }
@@ -381,6 +384,7 @@ class SettingsController extends Controller
     {
         $action = $request->input('action');
 
+        // Toggle active/inactive state
         if ($action === 'toggle_active') {
             $llmModel->update(['is_active' => !$llmModel->is_active]);
             $status = $llmModel->is_active ? 'activated' : 'deactivated';

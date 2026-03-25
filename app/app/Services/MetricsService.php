@@ -16,6 +16,9 @@ class MetricsService
     private CloudWatchClient $client;
     private const NAMESPACE = 'CKPS';
 
+    /**
+     * Initialize the CloudWatch client for the configured AWS region.
+     */
     public function __construct()
     {
         $this->client = new CloudWatchClient([

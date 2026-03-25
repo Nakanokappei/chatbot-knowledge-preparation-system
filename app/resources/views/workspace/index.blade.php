@@ -1,3 +1,7 @@
+{{-- Workspace main page: primary interface for managing datasets, embeddings, and KUs.
+     Features a tree sidebar (datasets > embeddings > pipeline jobs), a main content area
+     showing KU tables with bulk status actions, inline embedding rename, summary stats,
+     a chat overlay for RAG queries, and a dispatch modal for CSV upload. --}}
 @extends('layouts.app')
 @section('title', 'Workspace — KPS')
 
@@ -70,7 +74,7 @@
 
 @section('body')
     <div class="layout">
-        <!-- Tree sidebar: datasets > embeddings -->
+        {{-- Tree sidebar: hierarchical navigation of datasets and their embedding runs --}}
         <div class="sidebar">
             <div class="sidebar-upload-btn" style="padding: 10px 12px;">
                 <a href="javascript:void(0)" onclick="openDispatchModal()"
@@ -135,7 +139,7 @@
                     </div>
                 @endforelse
 
-                <!-- Pipeline section -->
+                {{-- Pipeline section in sidebar: job status filter links with counts --}}
                 <div id="pipeline-sidebar" style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
                     <div class="pipeline-header" style="padding: 6px 12px; font-size: 12px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('ui.pipeline') }}</div>
 
@@ -175,10 +179,10 @@
             </div>
         </div>
 
-        <!-- Main content -->
+        {{-- Main content area: pipeline job list, embedding detail with KU table, or empty state --}}
         <div class="main">
             @if($pipelineView === 'jobs')
-                <!-- Pipeline job list -->
+                {{-- Pipeline job list: filterable table of pipeline execution jobs --}}
                 @if(session('success'))
                     <div style="background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">✓ {{ session('success') }}</div>
                 @endif
@@ -245,7 +249,7 @@
                     </table>
                 @endif
             @elseif($current)
-                <!-- Embedding header: info + actions -->
+                {{-- Embedding detail view: header with stats, rename, chat button, and KU table --}}
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f2;">
                     <div style="flex: 1; min-width: 0;">
                         <!-- Editable name -->
@@ -557,7 +561,7 @@
         </div>
     </div>
 
-    <!-- Dispatch modal overlay (Gmail-style compose window) -->
+    {{-- Dispatch modal: bottom-right compose window for uploading CSV datasets --}}
     <div id="dispatch-modal" style="display: none; position: fixed; bottom: 0; right: 24px; z-index: 1000;
         width: 520px; max-height: 80vh; background: #fff; border-radius: 12px 12px 0 0;
         box-shadow: 0 -4px 24px rgba(0,0,0,0.2); display: none; flex-direction: column;">
@@ -589,7 +593,7 @@
         </div>
     </div>
 
-    <!-- Chat overlay (Gmail compose-style, bottom-right) -->
+    {{-- Chat overlay: bottom-right floating RAG chat window for querying approved KUs --}}
     @if($current)
     <div id="chat-overlay" style="display: none; position: fixed; bottom: 0; right: 24px; z-index: 1001;
         width: 480px; height: 600px; background: #fff; border-radius: 12px 12px 0 0;

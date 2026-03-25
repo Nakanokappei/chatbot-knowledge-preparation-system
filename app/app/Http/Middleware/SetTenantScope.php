@@ -16,8 +16,13 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class SetTenantScope
 {
+    /**
+     * Set the PostgreSQL session variable for RLS before each request.
+     * Only runs when the user is authenticated and has a tenant_id.
+     */
     public function handle(Request $request, Closure $next): Response
     {
+        // Propagate tenant_id into the PostgreSQL session for RLS policies
         if (auth()->check() && auth()->user()->tenant_id) {
             DB::statement("SET app.tenant_id = '" . (int) auth()->user()->tenant_id . "'");
         }

@@ -144,7 +144,7 @@ class KnowledgeUnitController extends Controller
         $currentStatus = $knowledgeUnit->review_status;
         $allowed = self::STATUS_TRANSITIONS[$currentStatus] ?? [];
 
-        // Enforce valid transitions
+        // Reject illegal state transitions (e.g. approved -> reviewed)
         if (!in_array($newStatus, $allowed)) {
             return redirect()->route('knowledge-units.show', $knowledgeUnit)
                 ->with('error', "Cannot transition from '{$currentStatus}' to '{$newStatus}'.");
@@ -211,6 +211,7 @@ class KnowledgeUnitController extends Controller
             ->get();
 
         $count = 0;
+        // Approve each KU individually and create an audit record
         foreach ($kus as $ku) {
             $ku->update(['review_status' => 'approved']);
 

@@ -66,6 +66,7 @@ def invoke_claude(
     Raises:
         RuntimeError: After MAX_RETRIES failures.
     """
+    # Fall back to default model and client when not explicitly provided
     if model_id is None:
         model_id = DEFAULT_MODEL_ID
 
@@ -84,11 +85,12 @@ def invoke_claude(
         },
     }
 
+    # Retry loop with exponential backoff for transient failures
     for attempt in range(MAX_RETRIES):
         try:
             response = client.converse(**converse_params)
 
-            # Extract response text from Converse API output
+            # Extract response text by concatenating all text blocks from the Converse API
             content_text = ""
             for block in response.get("output", {}).get("message", {}).get("content", []):
                 if "text" in block:
@@ -99,11 +101,11 @@ def invoke_claude(
             input_tokens = usage.get("inputTokens", 0)
             output_tokens = usage.get("outputTokens", 0)
 
-            # Try to parse as JSON only when expected
+            # Parse response as JSON when the caller expects structured output
             parsed_json = None
             if expect_json:
                 try:
-                    # Handle case where response has markdown code fences
+                    # Strip markdown code fences that Claude sometimes wraps around JSON
                     json_text = content_text.strip()
                     if json_text.startswith("```"):
                         lines = json_text.split("\n")
@@ -124,6 +126,7 @@ def invoke_claude(
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
 
+            # Throttling is retriable; other client errors are not
             if error_code == "ThrottlingException":
                 delay = BASE_DELAY * (2 ** attempt)
                 logger.warning(

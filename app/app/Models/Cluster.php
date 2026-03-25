@@ -28,11 +28,13 @@ class Cluster extends Model
         'representative_row_ids_json' => 'array',
     ];
 
+    /** The pipeline job that produced this cluster. */
     public function pipelineJob(): BelongsTo
     {
         return $this->belongsTo(PipelineJob::class);
     }
 
+    /** Dataset rows assigned to this cluster via the membership pivot table. */
     public function datasetRows(): BelongsToMany
     {
         return $this->belongsToMany(DatasetRow::class, 'cluster_memberships')
@@ -40,6 +42,7 @@ class Cluster extends Model
             ->withTimestamps();
     }
 
+    /** Knowledge units derived from this cluster by the LLM analysis step. */
     public function knowledgeUnits(): HasMany
     {
         return $this->hasMany(KnowledgeUnit::class);

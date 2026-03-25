@@ -1,3 +1,7 @@
+{{-- Main application layout: provides the shared chrome for all authenticated pages.
+     Includes top navigation bar, user dropdown menu with locale switcher, common CSS
+     (buttons, badges, cards, tables, status indicators), and shared JavaScript
+     (user dropdown, sidebar toggle, timestamp localization). --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -75,7 +79,7 @@
     </style>
 </head>
 <body>
-    <!-- ── Top navigation bar ───────────────────────────────── -->
+    {{-- Top navigation bar: hamburger menu, app title, nav links, and user dropdown --}}
     <div class="topbar">
         <div class="topbar-left">
             <button class="hamburger" onclick="toggleSidebar()" title="Toggle sidebar">

@@ -3,6 +3,7 @@
 # Runs the pipeline step processor that polls SQS and dispatches
 # to step handlers (preprocess, embedding, clustering, etc.).
 
+# Base image: Python 3.12 slim for minimal footprint
 FROM python:3.12-slim AS base
 
 WORKDIR /app

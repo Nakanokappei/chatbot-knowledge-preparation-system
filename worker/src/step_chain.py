@@ -36,6 +36,7 @@ def dispatch_next_step(
 
     Returns the name of the next step, or None if the pipeline is complete.
     """
+    # Locate the current step in the sequence to determine the next one
     try:
         idx = STEP_SEQUENCE.index(current_step)
     except ValueError:

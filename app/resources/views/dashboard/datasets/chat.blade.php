@@ -1,3 +1,5 @@
+{{-- RAG Chat interface: standalone chat page for a published knowledge dataset.
+     Sends user queries to the /web-api/chat endpoint and displays responses with source citations. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -39,6 +41,7 @@
     <span class="badge">{{ $dataset->ku_count }} KUs</span>
 </div>
 
+{{-- Chat message area: scrollable container for user/assistant message bubbles --}}
 <div class="chat-container" id="chat-container">
     <div class="empty-state" id="empty-state">
         <h3>RAG Chat</h3>
@@ -47,6 +50,7 @@
     </div>
 </div>
 
+{{-- Input area: text input and send button for composing messages --}}
 <div class="input-area">
     <div class="input-row">
         <input type="text" id="message-input" placeholder="Ask a question..." autofocus
@@ -61,6 +65,7 @@ const csrfToken = '{{ csrf_token() }}';
 let conversationId = null;
 let sending = false;
 
+// Send user message to the RAG chat API and display the streamed response
 async function sendMessage() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
@@ -131,6 +136,7 @@ async function sendMessage() {
     }
 }
 
+// Append a chat bubble (user or assistant) to the message container
 function appendMessage(role, text, extraHtml = '') {
     const container = document.getElementById('chat-container');
     const div = document.createElement('div');
@@ -140,6 +146,7 @@ function appendMessage(role, text, extraHtml = '') {
     scrollToBottom();
 }
 
+// Escape HTML special characters to prevent XSS in chat output
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;

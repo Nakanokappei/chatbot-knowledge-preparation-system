@@ -68,6 +68,7 @@ class EmbeddingChatController extends Controller
                 LIMIT ?
             ", [$vectorString, $embeddingId, $vectorString, $similarityThreshold, $vectorString, $topK]);
 
+            // Return early if no KUs meet the similarity threshold
             if (empty($retrievedKUs)) {
                 return response()->json([
                     'message' => __('ui.chat_no_match') ?: 'No matching knowledge found for your question.',
@@ -130,6 +131,7 @@ PROMPT;
                     ->orderBy('sort_order')
                     ->value('model_id');
 
+            // Guard: tenant must have at least one LLM model configured
             if (!$modelId) {
                 return response()->json(['error' => 'No LLM model configured. Add one in Settings.'], 400);
             }

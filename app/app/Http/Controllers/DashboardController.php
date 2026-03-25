@@ -47,7 +47,7 @@ class DashboardController extends Controller
             'failed' => $allJobs->where('status', 'failed')->count(),
         ];
 
-        // Filter jobs for display
+        // Apply the user's status filter to the job collection
         $jobs = match ($filter) {
             'completed' => $allJobs->where('status', 'completed'),
             'processing' => $allJobs->whereNotIn('status', ['completed', 'failed', 'submitted']),
@@ -240,7 +240,7 @@ class DashboardController extends Controller
             ->first();
         $defaultLlmModel = $defaultModel?->model_id ?? 'jp.anthropic.claude-haiku-4-5-20251001-v1:0';
 
-        // Build clustering parameters based on selected method
+        // Build clustering hyperparameters based on the selected algorithm
         $clusteringMethod = $request->input('clustering_method', 'hdbscan');
         $clusteringParams = match ($clusteringMethod) {
             'hdbscan' => [
@@ -423,6 +423,7 @@ class DashboardController extends Controller
             'created_at' => $ku->created_at->toIso8601String(),
         ]);
 
+        // Render as CSV download if requested; otherwise return JSON
         if ($format === 'csv') {
             $lines = [];
             // CSV header

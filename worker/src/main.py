@@ -71,10 +71,12 @@ def process_message(message_body: dict):
     tenant_id = message_body.get("tenant_id")
     step = message_body.get("step")
 
+    # Validate that all required message fields are present
     if not all([job_id, tenant_id, step]):
         logger.error("Invalid message: missing required fields. Body: %s", message_body)
         return
 
+    # Look up the step handler module from the registry
     handler = STEP_HANDLERS.get(step)
     if handler is None:
         logger.error("Unknown step '%s' for job %d", step, job_id)
@@ -110,6 +112,7 @@ def poll_sqs():
 
     logger.info("Worker started. Polling SQS queue: %s", SQS_QUEUE_URL)
 
+    # Main loop: continuously poll SQS until shutdown is requested
     while not shutdown_requested:
         try:
             response = sqs.receive_message(
@@ -120,9 +123,11 @@ def poll_sqs():
             )
 
             messages = response.get("Messages", [])
+            # Skip empty poll results (normal with long polling)
             if not messages:
                 continue
 
+            # Process each received message and delete from queue on success
             for message in messages:
                 body = json.loads(message["Body"])
                 process_message(body)
@@ -158,6 +163,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
+    # Choose between local single-run mode and production SQS polling
     if len(sys.argv) > 1 and sys.argv[1] == "--local":
         # Local mode: process a single message from command line argument
         if len(sys.argv) < 3:

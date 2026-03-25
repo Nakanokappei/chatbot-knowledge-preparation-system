@@ -43,6 +43,7 @@ class EmbeddingController extends Controller
         $current = null;
         $knowledgeUnits = collect();
 
+        // Try to load the explicitly requested embedding
         if ($embeddingId) {
             $current = Embedding::where('tenant_id', $tenantId)->find($embeddingId);
         }
@@ -263,8 +264,9 @@ class EmbeddingController extends Controller
         $currentIdx = array_search($embeddingId, $siblings);
         $nextId = null;
 
+        // Select the next sibling to redirect to after deletion
         if ($currentIdx !== false && count($siblings) > 1) {
-            // Try same position, or the one before
+            // Try the next sibling, or fall back to the previous one
             if (isset($siblings[$currentIdx + 1])) {
                 $nextId = $siblings[$currentIdx + 1];
             } elseif ($currentIdx > 0) {

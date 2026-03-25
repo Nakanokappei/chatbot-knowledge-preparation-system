@@ -139,6 +139,7 @@ class ChatController extends Controller
     private function buildKnowledgeContext(array $kus): string
     {
         $sections = [];
+        // Assemble each KU into a markdown section with optional cause/resolution
         foreach ($kus as $ku) {
             $section = "### {$ku->topic} ({$ku->intent})\n";
             $section .= "{$ku->summary}\n";
@@ -179,6 +180,7 @@ PROMPT;
      */
     private function getOrCreateConversation(?string $conversationId, int $tenantId, int $datasetId, int $userId): ChatConversation
     {
+        // Attempt to resume an existing conversation if an ID was provided
         if ($conversationId) {
             $existing = ChatConversation::where('id', $conversationId)
                 ->where('tenant_id', $tenantId)

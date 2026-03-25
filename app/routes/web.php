@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * Web route definitions for the Chatbot Knowledge Preparation System.
+ *
+ * Routes are organized into public (auth, locale) and authenticated
+ * groups. The authenticated group contains workspace, pipeline,
+ * dataset wizard, knowledge unit, knowledge dataset, cost dashboard,
+ * profile, and settings routes.
+ */
+
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CostController;
 use App\Http\Controllers\DashboardController;

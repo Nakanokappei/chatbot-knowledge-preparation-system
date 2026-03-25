@@ -11,11 +11,17 @@ use Illuminate\Validation\Rules\Password;
  */
 class ProfileController extends Controller
 {
+    /**
+     * Show the profile edit form with the current user's details.
+     */
     public function edit()
     {
         return view('dashboard.profile', ['user' => auth()->user()]);
     }
 
+    /**
+     * Update the user's name and email address.
+     */
     public function update(Request $request)
     {
         $user = auth()->user();
@@ -30,6 +36,9 @@ class ProfileController extends Controller
         return back()->with('success', 'Profile updated.');
     }
 
+    /**
+     * Change the user's password after verifying the current one.
+     */
     public function updatePassword(Request $request)
     {
         $request->validate([

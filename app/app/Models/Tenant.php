@@ -40,6 +40,9 @@ class Tenant extends Model
         ],
     ];
 
+    /**
+     * Boot model event listeners to provision default resources.
+     */
     protected static function booted(): void
     {
         // Provision default LLM models when a new tenant is created
@@ -50,21 +53,25 @@ class Tenant extends Model
         });
     }
 
+    /** Users belonging to this tenant. */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
+    /** Datasets uploaded by this tenant. */
     public function datasets(): HasMany
     {
         return $this->hasMany(Dataset::class);
     }
 
+    /** Pipeline jobs executed under this tenant. */
     public function pipelineJobs(): HasMany
     {
         return $this->hasMany(PipelineJob::class);
     }
 
+    /** LLM models registered in this tenant's settings. */
     public function llmModels(): HasMany
     {
         return $this->hasMany(LlmModel::class);

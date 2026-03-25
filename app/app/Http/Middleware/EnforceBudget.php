@@ -17,9 +17,14 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnforceBudget
 {
+    /**
+     * Check the tenant's token budget and block or warn as appropriate.
+     * Unauthenticated requests pass through without budget checks.
+     */
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+        // Skip budget enforcement for unauthenticated requests
         if (! $user) {
             return $next($request);
         }

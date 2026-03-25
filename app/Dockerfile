@@ -83,7 +83,7 @@ RUN mkdir -p storage/logs \
         bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
-# nginx configuration
+# Nginx configuration: proxy PHP requests to FPM, serve static files directly
 RUN cat > /etc/nginx/http.d/default.conf <<'NGINX'
 server {
     listen 80;
@@ -134,7 +134,7 @@ stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 SUPERVISOR
 
-# PHP upload size configuration
+# PHP upload size and execution limits for large CSV uploads
 RUN cat > /usr/local/etc/php/conf.d/uploads.ini <<'UPLOADS'
 upload_max_filesize = 50M
 post_max_size = 52M

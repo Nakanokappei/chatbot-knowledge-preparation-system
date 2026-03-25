@@ -23,6 +23,7 @@ class DatasetRow extends Model
         'metadata_json' => 'array',
     ];
 
+    /** The parent dataset this row was parsed from. */
     public function dataset(): BelongsTo
     {
         return $this->belongsTo(Dataset::class);

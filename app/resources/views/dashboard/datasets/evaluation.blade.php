@@ -1,3 +1,6 @@
+{{-- Retrieval quality evaluation page: tests vector search accuracy against a dataset.
+     Users provide JSON test queries with optional expected KU IDs, then the tool calculates
+     hit rate, MRR, average similarity, and latency metrics. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -42,7 +45,7 @@
 
     <h1>Retrieval Quality Evaluation</h1>
 
-    <!-- Summary Stats -->
+    {{-- Summary stats cards: hit rate, MRR, avg similarity, avg latency (populated by JS) --}}
     <div class="stats-grid">
         <div class="stat">
             <div class="stat-value" id="hit-rate">—</div>
@@ -62,7 +65,7 @@
         </div>
     </div>
 
-    <!-- Test Queries Input -->
+    {{-- Test queries input: JSON textarea for entering evaluation queries --}}
     <div class="card">
         <h2 style="margin-bottom: 12px;">Test Queries</h2>
         <p style="margin-bottom: 12px; color: #6b7280; font-size: 13px;">
@@ -77,7 +80,7 @@
         <button class="btn btn-primary" onclick="runEvaluation()" id="run-btn">Run Evaluation</button>
     </div>
 
-    <!-- Results -->
+    {{-- Results container: populated by JS after running evaluation --}}
     <div class="card" id="results-card" style="display: none;">
         <h2 style="margin-bottom: 12px;">Results</h2>
         <div id="results-container"></div>
@@ -88,6 +91,7 @@
 const datasetId = {{ $dataset->id }};
 const csrfToken = '{{ csrf_token() }}';
 
+// Run evaluation: iterate through test queries, call retrieve API, compute metrics
 async function runEvaluation() {
     const textarea = document.getElementById('test-queries');
     const btn = document.getElementById('run-btn');

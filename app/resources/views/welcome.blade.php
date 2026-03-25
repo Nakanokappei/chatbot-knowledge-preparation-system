@@ -1,3 +1,5 @@
+{{-- Default Laravel welcome page: serves as the landing/home page for unauthenticated users.
+     Includes login/register links if authentication routes are available. --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>

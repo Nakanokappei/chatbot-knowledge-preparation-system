@@ -22,16 +22,19 @@ class ChatConversation extends Model
         'tenant_id', 'knowledge_dataset_id', 'user_id',
     ];
 
+    /** Get all messages in this conversation, ordered chronologically. */
     public function messages(): HasMany
     {
         return $this->hasMany(ChatMessage::class, 'conversation_id')->orderBy('created_at');
     }
 
+    /** The published knowledge dataset this conversation queries against. */
     public function knowledgeDataset(): BelongsTo
     {
         return $this->belongsTo(KnowledgeDataset::class);
     }
 
+    /** The user who initiated this conversation. */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

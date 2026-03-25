@@ -1,3 +1,5 @@
+{{-- Usage dashboard: displays token consumption and cost metrics for the last 30 days.
+     Includes summary stats, daily bar charts (tokens & cost by category), and breakdowns by endpoint/model. --}}
 @extends('layouts.app')
 @section('title', 'Usage — KPS')
 
@@ -19,13 +21,14 @@
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Usage</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">Token usage and estimated costs (last 30 days)</p>
 
+            {{-- Summary stats: 30-day totals for cost, tokens, and requests --}}
             <div class="stats-grid">
                 <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">Cost (30 days)</div></div>
                 <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">Tokens (30 days)</div></div>
                 <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">Requests (30 days)</div></div>
             </div>
 
-            <!-- Daily Charts -->
+            {{-- Daily charts: side-by-side token and cost bar charts drawn on canvas --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div class="card">
                     <h2>Daily Tokens</h2>
@@ -42,6 +45,7 @@
                 </div>
             </div>
 
+            {{-- Breakdown tables: cost aggregated by API endpoint and by model --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div class="card">
                     <h2>Cost by Endpoint</h2>

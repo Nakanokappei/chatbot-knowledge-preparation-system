@@ -22,6 +22,7 @@ class KnowledgeUnitVersion extends Model
         'created_at' => 'datetime',
     ];
 
+    /** The knowledge unit this version snapshot belongs to. */
     public function knowledgeUnit(): BelongsTo
     {
         return $this->belongsTo(KnowledgeUnit::class);
