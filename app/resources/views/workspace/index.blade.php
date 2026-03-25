@@ -626,8 +626,8 @@
                     style="flex: 1; padding: 10px 14px; border: 1px solid #d2d2d7; border-radius: 20px; font-size: 14px; outline: none;"
                     autocomplete="off">
                 <button type="submit" id="chat-send-btn"
-                    style="background: #0071e3; color: #fff; border: none; border-radius: 20px; padding: 10px 18px; font-size: 14px; cursor: pointer; font-weight: 500;">
-                    {{ __('ui.send') }}
+                    style="background: #0071e3; color: #fff; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 3l14 6-14 6 2-6-2-6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M4 9h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 </button>
             </form>
         </div>
@@ -845,7 +845,7 @@
             input.value = '';
             const sendBtn = document.getElementById('chat-send-btn');
             sendBtn.disabled = true;
-            sendBtn.textContent = '...';
+            sendBtn.style.opacity = '0.5';
 
             // Show user message
             appendChatMessage('user', message);
@@ -907,7 +907,7 @@
 
             chatSending = false;
             sendBtn.disabled = false;
-            sendBtn.textContent = '{{ __("ui.send") }}';
+            sendBtn.style.opacity = '1';
             input.focus();
         }
 
