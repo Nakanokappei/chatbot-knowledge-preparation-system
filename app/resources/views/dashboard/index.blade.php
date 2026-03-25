@@ -6,11 +6,11 @@
         .layout { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 260px; background: #F6F6F6; border-right: none; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
         .sidebar-tree { flex: 1; overflow-y: auto; padding: 8px; }
-        .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; }
+        .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; border-radius: 12px 0 0 0; }
 
         /* Sidebar menu items */
         .sidebar-section { padding: 12px 12px 6px; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; }
-        .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 0 6px 6px 0; margin-left: -8px; padding-left: 20px; cursor: pointer; text-decoration: none; color: #1d1d1f; font-size: 14px; transition: background 0.15s; margin-bottom: 1px; }
+        .sidebar-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 0 100px 100px 0; margin-left: -8px; padding-left: 20px; cursor: pointer; text-decoration: none; color: #1d1d1f; font-size: 15px; transition: background 0.15s; margin-bottom: 1px; }
         .sidebar-item:hover { background: #E9E9E9; }
         .sidebar-item:hover .sidebar-icon { color: #1d1d1f; }
         .sidebar-item:hover .sidebar-count { color: #5f6368; }

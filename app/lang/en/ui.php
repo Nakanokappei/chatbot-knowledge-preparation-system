@@ -98,6 +98,7 @@ return [
     'upload_and_configure' => 'Upload & Configure',
     'after_upload_hint' => 'After uploading, you\'ll configure columns, clustering method, and pipeline settings.',
     'configure_dataset' => 'Configure Dataset',
+    'new_dataset' => 'New Dataset',
     'basic_settings' => 'Basic Settings',
     'dataset_name' => 'Dataset name',
     'first_row_is' => 'First row is',

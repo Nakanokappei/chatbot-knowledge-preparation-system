@@ -98,6 +98,7 @@ return [
     'upload_and_configure' => 'アップロードして設定',
     'after_upload_hint' => 'アップロード後、列の選択、クラスタリング手法、パイプライン設定を行います。',
     'configure_dataset' => 'データセット設定',
+    'new_dataset' => '新規データセット',
     'basic_settings' => '基本設定',
     'dataset_name' => 'データセット名',
     'first_row_is' => '1行目の扱い',

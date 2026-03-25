@@ -2,7 +2,15 @@
 @section('title', "Configure Dataset — {$dataset->name}")
 
 @section('extra-styles')
-        .page-content { padding: 24px; max-width: 1100px; margin: 0 auto; }
+        /* Full-screen overlay like Gmail compose maximized */
+        .configure-overlay { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); }
+        .configure-panel { background: #fff; border-radius: 12px; width: 90vw; max-width: 1100px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); overflow: hidden; }
+        .configure-titlebar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: #F3F3F3; border-radius: 12px 12px 0 0; flex-shrink: 0; }
+        .configure-titlebar h1 { font-size: 16px; font-weight: 600; margin: 0; }
+        .configure-titlebar .close-btn { background: none; border: none; font-size: 20px; color: #5f6368; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .configure-titlebar .close-btn:hover { background: #E9E9E9; }
+        .configure-body { flex: 1; overflow-y: auto; padding: 24px; }
+        .page-content { max-width: 100%; margin: 0; }
         .card { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
         .row { display: flex; gap: 16px; }
@@ -47,17 +55,21 @@
 @endsection
 
 @section('body')
-    <div class="page-content">
-        <a href="{{ route('workspace.index') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">&larr; {{ __('ui.nav_workspace') }}</a>
-        <h1 style="margin-top: 12px; font-size: 22px; font-weight: 600;">{{ __('ui.configure_dataset') }}: {{ $dataset->name }}</h1>
-        <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ $dataset->original_filename }} — {{ $totalLines }} data rows — Encoding: {{ $detectedEncoding }}</p>
+    <div class="configure-overlay" onclick="if(event.target===this) window.location='{{ route('workspace.index') }}'">
+        <div class="configure-panel">
+            <div class="configure-titlebar">
+                <h1>{{ __('ui.new_dataset') ?? 'New Dataset' }}: {{ $dataset->name }}</h1>
+                <a href="{{ route('workspace.index') }}" class="close-btn" title="Close">&times;</a>
+            </div>
+            <div class="configure-body">
+                <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ $dataset->original_filename }} — {{ $totalLines }} data rows — Encoding: {{ $detectedEncoding }}</p>
 
-        @if(session('error'))
-            <div style="color: #ff3b30; font-size: 13px; margin-bottom: 12px;">✗ {{ session('error') }}</div>
-        @endif
+                @if(session('error'))
+                    <div style="color: #ff3b30; font-size: 13px; margin-bottom: 12px;">✗ {{ session('error') }}</div>
+                @endif
 
-        <form id="config-form" method="POST" action="{{ route('dataset.finalize', $dataset) }}">
-            @csrf
+                <form id="config-form" method="POST" action="{{ route('dataset.finalize', $dataset) }}">
+                    @csrf
 
             <!-- Basic Settings -->
             <div class="card">
@@ -295,8 +307,10 @@
                 </div>
             </div>
 
-            <div id="hidden-inputs"></div>
-        </form>
+                    <div id="hidden-inputs"></div>
+                </form>
+            </div>
+        </div>
     </div>
 @endsection
 

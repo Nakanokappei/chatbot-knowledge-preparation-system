@@ -5,33 +5,40 @@
         /* ── Layout: tree sidebar + main ─────────────────────── */
         .layout { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 280px; background: #F6F6F6; border-right: none; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
+
+        /* Collapsed sidebar: show icons only */
         .sidebar.collapsed { width: 52px; }
-        .sidebar.collapsed .sidebar-upload-btn { display: none; }
+        .sidebar.collapsed .upload-label { display: none; }
+        .sidebar.collapsed .sidebar-upload-btn a { padding: 8px 0; border: none; background: transparent; }
         .sidebar.collapsed .tree-dataset-name,
         .sidebar.collapsed .tree-emb-label,
         .sidebar.collapsed .tree-children,
         .sidebar.collapsed .tree-create-link { display: none; }
-        .sidebar.collapsed .tree-dataset-header { justify-content: center; padding: 7px 0; }
+        .sidebar.collapsed .tree-dataset-header { justify-content: center; padding: 7px 0; position: relative; flex-direction: column; gap: 0; align-items: center; }
         .sidebar.collapsed .tree-toggle { display: none; }
         .sidebar.collapsed .tree-dataset-count { font-size: 9px; position: absolute; bottom: -2px; right: 2px; }
         .sidebar.collapsed .tree-icon { margin: 0 auto; }
-        .sidebar.collapsed .tree-dataset-header { position: relative; flex-direction: column; gap: 0; align-items: center; }
+        .sidebar.collapsed .no-datasets-msg { display: none; }
+        .sidebar.collapsed .pipeline-header { display: none; }
+        .sidebar.collapsed #pipeline-sidebar .tree-emb-label { display: none; }
+        .sidebar.collapsed #pipeline-sidebar .tree-emb { padding-left: 0; justify-content: center; }
+        .sidebar.collapsed #pipeline-sidebar .tree-emb-count { display: none; }
         .sidebar-tree { flex: 1; overflow-y: auto; padding: 4px 0 4px 0; }
 
         /* Tree: dataset node (parent) */
         .tree-dataset { margin-bottom: 2px; }
-        .tree-dataset-header { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; border-radius: 0 6px 6px 0; cursor: pointer; transition: background 0.15s; user-select: none; margin-right: 8px; }
+        .tree-dataset-header { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; border-radius: 0 100px 100px 0; cursor: pointer; transition: background 0.15s; user-select: none; margin-right: 8px; }
         .tree-dataset-header:hover { background: #E9E9E9; }
         .tree-toggle { font-size: 9px; color: #5f6368; width: 12px; text-align: center; flex-shrink: 0; transition: transform 0.15s; }
         .tree-toggle.open { transform: rotate(90deg); }
         .tree-icon { flex-shrink: 0; color: #5f6368; }
-        .tree-dataset-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .tree-dataset-count { font-size: 11px; color: #5f6368; flex-shrink: 0; }
+        .tree-dataset-name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .tree-dataset-count { font-size: 12px; color: #5f6368; flex-shrink: 0; }
 
         /* Tree: embedding node (child) — left edge flush with window */
         .tree-children { padding-left: 0; margin-left: 0; overflow: hidden; transition: max-height 0.2s ease; }
         .tree-children.collapsed { max-height: 0 !important; }
-        .tree-emb { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 32px; border-radius: 0 6px 6px 0; cursor: pointer; text-decoration: none; color: #1d1d1f; margin-bottom: 1px; transition: background 0.15s; margin-right: 8px; }
+        .tree-emb { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 32px; border-radius: 0 100px 100px 0; cursor: pointer; text-decoration: none; color: #1d1d1f; margin-bottom: 1px; transition: background 0.15s; margin-right: 8px; }
         .tree-emb:hover { background: #E9E9E9; }
         .tree-emb:hover .tree-emb-icon { color: #1d1d1f; }
         .tree-emb:hover .tree-emb-count { color: #5f6368; }
@@ -39,20 +46,21 @@
         .tree-emb.active .tree-emb-count { color: #5f6368; }
         .tree-emb-icon { flex-shrink: 0; color: #5f6368; }
         .tree-emb.active .tree-emb-icon { color: #1d1d1f; }
-        .tree-emb-label { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-        .tree-emb-count { font-size: 11px; color: #5f6368; flex-shrink: 0; margin-left: auto; }
+        .tree-emb-label { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .tree-emb-count { font-size: 12px; color: #5f6368; flex-shrink: 0; margin-left: auto; }
 
-        .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; }
+        /* Main content area — white with top-left corner radius over grey body */
+        .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; border-radius: 12px 0 0 0; }
         .main-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .main-header h2 { font-size: 20px; font-weight: 600; margin-bottom: 0; }
         .main-actions { display: flex; gap: 8px; }
         .ku-table { width: 100%; border-collapse: collapse; background: #FEFEFE; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .ku-table th { text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #5f6368; background: #FEFEFE; border-bottom: 1px solid #e5e5e7; }
-        .ku-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f2; font-size: 14px; }
+        .ku-table th { text-align: left; padding: 10px 14px; font-size: 14px; font-weight: 500; color: #5f6368; background: #FEFEFE; border-bottom: 1px solid #e5e5e7; }
+        .ku-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f2; font-size: 15px; }
         .ku-table tr:last-child td { border-bottom: none; }
         .ku-table tr:hover td { background: #F6F6F6; }
-        .empty-icon { font-size: 48px; margin-bottom: 12px; }
-        .empty-title { font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px; }
+        .empty-icon { margin-bottom: 12px; color: #5f6368; }
+        .empty-title { font-size: 18px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px; }
 @endsection
 
 @section('body')
@@ -61,13 +69,13 @@
         <div class="sidebar">
             <div class="sidebar-upload-btn" style="padding: 10px 12px;">
                 <a href="javascript:void(0)" onclick="openDispatchModal()"
-                   style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 0; background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 500; transition: background 0.15s;"
+                   style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 0; background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.15s;"
                    onmouseover="this.style.background='#e8e8ea'" onmouseout="this.style.background='#fff'">
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;">
                         <path d="M8 1v9M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    {{ __('ui.upload_csv') }}
+                    <span class="upload-label">{{ __('ui.upload_csv') }}</span>
                 </a>
             </div>
             <div class="sidebar-tree">
@@ -112,14 +120,14 @@
                         </div>
                     </div>
                 @empty
-                    <div style="padding: 24px; text-align: center; color: #5f6368; font-size: 12px;">
+                    <div class="no-datasets-msg" style="padding: 24px; text-align: center; color: #5f6368; font-size: 13px;">
                         {{ __('ui.no_datasets') }}
                     </div>
                 @endforelse
 
                 <!-- Pipeline section -->
                 <div id="pipeline-sidebar" style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
-                    <div style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('ui.pipeline') }}</div>
+                    <div class="pipeline-header" style="padding: 6px 12px; font-size: 12px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('ui.pipeline') }}</div>
 
                     <a href="?pipeline=jobs&pf=all"
                        class="tree-emb {{ ($pipelineView === 'jobs' && $pipelineFilter === 'all') ? 'active' : '' }}"
@@ -167,9 +175,15 @@
 
                 @if($jobs->isEmpty())
                     <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
-                        <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
-                        <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px;">No {{ $pipelineFilter !== 'all' ? $pipelineFilter : '' }} jobs</div>
-                        <div style="font-size: 13px;">{{ __('ui.no_jobs_hint') }}</div>
+                        <div class="empty-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                <path d="M6 18l8-12h20l8 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M6 18v18a2 2 0 002 2h32a2 2 0 002-2V18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M6 18h12l2 4h8l2-4h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="empty-title">No {{ $pipelineFilter !== 'all' ? $pipelineFilter : '' }} jobs</div>
+                        <div style="font-size: 14px;">{{ __('ui.no_jobs_hint') }}</div>
                     </div>
                 @else
                     <table class="ku-table" id="job-list">
@@ -495,10 +509,10 @@
 
         <!-- Modal header (draggable look) -->
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
-            background: #1d1d1f; border-radius: 12px 12px 0 0; cursor: default;">
-            <span style="font-size: 14px; font-weight: 600; color: #fff;">{{ __('ui.run_pipeline') }}</span>
+            background: #F3F3F3; border-radius: 12px 12px 0 0; cursor: default;">
+            <span style="font-size: 14px; font-weight: 600; color: #1d1d1f;">{{ __('ui.new_dataset') ?? 'New Dataset' }}</span>
             <button onclick="closeDispatchModal()" style="background: none; border: none; cursor: pointer;
-                color: #fff; font-size: 18px; line-height: 1; padding: 0 4px;">✕</button>
+                color: #5f6368; font-size: 18px; line-height: 1; padding: 0 4px;">✕</button>
         </div>
 
         <!-- Modal body -->
