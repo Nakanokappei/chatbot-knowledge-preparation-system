@@ -850,12 +850,15 @@
             // Show user message
             appendChatMessage('user', message);
 
-            // Show typing indicator
+            // Show typing indicator — if we were asking for product, show product-specific message
             const container = document.getElementById('chat-messages');
             const typing = document.createElement('div');
             typing.id = 'typing-indicator';
             typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #5f6368;';
-            typing.textContent = '{{ __("ui.thinking") }}';
+            const wasAskingProduct = chatContext.question && !chatContext.product;
+            typing.textContent = wasAskingProduct
+                ? message + ' について調べています...'
+                : (chatContext.product ? chatContext.product + ' について調べています...' : '{{ __("ui.thinking") }}');
             container.appendChild(typing);
             container.scrollTop = container.scrollHeight;
 

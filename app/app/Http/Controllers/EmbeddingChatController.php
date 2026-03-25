@@ -56,11 +56,8 @@ class EmbeddingChatController extends Controller
 
             // Action: ask the user which product they mean
             if ($action === 'ask_product') {
-                $questionPreview = $context['question']
-                    ? "「{$context['question']}」"
-                    : '';
                 return response()->json([
-                    'message' => "どの製品についてのご質問ですか？{$questionPreview}",
+                    'message' => 'どの製品についてのご質問ですか？',
                     'action' => 'ask_product',
                     'context' => $context,
                     'sources' => [],
