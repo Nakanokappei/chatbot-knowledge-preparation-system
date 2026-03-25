@@ -37,3 +37,4 @@ Thumbs.db
 # Claude
 .claude/
 .env.docker
+.github/workflows/
