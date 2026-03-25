@@ -87,7 +87,7 @@
                     <span class="upload-label">{{ __('ui.upload_csv') }}</span>
                 </a>
             </div>
-            <div class="sidebar-tree">
+            <div class="sidebar-tree" id="dataset-tree">
                 @forelse($datasets as $ds)
                     @php
                         $hasActiveChild = $current && $ds->embeddings->contains('id', $current->id);
@@ -140,7 +140,7 @@
                 @endforelse
 
                 {{-- Pipeline section in sidebar: job status filter links with counts --}}
-                <div id="pipeline-sidebar" style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
+                <div id="pipeline-sidebar" data-processing-count="{{ $jobStats['processing'] }}" style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
                     <div class="pipeline-header" style="padding: 6px 12px; font-size: 12px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('ui.pipeline') }}</div>
 
                     <a href="?pipeline=jobs&pf=all"
@@ -922,26 +922,46 @@
             openDispatchModal();
         @endif
 
-        // Auto-refresh pipeline job list every 5 seconds
-        @if($pipelineView === 'jobs')
-        async function refreshJobList() {
+        // Auto-refresh sidebar tree and job list while pipeline jobs are in progress
+        let pollingActive = {{ $jobStats['processing'] > 0 ? 'true' : 'false' }};
+        async function refreshWorkspace() {
             try {
                 const response = await fetch(window.location.href);
                 if (!response.ok) return;
                 const html = await response.text();
                 const doc = new DOMParser().parseFromString(html, 'text/html');
-                // Refresh job list
-                const freshJobs = doc.getElementById('job-list');
-                const currentJobs = document.getElementById('job-list');
-                if (freshJobs && currentJobs) currentJobs.innerHTML = freshJobs.innerHTML;
-                // Refresh sidebar counts
+
+                // Refresh dataset tree (shows new embeddings when pipeline completes)
+                const freshTree = doc.getElementById('dataset-tree');
+                const currentTree = document.getElementById('dataset-tree');
+                if (freshTree && currentTree) currentTree.innerHTML = freshTree.innerHTML;
+
+                // Refresh pipeline sidebar counts
                 const freshSidebar = doc.getElementById('pipeline-sidebar');
                 const currentSidebar = document.getElementById('pipeline-sidebar');
                 if (freshSidebar && currentSidebar) currentSidebar.innerHTML = freshSidebar.innerHTML;
+
+                // Refresh job list if visible
+                const freshJobs = doc.getElementById('job-list');
+                const currentJobs = document.getElementById('job-list');
+                if (freshJobs && currentJobs) currentJobs.innerHTML = freshJobs.innerHTML;
+
                 localizeTimestamps();
+
+                // Stop polling when no more processing jobs
+                const processingBadge = doc.querySelector('[data-processing-count]');
+                const processingCount = processingBadge ? parseInt(processingBadge.dataset.processingCount) : 0;
+                if (processingCount === 0 && pollingActive) {
+                    pollingActive = false;
+                }
             } catch (e) { }
         }
-        setInterval(refreshJobList, 5000);
+        // Poll every 5 seconds; also poll on page load if jobs are processing
+        const pollingInterval = setInterval(() => {
+            if (pollingActive) refreshWorkspace();
+        }, 5000);
+        @if($jobStats['processing'] > 0)
+        refreshWorkspace();
         @endif
 
         // Show cleanup confirmation after last dataset is deleted

@@ -32,7 +32,11 @@ class EmbeddingController extends Controller
         $datasets = Dataset::where('tenant_id', $tenantId)
             ->where('row_count', '>', 0)
             ->with(['embeddings' => function ($embeddingQuery) use ($tenantId) {
+                // Exclude embeddings whose pipeline is still in progress
                 $embeddingQuery->where('tenant_id', $tenantId)
+                  ->whereDoesntHave('pipelineJobs', function ($jobQuery) {
+                      $jobQuery->whereNotIn('status', ['completed', 'failed']);
+                  })
                   ->withCount('knowledgeUnits')
                   ->orderByDesc('created_at');
             }])

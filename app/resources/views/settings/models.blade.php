@@ -260,13 +260,19 @@
         function savePricing(input) {
             const form = input.closest('form');
             const formData = new FormData(form);
-            fetch(form.action, {
+            // Use getAttribute to avoid name collision with <input name="action">
+            const actionUrl = form.getAttribute('action');
+            fetch(actionUrl, {
                 method: 'POST',
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
-            }).then(r => {
-                input.classList.add('saved');
-                setTimeout(() => input.classList.remove('saved'), 1500);
+            }).then(response => {
+                if (response.ok || response.redirected) {
+                    input.classList.add('saved');
+                    setTimeout(() => input.classList.remove('saved'), 1500);
+                } else {
+                    input.style.borderColor = '#ff3b30';
+                }
             }).catch(() => {
                 input.style.borderColor = '#ff3b30';
             });
