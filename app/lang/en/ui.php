@@ -93,6 +93,7 @@ return [
     'type_message' => 'Type a message...',
     'thinking' => 'Thinking...',
     'sources' => 'Sources',
+    'chat_placeholder' => 'Ask a question about the data in this embedding\'s clusters.',
 
     // ── Pipeline job list ───────────────────────────────
     'no_jobs' => 'No jobs',

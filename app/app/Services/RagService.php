@@ -237,6 +237,308 @@ PROMPT;
                 ->value('model_id');
     }
 
+    // ── Conversational Chat Flow ────────────────────────────────
+
+    /**
+     * Process a chat message with product extraction and multi-stage search.
+     *
+     * Flow:
+     *   1. Extract product name and question from user input via LLM
+     *   2. Merge with existing context (product/question carried across turns)
+     *   3. If product missing → ask the user which product
+     *   4. If product+question ready → search with product filter
+     *   5. No filtered results → broad search as reference
+     *   6. Nothing found → "no knowledge available"
+     *
+     * Returns: ['action' => string, 'message' => string|null, 'context' => array,
+     *           'results' => array, 'search_mode' => string, 'model_id' => string|null]
+     */
+    public function processChat(
+        string $userMessage,
+        int $embeddingId,
+        int $tenantId,
+        array $existingContext = [],
+        array $history = [],
+    ): array {
+        $modelId = $this->resolveModelId($tenantId);
+
+        // Step 1: Extract product name and question from user input
+        $extracted = $this->extractProductAndQuestion($userMessage, $existingContext, $modelId);
+
+        // Step 2: Merge with existing context — preserve prior slots, don't overwrite with null
+        $context = [
+            'product' => $extracted['product'] ?? $existingContext['product'] ?? null,
+            'question' => $existingContext['question'] ?? $extracted['question'] ?? null,
+        ];
+        // If LLM extracted a new question and there was no prior question, use it
+        if (empty($context['question']) && !empty($extracted['question'])) {
+            $context['question'] = $extracted['question'];
+        }
+        // If we were asking for product and got a product-only reply, keep the prior question
+        // If LLM thinks the reply is a question (not a product), and we already have a question,
+        // treat the new input as a product name instead
+        if (!empty($existingContext['question']) && empty($extracted['product']) && !empty($extracted['question'])) {
+            // The user probably replied with a product name that LLM misclassified as question
+            $context['product'] = $extracted['question'];
+            $context['question'] = $existingContext['question'];
+        }
+
+        // Step 3: If product is still missing, ask the user
+        if (empty($context['product']) && !empty($context['question'])) {
+            return [
+                'action' => 'ask_product',
+                'message' => null,
+                'context' => $context,
+                'results' => [],
+                'search_mode' => 'none',
+                'model_id' => $modelId,
+            ];
+        }
+
+        // If we have neither product nor question, ask for more detail
+        if (empty($context['product']) && empty($context['question'])) {
+            return [
+                'action' => 'ask_product',
+                'message' => null,
+                'context' => $context,
+                'results' => [],
+                'search_mode' => 'none',
+                'model_id' => $modelId,
+            ];
+        }
+
+        // Step 4: Product + question ready → search with product filter
+        $searchQuery = $context['question'] ?? $userMessage;
+        $queryEmbedding = $this->bedrock->generateEmbedding($searchQuery);
+        $vectorString = '[' . implode(',', $queryEmbedding) . ']';
+
+        // Resolve product name against known KU products via LLM
+        $matchedProducts = $this->matchProductNames(
+            $context['product'], $embeddingId, $modelId
+        );
+
+        if (!empty($matchedProducts)) {
+            // Search with product filter (precise → broad)
+            $results = $this->filteredVectorSearch(
+                $vectorString, $embeddingId, $matchedProducts,
+                'search_embedding', self::PRECISE_THRESHOLD, self::TOP_K,
+            );
+
+            if (!empty($results)) {
+                return [
+                    'action' => 'answer',
+                    'message' => null,
+                    'context' => $context,
+                    'results' => $results,
+                    'search_mode' => 'precise',
+                    'model_id' => $modelId,
+                ];
+            }
+
+            $results = $this->filteredVectorSearch(
+                $vectorString, $embeddingId, $matchedProducts,
+                'broad_embedding', self::BROAD_THRESHOLD, self::TOP_K,
+            );
+
+            if (!empty($results)) {
+                return [
+                    'action' => 'answer',
+                    'message' => null,
+                    'context' => $context,
+                    'results' => $results,
+                    'search_mode' => 'broad',
+                    'model_id' => $modelId,
+                ];
+            }
+        }
+
+        // Step 5: No product-filtered results → broad search without filter as reference
+        $results = $this->vectorSearch(
+            $vectorString, $embeddingId, 'broad_embedding',
+            self::BROAD_THRESHOLD, self::TOP_K,
+        );
+
+        if (!empty($results)) {
+            return [
+                'action' => 'answer_broad',
+                'message' => null,
+                'context' => $context,
+                'results' => $results,
+                'search_mode' => 'broad_unfiltered',
+                'model_id' => $modelId,
+            ];
+        }
+
+        // Step 6: Nothing found at all
+        return [
+            'action' => 'no_match',
+            'message' => null,
+            'context' => $context,
+            'results' => [],
+            'search_mode' => 'none',
+            'model_id' => $modelId,
+        ];
+    }
+
+    /**
+     * Extract product name and question from user input using LLM.
+     *
+     * Uses a lightweight prompt to classify the user's message into
+     * a product identifier and a question/symptom description.
+     */
+    private function extractProductAndQuestion(
+        string $userMessage,
+        array $existingContext,
+        ?string $modelId,
+    ): array {
+        if (!$modelId) {
+            return ['product' => null, 'question' => $userMessage];
+        }
+
+        $contextHint = '';
+        if (!empty($existingContext['product'])) {
+            $contextHint = "\nNote: The user previously mentioned the product \"{$existingContext['product']}\".";
+        }
+
+        $prompt = <<<PROMPT
+Extract the product name and the user's question from this message.
+{$contextHint}
+
+User message: "{$userMessage}"
+
+Respond with JSON only, no explanation:
+{"product": "product name or null", "question": "the question or symptom description or null"}
+
+Rules:
+- If the message mentions a specific product, device, or service name, extract it as "product"
+- If the message is just a product name (answering a follow-up), set "question" to null
+- If the message is just a question without mentioning a product, set "product" to null
+- Keep the question in the original language
+PROMPT;
+
+        try {
+            $result = $this->bedrock->invokeJson($modelId, $prompt);
+            $parsed = $result['parsed_json'] ?? null;
+
+            if ($parsed) {
+                return [
+                    'product' => ($parsed['product'] && $parsed['product'] !== 'null') ? $parsed['product'] : null,
+                    'question' => ($parsed['question'] && $parsed['question'] !== 'null') ? $parsed['question'] : null,
+                ];
+            }
+        } catch (\Exception $e) {
+            Log::warning("Product extraction failed: " . $e->getMessage());
+        }
+
+        // Fallback: treat entire message as the question
+        return ['product' => null, 'question' => $userMessage];
+    }
+
+    /**
+     * Match a user-provided product name against known products in KU data.
+     *
+     * Uses LLM to handle name variations (e.g. "プレステ" ≒ "PlayStation").
+     * Returns array of matched product strings from the database.
+     */
+    private function matchProductNames(
+        string $userProductName,
+        int $embeddingId,
+        ?string $modelId,
+    ): array {
+        // Collect all distinct product names from approved KUs in this embedding
+        $knownProducts = DB::select("
+            SELECT DISTINCT product FROM knowledge_units
+            WHERE embedding_id = ? AND review_status = 'approved'
+              AND product IS NOT NULL AND product != ''
+        ", [$embeddingId]);
+
+        $productList = array_map(fn($row) => $row->product, $knownProducts);
+
+        if (empty($productList)) {
+            return [];
+        }
+
+        // Use LLM to match with fuzzy logic
+        if (!$modelId) {
+            // Fallback: simple substring match
+            return array_filter($productList, fn($p) =>
+                stripos($p, $userProductName) !== false ||
+                stripos($userProductName, $p) !== false
+            );
+        }
+
+        $productJson = json_encode($productList, JSON_UNESCAPED_UNICODE);
+        $prompt = <<<PROMPT
+Given the user's product name and a list of known products, identify which known products match.
+Account for abbreviations, nicknames, and language variations.
+Examples: "プレステ" matches "PlayStation", "PS5" matches "PlayStation 5", "iPhone" matches "Apple iPhone 15".
+
+User's product name: "{$userProductName}"
+Known products: {$productJson}
+
+Respond with JSON only: {"matched": ["product1", "product2"]}
+Return an empty array if no match found.
+PROMPT;
+
+        try {
+            $result = $this->bedrock->invokeJson($modelId, $prompt);
+            $parsed = $result['parsed_json'] ?? null;
+
+            if ($parsed && isset($parsed['matched']) && is_array($parsed['matched'])) {
+                // Validate that returned products actually exist in our list
+                return array_values(array_intersect($parsed['matched'], $productList));
+            }
+        } catch (\Exception $e) {
+            Log::warning("Product matching failed: " . $e->getMessage());
+        }
+
+        // Fallback: simple substring match
+        return array_values(array_filter($productList, fn($p) =>
+            stripos($p, $userProductName) !== false ||
+            stripos($userProductName, $p) !== false
+        ));
+    }
+
+    /**
+     * Vector search with product name filter.
+     */
+    private function filteredVectorSearch(
+        string $vectorString,
+        int $embeddingId,
+        array $productNames,
+        string $embeddingColumn,
+        float $threshold,
+        int $topK,
+    ): array {
+        if (!in_array($embeddingColumn, ['search_embedding', 'broad_embedding'])) {
+            throw new \InvalidArgumentException("Invalid embedding column: {$embeddingColumn}");
+        }
+
+        // Build product filter placeholders
+        $placeholders = implode(',', array_fill(0, count($productNames), '?'));
+
+        $params = array_merge(
+            [$vectorString, $embeddingId],
+            $productNames,
+            [$vectorString, $threshold, $vectorString, $topK],
+        );
+
+        return DB::select("
+            SELECT
+                id, topic, intent, summary, question, product,
+                symptoms, root_cause, resolution_summary,
+                1 - ({$embeddingColumn} <=> ?::vector) AS similarity
+            FROM knowledge_units
+            WHERE embedding_id = ?
+              AND review_status = 'approved'
+              AND product IN ({$placeholders})
+              AND {$embeddingColumn} IS NOT NULL
+              AND 1 - ({$embeddingColumn} <=> ?::vector) >= ?
+            ORDER BY {$embeddingColumn} <=> ?::vector
+            LIMIT ?
+        ", $params);
+    }
+
     /**
      * Check if a text field contains meaningful content (not CSV garbage).
      */

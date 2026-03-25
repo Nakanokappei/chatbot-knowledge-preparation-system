@@ -93,6 +93,7 @@ return [
     'type_message' => 'メッセージを入力...',
     'thinking' => '考え中...',
     'sources' => '参照元',
+    'chat_placeholder' => 'データに関する質問をどうぞ。',
 
     // ── Pipeline job list ───────────────────────────────
     'no_jobs' => 'ジョブがありません',

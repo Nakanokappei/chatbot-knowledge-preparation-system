@@ -706,8 +706,8 @@
             document.getElementById('rename-form').style.display = 'none';
         }
 
-        // Chat overlay
-        let chatHistory = [];
+        // Chat overlay — session state tracks extracted product/question
+        let chatContext = { product: null, question: null };
         let chatSending = false;
 
         function openChatOverlay() {
@@ -781,9 +781,9 @@
         }
 
         function clearChat() {
-            chatHistory = [];
+            chatContext = { product: null, question: null };
             const container = document.getElementById('chat-messages');
-            container.innerHTML = '<div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">Ask a question about the data in this embedding\'s clusters.</div>';
+            container.innerHTML = '<div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">{{ __("ui.chat_placeholder") }}</div>';
         }
 
         function appendChatMessage(role, content, meta) {
@@ -849,14 +849,13 @@
 
             // Show user message
             appendChatMessage('user', message);
-            chatHistory.push({ role: 'user', content: message });
 
             // Show typing indicator
             const container = document.getElementById('chat-messages');
             const typing = document.createElement('div');
             typing.id = 'typing-indicator';
             typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #5f6368;';
-            typing.textContent = 'Thinking...';
+            typing.textContent = '{{ __("ui.thinking") }}';
             container.appendChild(typing);
             container.scrollTop = container.scrollHeight;
 
@@ -870,7 +869,7 @@
                     },
                     body: JSON.stringify({
                         message: message,
-                        history: chatHistory.slice(0, -1), // Exclude current message (server adds it)
+                        context: chatContext,
                     }),
                 });
 
@@ -879,16 +878,26 @@
                 // Remove typing indicator
                 document.getElementById('typing-indicator')?.remove();
 
+                // Update session context from server response
+                if (data.context) {
+                    chatContext = data.context;
+                    updateContextIndicator();
+                }
+
                 if (data.error) {
                     appendChatMessage('assistant', 'Error: ' + data.error);
                 } else {
-                    appendChatMessage('assistant', data.message, {
+                    // Add note for broad/reference results
+                    let responseMessage = data.message;
+                    if (data.action === 'answer_broad') {
+                        responseMessage = '⚠️ ご指定の製品では情報が見つからなかったため、参考情報をお伝えします。\n\n' + responseMessage;
+                    }
+                    appendChatMessage('assistant', responseMessage, {
                         sources: data.sources,
                         latency_ms: data.latency_ms,
                         usage: data.usage,
                         model: data.model,
                     });
-                    chatHistory.push({ role: 'assistant', content: data.message });
                 }
                 @endif
             } catch (err) {
@@ -898,8 +907,26 @@
 
             chatSending = false;
             sendBtn.disabled = false;
-            sendBtn.textContent = 'Send';
+            sendBtn.textContent = '{{ __("ui.send") }}';
             input.focus();
+        }
+
+        // Show extracted context (product/question) as indicator in chat header
+        function updateContextIndicator() {
+            let indicator = document.getElementById('context-indicator');
+            if (!indicator) {
+                const header = document.querySelector('#chat-overlay > div > div:first-child');
+                if (!header) return;
+                indicator = document.createElement('div');
+                indicator.id = 'context-indicator';
+                indicator.style.cssText = 'font-size: 11px; color: #aaa; padding: 0 12px 4px; background: #1d1d1f;';
+                header.after(indicator);
+            }
+            const parts = [];
+            if (chatContext.product) parts.push('📦 ' + chatContext.product);
+            if (chatContext.question) parts.push('❓ ' + chatContext.question.substring(0, 40) + (chatContext.question.length > 40 ? '...' : ''));
+            indicator.textContent = parts.join('  ');
+            indicator.style.display = parts.length ? 'block' : 'none';
         }
 
         // Dispatch modal open/close
