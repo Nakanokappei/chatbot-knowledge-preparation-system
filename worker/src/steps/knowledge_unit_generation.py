@@ -351,6 +351,7 @@ def create_knowledge_unit(
     pipeline_config: dict,
     knowledge_fields: dict = None,
     search_embedding: list = None,
+    broad_embedding: list = None,
 ) -> int:
     """
     Insert a Knowledge Unit record and its initial version snapshot.
@@ -361,7 +362,8 @@ def create_knowledge_unit(
         dataset_id: Dataset ID.
         pipeline_config: Pipeline configuration dict.
         knowledge_fields: Extracted knowledge structure fields (question, symptoms, etc.)
-        search_embedding: Vector embedding of the question field for retrieval.
+        search_embedding: Vector embedding of question only (precise match).
+        broad_embedding: Vector embedding of question+topic+symptoms+summary (wide recall).
 
     Returns the new knowledge_unit id.
     """
@@ -384,7 +386,8 @@ def create_knowledge_unit(
                 representative_rows_json, keywords_json,
                 row_count, confidence, review_status,
                 source_refs_json, pipeline_config_version, prompt_version,
-                version, embedding, search_embedding, created_at, updated_at)
+                version, embedding, search_embedding, broad_embedding,
+                created_at, updated_at)
                VALUES (%s, %s, %s, %s,
                        %s, %s, %s, %s, %s,
                        %s, %s, %s,
@@ -392,7 +395,8 @@ def create_knowledge_unit(
                        %s, %s,
                        %s, %s, %s,
                        %s, %s, %s,
-                       %s, %s, %s, %s, %s)
+                       %s, %s, %s, %s,
+                       %s, %s)
                RETURNING id""",
             (
                 cluster["tenant_id"], dataset_id, job_id, cluster["id"],
@@ -407,6 +411,7 @@ def create_knowledge_unit(
                 KNOWLEDGE_EXTRACTION_PROMPT_VERSION,
                 1, cluster["centroid_vector"],
                 str(search_embedding) if search_embedding else None,
+                str(broad_embedding) if broad_embedding else None,
                 now, now,
             ),
         )
@@ -510,9 +515,12 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
                 knowledge_fields.get("product", "N/A"),
             )
 
-        # Generate a search embedding from the question field for vector retrieval
+        # Generate search embeddings for two-stage vector retrieval
         search_embedding = None
+        broad_embedding = None
         question = knowledge_fields.get("question")
+
+        # Precise embedding: question only (high-quality match)
         if question:
             try:
                 search_embedding = generate_embedding(question)
@@ -520,10 +528,26 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             except Exception as e:
                 logger.warning("Failed to generate search embedding for cluster %d: %s", cluster["id"], e)
 
+        # Broad embedding: question + topic + symptoms + summary (wide recall)
+        broad_text_parts = [
+            question,
+            cluster.get("topic_name"),
+            knowledge_fields.get("symptoms"),
+            cluster.get("summary"),
+        ]
+        broad_text = "\n".join(part for part in broad_text_parts if part)
+        if broad_text.strip():
+            try:
+                broad_embedding = generate_embedding(broad_text)
+                logger.info("Generated broad embedding for cluster %d", cluster["id"])
+            except Exception as e:
+                logger.warning("Failed to generate broad embedding for cluster %d: %s", cluster["id"], e)
+
         ku_id = create_knowledge_unit(
             cluster, job_id, dataset_id, pipeline_config,
             knowledge_fields=knowledge_fields,
             search_embedding=search_embedding,
+            broad_embedding=broad_embedding,
         )
         ku_ids.append(ku_id)
 
