@@ -28,19 +28,16 @@
                 <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">{{ __('ui.requests_30days') }}</div></div>
             </div>
 
-            {{-- Daily charts: side-by-side token and cost bar charts drawn on canvas --}}
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            {{-- Daily combined chart: cost as stacked bars (left Y), tokens as line (right Y) --}}
+            <div style="margin-bottom: 20px;">
                 <div class="card">
-                    <h2>{{ __('ui.daily_tokens') }}</h2>
-                    <div class="chart-container"><canvas id="tokensChart"></canvas></div>
-                </div>
-                <div class="card">
-                    <h2>{{ __('ui.daily_cost') }}</h2>
-                    <div class="chart-container"><canvas id="costChart"></canvas></div>
+                    <h2>{{ __('ui.daily_cost') }} / {{ __('ui.daily_tokens') }}</h2>
+                    <div class="chart-container" style="height: 280px;"><canvas id="combinedChart"></canvas></div>
                     <div class="chart-legend">
                         <span style="--c: #0071e3;">{{ __('ui.pipeline') }}</span>
                         <span style="--c: #34c759;">{{ __('ui.chat') }}</span>
                         <span style="--c: #ff9500;">{{ __('ui.embedding') }}</span>
+                        <span style="--c: #8e8e93;">─ {{ __('ui.tokens') }}</span>
                     </div>
                 </div>
             </div>
@@ -97,8 +94,16 @@
         return result;
     }
 
-    // Draw a bar chart on a canvas element
-    function drawBarChart(canvasId, days, getValue, getSegments, formatValue) {
+    // Format helpers
+    function fmtTokens(v) {
+        if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+        if (v >= 1000) return (v / 1000).toFixed(0) + 'K';
+        return Math.round(v).toString();
+    }
+    function fmtCost(v) { return '$' + v.toFixed(4); }
+
+    // Draw combined chart: stacked cost bars (left Y) + token line (right Y)
+    function drawCombinedChart(canvasId, days) {
         const canvas = document.getElementById(canvasId);
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
@@ -108,38 +113,63 @@
         ctx.scale(dpr, dpr);
         const W = rect.width, H = rect.height;
 
-        const pad = { top: 20, right: 12, bottom: 32, left: 52 };
+        const pad = { top: 20, right: 56, bottom: 32, left: 52 };
         const chartW = W - pad.left - pad.right;
         const chartH = H - pad.top - pad.bottom;
 
-        const values = days.map(getValue);
-        const maxVal = Math.max(...values, 0.001);
+        // Round up to a nice number for axis scales (e.g. 1.46 → 2.0, 241000 → 250000)
+        function niceMax(value, steps) {
+            if (value <= 0) return steps;
+            const rawStep = value / steps;
+            const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+            const residual = rawStep / magnitude;
+            const niceStep = residual <= 1 ? magnitude
+                           : residual <= 2 ? 2 * magnitude
+                           : residual <= 5 ? 5 * magnitude
+                           : 10 * magnitude;
+            return niceStep * steps;
+        }
 
-        // Grid lines and Y-axis labels
+        // Compute max values for both axes, rounded to nice tick marks
+        const costValues = days.map(d =>
+            (Number(d.pipeline_cost) || 0) + (Number(d.chat_cost) || 0) + (Number(d.embedding_cost) || 0)
+        );
+        const tokenValues = days.map(d => Number(d.total_tokens) || 0);
+        const maxCost = niceMax(Math.max(...costValues, 0.0001), 4);
+        const maxTokens = niceMax(Math.max(...tokenValues, 1), 4);
+
+        // Draw grid lines based on cost axis (left)
         ctx.strokeStyle = '#f0f0f2';
         ctx.fillStyle = '#5f6368';
         ctx.font = '11px -apple-system, sans-serif';
-        ctx.textAlign = 'right';
         for (let i = 0; i <= 4; i++) {
             const y = pad.top + chartH - (chartH * i / 4);
             ctx.beginPath();
             ctx.moveTo(pad.left, y);
             ctx.lineTo(W - pad.right, y);
             ctx.stroke();
-            ctx.fillText(formatValue(maxVal * i / 4), pad.left - 6, y + 4);
+            // Left Y-axis: cost
+            ctx.textAlign = 'right';
+            ctx.fillText(fmtCost(maxCost * i / 4), pad.left - 6, y + 4);
+            // Right Y-axis: tokens
+            ctx.textAlign = 'left';
+            ctx.fillText(fmtTokens(maxTokens * i / 4), W - pad.right + 6, y + 4);
         }
 
-        // Bars
+        // Draw stacked cost bars
         const barW = Math.max(2, (chartW / days.length) - 2);
         const gap = (chartW - barW * days.length) / days.length;
 
         days.forEach((day, i) => {
             const x = pad.left + i * (barW + gap) + gap / 2;
-            const segments = getSegments ? getSegments(day) : [{ value: getValue(day), color: '#0071e3' }];
+            const segments = [
+                { value: Number(day.pipeline_cost) || 0, color: '#0071e3' },
+                { value: Number(day.chat_cost) || 0, color: '#34c759' },
+                { value: Number(day.embedding_cost) || 0, color: '#ff9500' },
+            ];
             let yOffset = 0;
-
             segments.forEach(seg => {
-                const h = maxVal > 0 ? (seg.value / maxVal) * chartH : 0;
+                const h = maxCost > 0 ? (seg.value / maxCost) * chartH : 0;
                 const y = pad.top + chartH - yOffset - h;
                 ctx.fillStyle = seg.color;
                 ctx.beginPath();
@@ -148,7 +178,7 @@
                 yOffset += h;
             });
 
-            // X-axis labels (show every 5th date)
+            // X-axis date labels
             if (i % 5 === 0 || i === days.length - 1) {
                 ctx.fillStyle = '#5f6368';
                 ctx.font = '10px -apple-system, sans-serif';
@@ -156,38 +186,36 @@
                 ctx.fillText(day.date.slice(5), x + barW / 2, H - pad.bottom + 14);
             }
         });
+
+        // Draw token line on right Y-axis
+        ctx.beginPath();
+        ctx.strokeStyle = '#8e8e93';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        days.forEach((day, i) => {
+            const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+            const tokens = Number(day.total_tokens) || 0;
+            const y = pad.top + chartH - (tokens / maxTokens) * chartH;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Draw token data points
+        ctx.fillStyle = '#8e8e93';
+        days.forEach((day, i) => {
+            const tokens = Number(day.total_tokens) || 0;
+            if (tokens > 0) {
+                const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                const y = pad.top + chartH - (tokens / maxTokens) * chartH;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
     }
 
-    // Format helpers
-    function fmtTokens(v) {
-        if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-        if (v >= 1000) return (v / 1000).toFixed(0) + 'K';
-        return Math.round(v).toString();
-    }
-    function fmtCost(v) { return '$' + v.toFixed(4); }
-
-    // Render charts
+    // Render the combined chart
     const days = buildDateRange(dailyData);
-
-    drawBarChart('tokensChart', days,
-        d => Number(d.total_tokens) || 0,
-        null,
-        fmtTokens
-    );
-
-    drawBarChart('costChart', days,
-        d => (Number(d.pipeline_cost) || 0) + (Number(d.chat_cost) || 0) + (Number(d.embedding_cost) || 0),
-        d => [
-            { value: Number(d.pipeline_cost) || 0, color: '#0071e3' },
-            { value: Number(d.chat_cost) || 0, color: '#34c759' },
-            { value: Number(d.embedding_cost) || 0, color: '#ff9500' },
-        ],
-        fmtCost
-    );
-
-    // Set legend colors via CSS custom property
-    document.querySelectorAll('.chart-legend span').forEach(el => {
-        el.style.setProperty('--c', el.style.getPropertyValue('--c'));
-        el.querySelector('::before') // CSS handles this via var(--c)
-    });
+    drawCombinedChart('combinedChart', days);
 @endsection
