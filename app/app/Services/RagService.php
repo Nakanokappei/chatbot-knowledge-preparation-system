@@ -352,21 +352,25 @@ PROMPT;
             }
         }
 
-        // Step 5: No product-filtered results → broad search without filter as reference
-        $results = $this->vectorSearch(
-            $vectorString, $embeddingId, 'broad_embedding',
-            self::BROAD_THRESHOLD, self::TOP_K,
-        );
+        // Step 5: No product-filtered results → unfiltered search as reference
+        // Try broad_embedding first, then search_embedding, with relaxed threshold
+        $referenceThreshold = 0.1;
+        foreach (['broad_embedding', 'search_embedding'] as $fallbackColumn) {
+            $results = $this->vectorSearch(
+                $vectorString, $embeddingId, $fallbackColumn,
+                $referenceThreshold, self::TOP_K,
+            );
 
-        if (!empty($results)) {
-            return [
-                'action' => 'answer_broad',
-                'message' => null,
-                'context' => $context,
-                'results' => $results,
-                'search_mode' => 'broad_unfiltered',
-                'model_id' => $modelId,
-            ];
+            if (!empty($results)) {
+                return [
+                    'action' => 'answer_broad',
+                    'message' => null,
+                    'context' => $context,
+                    'results' => $results,
+                    'search_mode' => 'broad_unfiltered',
+                    'model_id' => $modelId,
+                ];
+            }
         }
 
         // Step 6: Nothing found at all
@@ -401,7 +405,7 @@ PROMPT;
         }
 
         $prompt = <<<PROMPT
-Extract the product name and the user's question from this message.
+Extract the product/device name and the user's question from this support message.
 {$contextHint}
 
 User message: "{$userMessage}"
@@ -410,20 +414,27 @@ Respond with JSON only, no explanation:
 {"product": "product name or null", "question": "the question or symptom description or null"}
 
 Rules:
-- If the message mentions a specific product, device, or service name, extract it as "product"
+- Extract brand names, device names, model names as "product" (e.g. "LG TV", "PlayStation", "iPhone", "Canon EOS", "Nest Thermostat")
+- The question is the symptom or issue description WITHOUT the product name
+- If the message contains BOTH a product and a question, extract both
 - If the message is just a product name (answering a follow-up), set "question" to null
-- If the message is just a question without mentioning a product, set "product" to null
+- If the message has no identifiable product/device, set "product" to null
 - Keep the question in the original language
+
+Examples:
+- "LGテレビの画面がちらつく" → {"product": "LG TV", "question": "画面がちらつく"}
+- "My PlayStation screen flickers" → {"product": "PlayStation", "question": "screen flickers"}
+- "画面が映らない" → {"product": null, "question": "画面が映らない"}
+- "Canon EOS" → {"product": "Canon EOS", "question": null}
 PROMPT;
 
         try {
-            $result = $this->bedrock->invokeJson($modelId, $prompt);
-            $parsed = $result['parsed_json'] ?? null;
+            $parsed = $this->bedrock->invokeJson($modelId, $prompt);
 
-            if ($parsed) {
+            if ($parsed && is_array($parsed)) {
                 return [
-                    'product' => ($parsed['product'] && $parsed['product'] !== 'null') ? $parsed['product'] : null,
-                    'question' => ($parsed['question'] && $parsed['question'] !== 'null') ? $parsed['question'] : null,
+                    'product' => (!empty($parsed['product']) && $parsed['product'] !== 'null') ? $parsed['product'] : null,
+                    'question' => (!empty($parsed['question']) && $parsed['question'] !== 'null') ? $parsed['question'] : null,
                 ];
             }
         } catch (\Exception $e) {
@@ -481,8 +492,7 @@ Return an empty array if no match found.
 PROMPT;
 
         try {
-            $result = $this->bedrock->invokeJson($modelId, $prompt);
-            $parsed = $result['parsed_json'] ?? null;
+            $parsed = $this->bedrock->invokeJson($modelId, $prompt);
 
             if ($parsed && isset($parsed['matched']) && is_array($parsed['matched'])) {
                 // Validate that returned products actually exist in our list
