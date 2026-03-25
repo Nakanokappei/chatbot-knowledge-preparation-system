@@ -94,10 +94,10 @@ def detect_languages(row_ids: list[int]) -> dict[int, str]:
         scripts = {"CJK": 0, "HANGUL": 0, "CYRILLIC": 0, "ARABIC": 0, "LATIN": 0, "OTHER": 0}
 
         # Tally script categories from the first 200 characters
-        for ch in sample:
-            if ch.isspace() or ch.isdigit():
+        for character in sample:
+            if character.isspace() or character.isdigit():
                 continue
-            name = unicodedata.name(ch, "UNKNOWN").upper()
+            name = unicodedata.name(character, "UNKNOWN").upper()
             if "CJK" in name or "HIRAGANA" in name or "KATAKANA" in name:
                 scripts["CJK"] += 1
             elif "HANGUL" in name:
@@ -730,12 +730,12 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         link_clusters_to_embedding(job_id, embedding_id)
         # Rename embedding to reflect clustering method and key parameters
         key_params = {
-            "hdbscan": lambda p: f"min_size={p.get('min_cluster_size', '?')}",
-            "kmeans": lambda p: f"k={p.get('n_clusters', '?')}",
-            "agglomerative": lambda p: f"k={p.get('n_clusters', '?')}, {p.get('linkage', 'ward')}",
-            "leiden": lambda p: f"res={p.get('resolution', '?')}",
+            "hdbscan": lambda params: f"min_size={params.get('min_cluster_size', '?')}",
+            "kmeans": lambda params: f"k={params.get('n_clusters', '?')}",
+            "agglomerative": lambda params: f"k={params.get('n_clusters', '?')}, {params.get('linkage', 'ward')}",
+            "leiden": lambda params: f"res={params.get('resolution', '?')}",
         }
-        param_str = key_params.get(method_used, lambda p: "")(effective_params)
+        param_str = key_params.get(method_used, lambda params: "")(effective_params)
         cluster_name = f"{method_used.upper()} ({param_str})" if param_str else method_used.upper()
         conn = get_connection()
         try:

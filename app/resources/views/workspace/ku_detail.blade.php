@@ -116,8 +116,8 @@
             <div class="card">
                 <h2>{{ __('ui.keywords') }}</h2>
                 <div class="keywords">
-                    @foreach($ku->keywords_json ?? [] as $kw)
-                        <span class="keyword">{{ $kw }}</span>
+                    @foreach($ku->keywords_json ?? [] as $keyword)
+                        <span class="keyword">{{ $keyword }}</span>
                     @endforeach
                     @if(empty($ku->keywords_json))
                         <span style="color: #5f6368; font-size: 13px;">No keywords</span>

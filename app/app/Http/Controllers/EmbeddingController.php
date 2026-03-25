@@ -31,8 +31,8 @@ class EmbeddingController extends Controller
         // Datasets with their embeddings for tree view
         $datasets = Dataset::where('tenant_id', $tenantId)
             ->where('row_count', '>', 0)
-            ->with(['embeddings' => function ($q) use ($tenantId) {
-                $q->where('tenant_id', $tenantId)
+            ->with(['embeddings' => function ($embeddingQuery) use ($tenantId) {
+                $embeddingQuery->where('tenant_id', $tenantId)
                   ->withCount('knowledgeUnits')
                   ->orderByDesc('created_at');
             }])
@@ -49,9 +49,9 @@ class EmbeddingController extends Controller
         }
         if (!$current) {
             // Auto-select: first embedding of the first dataset
-            foreach ($datasets as $ds) {
-                if ($ds->embeddings->isNotEmpty()) {
-                    $current = $ds->embeddings->first();
+            foreach ($datasets as $dataset) {
+                if ($dataset->embeddings->isNotEmpty()) {
+                    $current = $dataset->embeddings->first();
                     break;
                 }
             }
@@ -92,15 +92,15 @@ class EmbeddingController extends Controller
         // Compute stats before any filtering (use filter() to avoid mutating)
         $jobStats = [
             'total' => $allJobs->count(),
-            'completed' => $allJobs->filter(fn($j) => $j->status === 'completed')->count(),
-            'processing' => $allJobs->filter(fn($j) => !in_array($j->status, ['completed', 'failed']))->count(),
-            'failed' => $allJobs->filter(fn($j) => $j->status === 'failed')->count(),
+            'completed' => $allJobs->filter(fn($job) => $job->status === 'completed')->count(),
+            'processing' => $allJobs->filter(fn($job) => !in_array($job->status, ['completed', 'failed']))->count(),
+            'failed' => $allJobs->filter(fn($job) => $job->status === 'failed')->count(),
         ];
 
         $filteredJobs = match ($pipelineFilter) {
-            'completed' => $allJobs->filter(fn($j) => $j->status === 'completed'),
-            'processing' => $allJobs->filter(fn($j) => !in_array($j->status, ['completed', 'failed'])),
-            'failed' => $allJobs->filter(fn($j) => $j->status === 'failed'),
+            'completed' => $allJobs->filter(fn($job) => $job->status === 'completed'),
+            'processing' => $allJobs->filter(fn($job) => !in_array($job->status, ['completed', 'failed'])),
+            'failed' => $allJobs->filter(fn($job) => $job->status === 'failed'),
             default => $allJobs,
         };
 
@@ -130,7 +130,7 @@ class EmbeddingController extends Controller
         $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
             ->findOrFail($embeddingId);
 
-        $ku = KnowledgeUnit::where('embedding_id', $embeddingId)
+        $knowledgeUnit = KnowledgeUnit::where('embedding_id', $embeddingId)
             ->findOrFail($kuId);
 
         $embeddings = Embedding::where('tenant_id', auth()->user()->tenant_id)
@@ -141,7 +141,7 @@ class EmbeddingController extends Controller
         return view('workspace.ku_detail', [
             'embeddings' => $embeddings,
             'current' => $embedding,
-            'ku' => $ku,
+            'ku' => $knowledgeUnit,
         ]);
     }
 

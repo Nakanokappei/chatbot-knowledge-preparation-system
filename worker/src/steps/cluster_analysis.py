@@ -31,9 +31,9 @@ def _format_tickets(representative_texts: list[str]) -> str:
     """Format representative texts with numbering and truncation for prompt inclusion."""
     formatted = ""
     # Number each ticket and cap at 500 characters to stay within token limits
-    for i, text in enumerate(representative_texts, 1):
+    for ticket_number, text in enumerate(representative_texts, 1):
         truncated = text[:500] + "..." if len(text) > 500 else text
-        formatted += f"\n--- Ticket {i} ---\n{truncated}\n"
+        formatted += f"\n--- Ticket {ticket_number} ---\n{truncated}\n"
     return formatted
 
 
@@ -298,7 +298,7 @@ def _find_duplicates(clusters: list[dict]) -> dict[str, list[dict]]:
     for c in clusters:
         name = c["analysis"].get("topic_name", "").strip().lower()
         name_map.setdefault(name, []).append(c)
-    return {name: cs for name, cs in name_map.items() if len(cs) > 1}
+    return {name: duplicate_clusters for name, duplicate_clusters in name_map.items() if len(duplicate_clusters) > 1}
 
 
 def _resolve_duplicates(
@@ -317,8 +317,8 @@ def _resolve_duplicates(
 
     Returns (total_input_tokens, total_output_tokens) consumed by renaming.
     """
-    total_in = 0
-    total_out = 0
+    total_input_tokens = 0
+    total_output_tokens = 0
 
     # Iteratively rename clusters until all topic_names are unique
     for round_num in range(1, MAX_DEDUP_ROUNDS + 1):
@@ -327,10 +327,10 @@ def _resolve_duplicates(
             logger.info("Dedup round %d: no duplicates — done.", round_num)
             break
 
-        dup_count = sum(len(cs) - 1 for cs in duplicates.values())
+        clusters_to_rename = sum(len(cs) - 1 for cs in duplicates.values())
         logger.info(
             "Dedup round %d: %d duplicate names affecting %d clusters",
-            round_num, len(duplicates), dup_count,
+            round_num, len(duplicates), clusters_to_rename,
         )
 
         # Collect all taken names (names that will NOT be renamed)
@@ -341,7 +341,7 @@ def _resolve_duplicates(
 
         for dup_name, dup_clusters in duplicates.items():
             # Sort by row_count descending so the largest cluster keeps its name
-            dup_clusters.sort(key=lambda c: c["row_count"], reverse=True)
+            dup_clusters.sort(key=lambda cluster: cluster["row_count"], reverse=True)
 
             # Re-prompt all but the largest cluster with a unique-name constraint
             for cluster in dup_clusters[1:]:
@@ -361,8 +361,8 @@ def _resolve_duplicates(
                 analysis, in_tok, out_tok = _call_llm_for_cluster(
                     cluster, rename_prompt, llm_model_id, job_id,
                 )
-                total_in += in_tok
-                total_out += out_tok
+                total_input_tokens += in_tok
+                total_output_tokens += out_tok
 
                 old_name = cluster["analysis"]["topic_name"]
                 # Preserve intent/summary/keywords from rename if provided,
@@ -386,13 +386,13 @@ def _resolve_duplicates(
             )
             # Final fallback: append numeric suffix
             for dup_name, dup_clusters in remaining.items():
-                dup_clusters.sort(key=lambda c: c["row_count"], reverse=True)
+                dup_clusters.sort(key=lambda cluster: cluster["row_count"], reverse=True)
                 for idx, cluster in enumerate(dup_clusters[1:], 2):
                     cluster["analysis"]["topic_name"] = (
                         f"{cluster['analysis']['topic_name']} ({idx})"
                     )
 
-    return total_in, total_out
+    return total_input_tokens, total_output_tokens
 
 
 def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
@@ -438,10 +438,10 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             dataset_description=dataset_description,
             column_descriptions=column_descriptions,
         )
-        analysis, in_tok, out_tok = _call_llm_for_cluster(
+        analysis, input_tokens, output_tokens = _call_llm_for_cluster(
             cluster, prompt, llm_model_id, job_id,
         )
-        return cluster["id"], analysis, in_tok, out_tok
+        return cluster["id"], analysis, input_tokens, output_tokens
 
     logger.info("Pass 1 — Analyzing %d clusters in parallel (workers=%d)", len(clusters), LLM_WORKERS)
 
@@ -453,10 +453,10 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         completed = 0
         for future in as_completed(futures):
             cluster = futures[future]
-            cluster_id, analysis, in_tok, out_tok = future.result()
+            cluster_id, analysis, input_tokens, output_tokens = future.result()
             cluster["analysis"] = analysis
-            total_input_tokens += in_tok
-            total_output_tokens += out_tok
+            total_input_tokens += input_tokens
+            total_output_tokens += output_tokens
             completed += 1
 
             progress = 10 + int((completed / len(clusters)) * 60)
@@ -488,13 +488,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     # Record step metadata
     cluster_summaries = []
     for cluster in clusters:
-        a = cluster.get("analysis", {})
+        analysis = cluster.get("analysis", {})
         cluster_summaries.append({
             "cluster_label": cluster["cluster_label"],
-            "topic_name": a.get("topic_name", ""),
-            "intent": a.get("intent", ""),
-            "keywords": a.get("keywords", []),
-            "language": a.get("language", ""),
+            "topic_name": analysis.get("topic_name", ""),
+            "intent": analysis.get("intent", ""),
+            "keywords": analysis.get("keywords", []),
+            "language": analysis.get("language", ""),
         })
 
     update_job_step_outputs(job_id, "cluster_analysis", {

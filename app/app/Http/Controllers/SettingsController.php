@@ -73,10 +73,10 @@ class SettingsController extends Controller
                 // work with InvokeModel for newer models (e.g. jp.anthropic...).
                 try {
                     $profiles = $client->listInferenceProfiles();
-                    foreach ($profiles['inferenceProfileSummaries'] ?? [] as $p) {
+                    foreach ($profiles['inferenceProfileSummaries'] ?? [] as $profile) {
                         $result[] = [
-                            'model_id' => $p['inferenceProfileId'],
-                            'display_name' => $p['inferenceProfileName'],
+                            'model_id' => $profile['inferenceProfileId'],
+                            'display_name' => $profile['inferenceProfileName'],
                             'provider' => 'Inference Profile',
                         ];
                     }
@@ -90,37 +90,37 @@ class SettingsController extends Controller
                 $profileModelIds = array_column($result, 'model_id');
 
                 // Filter foundation models to text-in/text-out only
-                foreach ($response['modelSummaries'] as $m) {
-                    $input = $m['inputModalities'] ?? [];
-                    $output = $m['outputModalities'] ?? [];
+                foreach ($response['modelSummaries'] as $modelSummary) {
+                    $inputModalities = $modelSummary['inputModalities'] ?? [];
+                    $outputModalities = $modelSummary['outputModalities'] ?? [];
                     // Exclude non-text models (image, audio)
-                    if (!in_array('TEXT', $input) || !in_array('TEXT', $output)) {
+                    if (!in_array('TEXT', $inputModalities) || !in_array('TEXT', $outputModalities)) {
                         continue;
                     }
                     // Exclude reranker models (not usable for generation)
-                    if (str_contains(strtolower($m['modelName'] ?? ''), 'rerank')) {
+                    if (str_contains(strtolower($modelSummary['modelName'] ?? ''), 'rerank')) {
                         continue;
                     }
 
                     // Skip if already covered by an inference profile
-                    $dominated = false;
-                    foreach ($profileModelIds as $pid) {
-                        if (str_contains($pid, $m['modelId'])) {
-                            $dominated = true;
+                    $coveredByProfile = false;
+                    foreach ($profileModelIds as $profileId) {
+                        if (str_contains($profileId, $modelSummary['modelId'])) {
+                            $coveredByProfile = true;
                             break;
                         }
                     }
-                    if ($dominated) continue;
+                    if ($coveredByProfile) continue;
 
                     $result[] = [
-                        'model_id' => $m['modelId'],
-                        'display_name' => $m['modelName'],
-                        'provider' => $m['providerName'],
+                        'model_id' => $modelSummary['modelId'],
+                        'display_name' => $modelSummary['modelName'],
+                        'provider' => $modelSummary['providerName'],
                     ];
                 }
 
-                usort($result, function ($a, $b) {
-                    return [$a['provider'], $a['display_name']] <=> [$b['provider'], $b['display_name']];
+                usort($result, function ($modelA, $modelB) {
+                    return [$modelA['provider'], $modelA['display_name']] <=> [$modelB['provider'], $modelB['display_name']];
                 });
 
                 return $result;
@@ -148,16 +148,16 @@ class SettingsController extends Controller
                 $response = $client->listFoundationModels();
                 $result = [];
 
-                foreach ($response['modelSummaries'] as $m) {
-                    $output = $m['outputModalities'] ?? [];
-                    if (!in_array('EMBEDDING', $output)) {
+                foreach ($response['modelSummaries'] as $modelSummary) {
+                    $outputModalities = $modelSummary['outputModalities'] ?? [];
+                    if (!in_array('EMBEDDING', $outputModalities)) {
                         continue;
                     }
 
                     $result[] = [
-                        'model_id' => $m['modelId'],
-                        'display_name' => $m['modelName'],
-                        'provider' => $m['providerName'],
+                        'model_id' => $modelSummary['modelId'],
+                        'display_name' => $modelSummary['modelName'],
+                        'provider' => $modelSummary['providerName'],
                     ];
                 }
 
@@ -225,9 +225,9 @@ class SettingsController extends Controller
                         $usd = null;
                         $unit = null;
                         foreach ($terms as $term) {
-                            foreach ($term['priceDimensions'] ?? [] as $dim) {
-                                $usd = $dim['pricePerUnit']['USD'] ?? null;
-                                $unit = $dim['unit'] ?? null;
+                            foreach ($term['priceDimensions'] ?? [] as $priceDimension) {
+                                $usd = $priceDimension['pricePerUnit']['USD'] ?? null;
+                                $unit = $priceDimension['unit'] ?? null;
                             }
                         }
 

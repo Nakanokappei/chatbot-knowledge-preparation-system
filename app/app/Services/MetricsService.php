@@ -115,12 +115,12 @@ class MetricsService
         try {
             $this->client->putMetricData([
                 'Namespace' => self::NAMESPACE,
-                'MetricData' => array_map(function ($m) {
+                'MetricData' => array_map(function ($metric) {
                     return [
-                        'MetricName' => $m['Name'],
-                        'Value' => $m['Value'],
-                        'Unit' => $m['Unit'],
-                        'Dimensions' => $m['Dimensions'] ?? [],
+                        'MetricName' => $metric['Name'],
+                        'Value' => $metric['Value'],
+                        'Unit' => $metric['Unit'],
+                        'Dimensions' => $metric['Dimensions'] ?? [],
                         'Timestamp' => now()->toIso8601String(),
                     ];
                 }, $metricData),

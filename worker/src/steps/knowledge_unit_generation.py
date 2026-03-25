@@ -51,16 +51,16 @@ def build_knowledge_extraction_prompt(
     if column_names:
         for field, source in mapping.items():
             if source and source not in ("_llm", "_none") and source.isdigit():
-                col_idx = int(source)
-                if col_idx < len(column_names):
+                column_index = int(source)
+                if column_index < len(column_names):
                     column_roles.append(
-                        f"- Column \"{column_names[col_idx]}\" is mapped to the '{field}' field"
+                        f"- Column \"{column_names[column_index]}\" is mapped to the '{field}' field"
                     )
 
     # Build the context from representative row metadata
     rows_text = ""
-    for i, meta in enumerate(representative_metadata[:5], 1):
-        rows_text += f"\n--- Row {i} ---\n"
+    for row_number, meta in enumerate(representative_metadata[:5], 1):
+        rows_text += f"\n--- Row {row_number} ---\n"
         for key, value in meta.items():
             if value and str(value).strip():
                 rows_text += f"{key}: {str(value)[:300]}\n"
@@ -138,25 +138,25 @@ IMPORTANT:
 - If a field cannot be determined, use null"""
 
 
-def _resolve_column_value(col_idx: int, column_names: list, meta: dict):
+def _resolve_column_value(column_index: int, column_names: list, meta: dict):
     """Look up a value from metadata by column name (preferred) or index (fallback)."""
-    col_name = column_names[col_idx] if column_names and col_idx < len(column_names) else None
-    if col_name and col_name in meta:
-        return meta[col_name]
+    column_name = column_names[column_index] if column_names and column_index < len(column_names) else None
+    if column_name and column_name in meta:
+        return meta[column_name]
     meta_values = list(meta.values())
-    return meta_values[col_idx] if col_idx < len(meta_values) else None
+    return meta_values[column_index] if column_index < len(meta_values) else None
 
 
 def _check_field_quality(
-    field: str, result: dict, col_idx: int, column_names: list,
+    field: str, result: dict, column_index: int, column_names: list,
     representative_metadata: list, min_length: int = 20, min_coverage: float = 0.4,
 ) -> bool:
     """Return True if a direct-mapped field value is low quality and should fall back to LLM."""
-    col_name = column_names[col_idx] if column_names and col_idx < len(column_names) else None
+    column_name = column_names[column_index] if column_names and column_index < len(column_names) else None
     total = min(5, len(representative_metadata))
     non_empty = sum(
         1 for meta in representative_metadata[:5]
-        if col_name and col_name in meta and meta[col_name] and str(meta[col_name]).strip()
+        if column_name and column_name in meta and meta[column_name] and str(meta[column_name]).strip()
     )
     coverage = non_empty / total if total > 0 else 0
     val = result.get(field)
@@ -194,10 +194,10 @@ def extract_knowledge_fields(
     # Direct column mappings: aggregate top values from representative rows
     for field, source in mapping.items():
         if source and source not in ("_llm", "_none") and source.isdigit():
-            col_idx = int(source)
+            column_index = int(source)
             values = set()
             for meta in representative_metadata[:5]:
-                val = _resolve_column_value(col_idx, column_names, meta)
+                val = _resolve_column_value(column_index, column_names, meta)
                 if val and str(val).strip():
                     values.add(str(val).strip())
             if values:
@@ -366,7 +366,7 @@ def create_knowledge_unit(
     Returns the new knowledge_unit id.
     """
     now = datetime.now(timezone.utc)
-    kf = knowledge_fields or {}
+    extracted_fields = knowledge_fields or {}
 
     source_refs = {
         "cluster_label": cluster["cluster_label"],
@@ -397,10 +397,10 @@ def create_knowledge_unit(
             (
                 cluster["tenant_id"], dataset_id, job_id, cluster["id"],
                 cluster["topic_name"], cluster["intent"], cluster["summary"],
-                kf.get("question"), kf.get("symptoms"),
-                kf.get("root_cause"), kf.get("product"), kf.get("category"),
+                extracted_fields.get("question"), extracted_fields.get("symptoms"),
+                extracted_fields.get("root_cause"), extracted_fields.get("product"), extracted_fields.get("category"),
                 json.dumps(typical_cases),
-                kf.get("root_cause") or None, kf.get("resolution") or None,
+                extracted_fields.get("root_cause") or None, extracted_fields.get("resolution") or None,
                 json.dumps(cluster["representative_rows"]), json.dumps(cluster["keywords"]),
                 cluster["row_count"], 0.0, "draft",
                 json.dumps(source_refs), pipeline_config.get("phase", "2"),
@@ -416,9 +416,9 @@ def create_knowledge_unit(
         snapshot = {
             "topic": cluster["topic_name"], "intent": cluster["intent"],
             "summary": cluster["summary"],
-            "question": kf.get("question"), "symptoms": kf.get("symptoms"),
-            "root_cause": kf.get("root_cause"), "resolution": kf.get("resolution"),
-            "product": kf.get("product"), "category": kf.get("category"),
+            "question": extracted_fields.get("question"), "symptoms": extracted_fields.get("symptoms"),
+            "root_cause": extracted_fields.get("root_cause"), "resolution": extracted_fields.get("resolution"),
+            "product": extracted_fields.get("product"), "category": extracted_fields.get("category"),
             "keywords": cluster["keywords"], "row_count": cluster["row_count"],
             "representative_rows": cluster["representative_rows"],
             "review_status": "draft",
@@ -482,18 +482,18 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     ku_ids = []
     total_ku_input_tokens = 0
     total_ku_output_tokens = 0
-    for i, cluster in enumerate(clusters):
-        progress = 10 + int((i / len(clusters)) * 70)
+    for cluster_index, cluster in enumerate(clusters):
+        progress = 10 + int((cluster_index / len(clusters)) * 70)
         update_job_status(job_id, status="knowledge_unit_generation", progress=progress)
 
         # Load full metadata for representative rows
-        rep_metadata = load_representative_metadata(cluster["id"])
+        representative_metadata = load_representative_metadata(cluster["id"])
 
         # Extract knowledge fields (LLM + column mapping)
         knowledge_fields = {}
         if knowledge_mapping:
             knowledge_fields = extract_knowledge_fields(
-                cluster, knowledge_mapping, rep_metadata, llm_model_id,
+                cluster, knowledge_mapping, representative_metadata, llm_model_id,
                 column_names=column_names,
                 llm_fallback=llm_fallback,
                 dataset_description=dataset_description,

@@ -195,13 +195,13 @@ class DashboardController extends Controller
             $chunks = array_chunk($rows, 500);
             foreach ($chunks as $chunk) {
                 $inserts = [];
-                foreach ($chunk as $r) {
+                foreach ($chunk as $rowData) {
                     $inserts[] = [
                         'dataset_id' => $dataset->id,
                         'tenant_id' => $tenantId,
-                        'row_no' => $r['row_no'],
-                        'raw_text' => $r['raw_text'],
-                        'metadata_json' => $r['metadata_json'],
+                        'row_no' => $rowData['row_no'],
+                        'raw_text' => $rowData['raw_text'],
+                        'metadata_json' => $rowData['metadata_json'],
                         'created_at' => $now,
                         'updated_at' => $now,
                     ];

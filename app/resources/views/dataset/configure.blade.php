@@ -141,14 +141,14 @@
                     <div class="mapper-panel" id="available-panel">
                         <h3>{{ __('ui.available_columns') }}</h3>
                         <div id="available-list">
-                            @foreach($columns as $i => $col)
-                            <div class="col-item" data-index="{{ $i }}">
-                                <span class="col-index">#{{ $i + 1 }}</span>
-                                <span class="col-name">{{ $col }}</span>
+                            @foreach($columns as $columnIndex => $columnName)
+                            <div class="col-item" data-index="{{ $columnIndex }}">
+                                <span class="col-index">#{{ $columnIndex + 1 }}</span>
+                                <span class="col-name">{{ $columnName }}</span>
                                 <span style="font-size: 11px; color: #5f6368; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                    {{ isset($previewRows[0][$i]) ? Str::limit($previewRows[0][$i], 40) : '' }}
+                                    {{ isset($previewRows[0][$columnIndex]) ? Str::limit($previewRows[0][$columnIndex], 40) : '' }}
                                 </span>
-                                <button type="button" class="add-btn" onclick="addColumn({{ $i }}, '{{ addslashes($col) }}')" title="Add to embedding">+</button>
+                                <button type="button" class="add-btn" onclick="addColumn({{ $columnIndex }}, '{{ addslashes($columnName) }}')" title="Add to embedding">+</button>
                             </div>
                             @endforeach
                         </div>
@@ -184,8 +184,8 @@
                         <select name="km_question_source" id="km-question-source" onchange="toggleKmLlm('question')"
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
                             <option value="_llm">Generate with LLM</option>
-                            @foreach($columns as $i => $col)
-                                <option value="{{ $i }}">{{ $col }}</option>
+                            @foreach($columns as $columnIndex => $columnName)
+                                <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
                         <span id="km-question-hint" style="font-size: 11px; color: #5f6368;">LLM generates a FAQ-style question from representative rows</span>
@@ -197,8 +197,8 @@
                         <select name="km_symptoms_source" id="km-symptoms-source" onchange="toggleKmLlm('symptoms')"
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
                             <option value="_llm">Extract with LLM</option>
-                            @foreach($columns as $i => $col)
-                                <option value="{{ $i }}">{{ $col }}</option>
+                            @foreach($columns as $columnIndex => $columnName)
+                                <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
                         <span id="km-symptoms-hint" style="font-size: 11px; color: #5f6368;">Error messages, surface-level phenomena from user reports</span>
@@ -210,8 +210,8 @@
                         <select name="km_root_cause_source" id="km-root_cause-source" onchange="toggleKmLlm('root_cause')"
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
                             <option value="_llm">Extract with LLM</option>
-                            @foreach($columns as $i => $col)
-                                <option value="{{ $i }}">{{ $col }}</option>
+                            @foreach($columns as $columnIndex => $columnName)
+                                <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
                         <span id="km-root_cause-hint" style="font-size: 11px; color: #5f6368;">Underlying technical cause extracted from resolution data</span>
@@ -223,8 +223,8 @@
                         <select name="km_resolution_source" id="km-resolution-source" onchange="toggleKmLlm('resolution')"
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
                             <option value="_llm">Generate with LLM</option>
-                            @foreach($columns as $i => $col)
-                                <option value="{{ $i }}">{{ $col }}</option>
+                            @foreach($columns as $columnIndex => $columnName)
+                                <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
                         <span id="km-resolution-hint" style="font-size: 11px; color: #5f6368;">How to resolve the issue — maps to resolution_summary</span>
@@ -237,8 +237,8 @@
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
                             <option value="_none">Not used</option>
                             <option value="_llm">Extract with LLM</option>
-                            @foreach($columns as $i => $col)
-                                <option value="{{ $i }}">{{ $col }}</option>
+                            @foreach($columns as $columnIndex => $columnName)
+                                <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
                         <span id="km-product-hint" style="font-size: 11px; color: #5f6368;">Product or service name for filtering</span>
@@ -251,8 +251,8 @@
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
                             <option value="_none">Not used</option>
                             <option value="_llm">Generate with LLM</option>
-                            @foreach($columns as $i => $col)
-                                <option value="{{ $i }}">{{ $col }}</option>
+                            @foreach($columns as $columnIndex => $columnName)
+                                <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
                         <span id="km-category-hint" style="font-size: 11px; color: #5f6368;">Classification tag for organizing knowledge</span>

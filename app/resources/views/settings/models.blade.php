@@ -49,17 +49,17 @@
                                 onchange="updateDisplayName(this)">
                                 <option value="">{{ __('ui.choose_model') }}</option>
                                 @php $prevProvider = ''; @endphp
-                                @foreach($bedrockModels as $bm)
-                                    @if($bm['provider'] !== $prevProvider)
+                                @foreach($bedrockModels as $bedrockModel)
+                                    @if($bedrockModel['provider'] !== $prevProvider)
                                         @if($prevProvider !== '') </optgroup> @endif
-                                        <optgroup label="{{ $bm['provider'] }}">
-                                        @php $prevProvider = $bm['provider']; @endphp
+                                        <optgroup label="{{ $bedrockModel['provider'] }}">
+                                        @php $prevProvider = $bedrockModel['provider']; @endphp
                                     @endif
-                                    @if(!$models->contains('model_id', $bm['model_id']))
-                                    @php $p = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bm['model_id']); @endphp
-                                    <option value="{{ $bm['model_id'] }}"
-                                        data-display="{{ $bm['provider'] }} {{ $bm['display_name'] }}">
-                                        {{ $bm['display_name'] }}@if($p) — In: ${{ number_format($p['input'], 6) }} / Out: ${{ number_format($p['output'] ?? 0, 6) }} per {{ $p['unit'] ?? '1K tokens' }}@endif
+                                    @if(!$models->contains('model_id', $bedrockModel['model_id']))
+                                    @php $modelPricing = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bedrockModel['model_id']); @endphp
+                                    <option value="{{ $bedrockModel['model_id'] }}"
+                                        data-display="{{ $bedrockModel['provider'] }} {{ $bedrockModel['display_name'] }}">
+                                        {{ $bedrockModel['display_name'] }}@if($modelPricing) — In: ${{ number_format($modelPricing['input'], 6) }} / Out: ${{ number_format($modelPricing['output'] ?? 0, 6) }} per {{ $modelPricing['unit'] ?? '1K tokens' }}@endif
                                     </option>
                                     @endif
                                 @endforeach

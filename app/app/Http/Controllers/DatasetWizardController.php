@@ -723,9 +723,9 @@ class DatasetWizardController extends Controller
         try {
             // Format sample rows for the prompt
             $rowsText = '';
-            foreach ($sampleRows as $i => $row) {
-                $values = array_map(fn($v) => mb_substr((string) $v, 0, 200), $row);
-                $rowsText .= "Row " . ($i + 1) . ": " . json_encode($values, JSON_UNESCAPED_UNICODE) . "\n";
+            foreach ($sampleRows as $rowIndex => $row) {
+                $values = array_map(fn($cellValue) => mb_substr((string) $cellValue, 0, 200), $row);
+                $rowsText .= "Row " . ($rowIndex + 1) . ": " . json_encode($values, JSON_UNESCAPED_UNICODE) . "\n";
             }
 
             $headerJson = json_encode($headers, JSON_UNESCAPED_UNICODE);
