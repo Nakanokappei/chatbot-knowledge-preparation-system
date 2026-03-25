@@ -83,7 +83,7 @@ class RagService
 
         return DB::select("
             SELECT
-                id, topic, intent, summary, question,
+                id, topic, intent, summary, question, product,
                 symptoms, root_cause, resolution_summary,
                 1 - ({$embeddingColumn} <=> ?::vector) AS similarity
             FROM knowledge_units
@@ -265,21 +265,17 @@ PROMPT;
         // Step 1: Extract product name and question from user input
         $extracted = $this->extractProductAndQuestion($userMessage, $existingContext, $modelId);
 
-        // Step 2: Merge with existing context — preserve prior slots, don't overwrite with null
+        // Step 2: Merge extracted values with existing session context
         $context = [
             'product' => $extracted['product'] ?? $existingContext['product'] ?? null,
-            'question' => $existingContext['question'] ?? $extracted['question'] ?? null,
+            'question' => $extracted['question'] ?? $existingContext['question'] ?? null,
         ];
-        // If LLM extracted a new question and there was no prior question, use it
-        if (empty($context['question']) && !empty($extracted['question'])) {
-            $context['question'] = $extracted['question'];
-        }
-        // If we were asking for product and got a product-only reply, keep the prior question
-        // If LLM thinks the reply is a question (not a product), and we already have a question,
-        // treat the new input as a product name instead
-        if (!empty($existingContext['question']) && empty($extracted['product']) && !empty($extracted['question'])) {
-            // The user probably replied with a product name that LLM misclassified as question
-            $context['product'] = $extracted['question'];
+
+        // Special case: we previously asked for product name (question exists, product missing).
+        // If the user replied and LLM didn't detect a product, treat the entire reply as a product name.
+        $wasAskingForProduct = !empty($existingContext['question']) && empty($existingContext['product']);
+        if ($wasAskingForProduct && empty($extracted['product'])) {
+            $context['product'] = $userMessage;
             $context['question'] = $existingContext['question'];
         }
 
@@ -307,73 +303,78 @@ PROMPT;
             ];
         }
 
-        // Step 4: Product + question ready → search with product filter
+        // Step 4: Vector search by question (no product filter), then LLM product filtering
         $searchQuery = $context['question'] ?? $userMessage;
         $queryEmbedding = $this->bedrock->generateEmbedding($searchQuery);
         $vectorString = '[' . implode(',', $queryEmbedding) . ']';
 
-        // Resolve product name against known KU products via LLM
-        $matchedProducts = $this->matchProductNames(
-            $context['product'], $embeddingId, $modelId
+        // Retrieve candidate KUs: collect from both embeddings, merge, deduplicate, sort by similarity
+        $allCandidates = [];
+        $seenIds = [];
+        $searchMode = 'none';
+        $minThreshold = 0.08;
+
+        // Gather candidates from both embedding columns with relaxed threshold
+        foreach (['search_embedding', 'broad_embedding'] as $column) {
+            $results = $this->vectorSearch(
+                $vectorString, $embeddingId, $column, $minThreshold, self::TOP_K * 2,
+            );
+            foreach ($results as $ku) {
+                // Keep the highest similarity score per KU
+                if (!isset($seenIds[$ku->id]) || (float)$ku->similarity > (float)$seenIds[$ku->id]->similarity) {
+                    $seenIds[$ku->id] = $ku;
+                }
+            }
+        }
+
+        // Sort merged results by similarity descending
+        $candidateKUs = array_values($seenIds);
+        usort($candidateKUs, fn($a, $b) => (float)$b->similarity <=> (float)$a->similarity);
+        $candidateKUs = array_slice($candidateKUs, 0, self::TOP_K * 2);
+
+        if (!empty($candidateKUs)) {
+            $topSimilarity = (float)$candidateKUs[0]->similarity;
+            $searchMode = $topSimilarity >= self::PRECISE_THRESHOLD ? 'precise'
+                : ($topSimilarity >= self::BROAD_THRESHOLD ? 'broad' : 'relaxed');
+        }
+
+        if (empty($candidateKUs)) {
+            return [
+                'action' => 'no_match',
+                'message' => null,
+                'context' => $context,
+                'results' => [],
+                'search_mode' => 'none',
+                'model_id' => $modelId,
+            ];
+        }
+
+        // Step 5: LLM-based product filtering on retrieved candidates
+        $filteredKUs = $this->filterKUsByProduct(
+            $candidateKUs, $context['product'], $modelId
         );
 
-        if (!empty($matchedProducts)) {
-            // Search with product filter (precise → broad)
-            $results = $this->filteredVectorSearch(
-                $vectorString, $embeddingId, $matchedProducts,
-                'search_embedding', self::PRECISE_THRESHOLD, self::TOP_K,
-            );
-
-            if (!empty($results)) {
-                return [
-                    'action' => 'answer',
-                    'message' => null,
-                    'context' => $context,
-                    'results' => $results,
-                    'search_mode' => 'precise',
-                    'model_id' => $modelId,
-                ];
-            }
-
-            $results = $this->filteredVectorSearch(
-                $vectorString, $embeddingId, $matchedProducts,
-                'broad_embedding', self::BROAD_THRESHOLD, self::TOP_K,
-            );
-
-            if (!empty($results)) {
-                return [
-                    'action' => 'answer',
-                    'message' => null,
-                    'context' => $context,
-                    'results' => $results,
-                    'search_mode' => 'broad',
-                    'model_id' => $modelId,
-                ];
-            }
+        if (!empty($filteredKUs)) {
+            // Product-matched KUs found → direct answer
+            return [
+                'action' => 'answer',
+                'message' => null,
+                'context' => $context,
+                'results' => array_slice($filteredKUs, 0, self::TOP_K),
+                'search_mode' => $searchMode,
+                'model_id' => $modelId,
+            ];
         }
 
-        // Step 5: No product-filtered results → unfiltered search as reference
-        // Try broad_embedding first, then search_embedding, with relaxed threshold
-        $referenceThreshold = 0.1;
-        foreach (['broad_embedding', 'search_embedding'] as $fallbackColumn) {
-            $results = $this->vectorSearch(
-                $vectorString, $embeddingId, $fallbackColumn,
-                $referenceThreshold, self::TOP_K,
-            );
-
-            if (!empty($results)) {
-                return [
-                    'action' => 'answer_broad',
-                    'message' => null,
-                    'context' => $context,
-                    'results' => $results,
-                    'search_mode' => 'broad_unfiltered',
-                    'model_id' => $modelId,
-                ];
-            }
-        }
-
-        // Step 6: Nothing found at all
+        // No product match → return all candidates as reference
+        return [
+            'action' => 'answer_broad',
+            'message' => null,
+            'context' => $context,
+            'results' => array_slice($candidateKUs, 0, self::TOP_K),
+            'search_mode' => 'broad_unfiltered',
+            'model_id' => $modelId,
+        ];
         return [
             'action' => 'no_match',
             'message' => null,
@@ -414,18 +415,21 @@ Respond with JSON only, no explanation:
 {"product": "product name or null", "question": "the question or symptom description or null"}
 
 Rules:
-- Extract brand names, device names, model names as "product" (e.g. "LG TV", "PlayStation", "iPhone", "Canon EOS", "Nest Thermostat")
-- The question is the symptom or issue description WITHOUT the product name
-- If the message contains BOTH a product and a question, extract both
-- If the message is just a product name (answering a follow-up), set "question" to null
-- If the message has no identifiable product/device, set "product" to null
+- "product" must be a specific brand, model, or product name (e.g. "LG Smart TV", "PlayStation", "iPhone 15", "Canon EOS", "Nest Thermostat")
+- Generic category words are NOT product names: テレビ, パソコン, カメラ, スマホ, TV, computer, phone → set "product" to null
+- The question should include the full symptom description, keeping general device words in it
+- If the message contains BOTH a specific product and a question, extract both
+- If the message is just a product/brand name (answering a follow-up), set "question" to null
+- If the message has no specific brand/model, set "product" to null
 - Keep the question in the original language
 
 Examples:
 - "LGテレビの画面がちらつく" → {"product": "LG TV", "question": "画面がちらつく"}
+- "テレビの画面がちらつく" → {"product": null, "question": "テレビの画面がちらつく"}
 - "My PlayStation screen flickers" → {"product": "PlayStation", "question": "screen flickers"}
 - "画面が映らない" → {"product": null, "question": "画面が映らない"}
 - "Canon EOS" → {"product": "Canon EOS", "question": null}
+- "パソコンが起動しない" → {"product": null, "question": "パソコンが起動しない"}
 PROMPT;
 
         try {
@@ -443,6 +447,69 @@ PROMPT;
 
         // Fallback: treat entire message as the question
         return ['product' => null, 'question' => $userMessage];
+    }
+
+    /**
+     * Filter retrieved KU candidates by product relevance using LLM.
+     *
+     * Given a list of KUs from vector search and a user-specified product name,
+     * ask LLM: "Which of these KUs are about this product?"
+     * Returns only the matching KUs, preserving their original order and data.
+     */
+    private function filterKUsByProduct(array $candidateKUs, string $userProduct, ?string $modelId): array
+    {
+        if (!$modelId || empty($candidateKUs)) {
+            return [];
+        }
+
+        // Build a concise list of KU IDs with their product/topic for LLM
+        $kuList = [];
+        foreach ($candidateKUs as $index => $ku) {
+            $kuList[] = [
+                'index' => $index,
+                'topic' => $ku->topic,
+                'product' => $ku->product ?? 'unknown',
+            ];
+        }
+
+        $kuJson = json_encode($kuList, JSON_UNESCAPED_UNICODE);
+        $prompt = <<<PROMPT
+The user is asking about: "{$userProduct}"
+
+Here are knowledge base entries retrieved by similarity search:
+{$kuJson}
+
+Which entries are relevant to the user's product "{$userProduct}"?
+Account for abbreviations, nicknames, and language variations.
+Examples: "プレステ" matches "PlayStation", "LGテレビ" matches "LG Smart TV" or "LG OLED".
+
+Respond with JSON only: {"matched_indices": [0, 2, 5]}
+Return an empty array if none match.
+PROMPT;
+
+        try {
+            $parsed = $this->bedrock->invokeJson($modelId, $prompt);
+
+            if ($parsed && isset($parsed['matched_indices']) && is_array($parsed['matched_indices'])) {
+                $filtered = [];
+                foreach ($parsed['matched_indices'] as $idx) {
+                    if (isset($candidateKUs[$idx])) {
+                        $filtered[] = $candidateKUs[$idx];
+                    }
+                }
+                return $filtered;
+            }
+        } catch (\Exception $e) {
+            Log::warning("KU product filtering failed: " . $e->getMessage());
+        }
+
+        // Fallback: simple string match on product field
+        return array_values(array_filter($candidateKUs, fn($ku) =>
+            $ku->product && (
+                stripos($ku->product, $userProduct) !== false ||
+                stripos($userProduct, $ku->product) !== false
+            )
+        ));
     }
 
     /**
