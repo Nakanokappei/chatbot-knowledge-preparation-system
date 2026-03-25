@@ -163,12 +163,136 @@ return [
     'silhouette_typical_text' => 'Typical (text)',
     'silhouette_poor' => 'Poor',
 
+    // ── Auth ──────────────────────────────────────────────
+    'sign_in_to_continue' => 'Sign in to continue',
+    'sign_in' => 'Sign In',
+
+    // ── Layout ────────────────────────────────────────────
+    'usage' => 'Usage',
+    'toggle_sidebar' => 'Toggle sidebar',
+
     // ── Profile ─────────────────────────────────────────
     'profile' => 'Profile',
+    'profile_settings' => 'Profile Settings',
     'change_password' => 'Change Password',
     'current_password' => 'Current Password',
     'new_password' => 'New Password',
     'confirm_password' => 'Confirm Password',
+    'confirm_new_password' => 'Confirm New Password',
     'update_profile' => 'Update Profile',
     'name' => 'Name',
+
+    // ── KU Detail (workspace) ─────────────────────────────
+    'details' => 'Details',
+    'question' => 'Question',
+    'symptoms' => 'Symptoms',
+    'root_cause' => 'Root Cause',
+    'resolution_summary' => 'Resolution Summary',
+    'cause_summary' => 'Cause Summary',
+    'product' => 'Product',
+    'category' => 'Category',
+    'notes' => 'Notes',
+    'edit_comment' => 'Edit Comment',
+    'save_changes' => 'Save Changes',
+    'no_keywords' => 'No keywords',
+    'version_history' => 'Version History',
+    'approve' => 'Approve',
+    'reject' => 'Reject',
+
+    // ── Usage / Cost dashboard ────────────────────────────
+    'usage_description' => 'Token usage and estimated costs (last 30 days)',
+    'cost_30days' => 'Cost (30 days)',
+    'tokens_30days' => 'Tokens (30 days)',
+    'requests_30days' => 'Requests (30 days)',
+    'daily_tokens' => 'Daily Tokens',
+    'daily_cost' => 'Daily Cost',
+    'cost_by_endpoint' => 'Cost by Endpoint',
+    'cost_by_model' => 'Cost by Model',
+    'endpoint' => 'Endpoint',
+    'requests' => 'Requests',
+    'tokens' => 'Tokens',
+    'no_usage_data' => 'No usage data yet',
+    'embedding' => 'Embedding',
+
+    // ── RAG Chat ──────────────────────────────────────────
+    'rag_chat' => 'RAG Chat',
+    'ask_question_about' => 'Ask a question about the knowledge in this dataset.',
+    'ask_question_placeholder' => 'Ask a question...',
+
+    // ── Evaluation ────────────────────────────────────────
+    'retrieval_quality_evaluation' => 'Retrieval Quality Evaluation',
+    'hit_rate' => 'Hit Rate @5',
+    'mrr' => 'MRR',
+    'avg_top1_similarity' => 'Avg Top-1 Similarity',
+    'avg_latency' => 'Avg Latency',
+    'avg_latency_ms' => 'Avg Latency (ms)',
+    'test_queries' => 'Test Queries',
+    'test_queries_hint' => 'Enter test queries in JSON format. Each query can optionally specify expected KU IDs for hit rate calculation.',
+    'run_evaluation' => 'Run Evaluation',
+    'results' => 'Results',
+    'running' => 'Running...',
+    'evaluation' => 'Evaluation',
+
+    // ── Knowledge Datasets ────────────────────────────────
+    'knowledge_datasets' => 'Knowledge Datasets',
+    'new_dataset_btn' => '+ New Dataset',
+    'no_datasets_hint' => 'No datasets yet. Create one from your approved Knowledge Units.',
+    'create_knowledge_dataset' => 'Create Knowledge Dataset',
+    'description_optional' => 'Description (optional)',
+    'select_all_btn' => 'Select All',
+    'deselect_all' => 'Deselect All',
+    'selected' => 'selected',
+    'no_approved_kus' => 'No approved Knowledge Units available. Review and approve KUs first.',
+    'create_dataset' => 'Create Dataset',
+    'datasets' => 'Datasets',
+
+    // ── Dataset show ──────────────────────────────────────
+    'publish' => 'Publish',
+    'publish_confirm' => 'Publish this dataset? It will become available for retrieval.',
+    'new_version' => 'New Version',
+    'export_json' => 'Export JSON',
+    'knowledge_units' => 'Knowledge Units',
+    'version' => 'Version',
+    'created_by' => 'Created By',
+    'confidence' => 'Confidence',
+    'ku_version' => 'KU Version',
+
+    // ── Dashboard: Knowledge Units listing ────────────────
+    'total_rows' => 'Total Rows',
+    'draft' => 'Draft',
+    'approved' => 'Approved',
+    'bulk_actions' => 'Bulk Actions',
+    'approve_all' => 'Approve All',
+    'edit_review' => 'Edit / Review',
+    'cluster' => 'Cluster',
+    'typical_case' => 'Typical Case',
+    'typical_cases' => 'Typical Cases',
+    'back_to_cluster_results' => 'Back to Cluster Results',
+
+    // ── Dashboard: KU show / review ───────────────────────
+    'mark_as_reviewed' => 'Mark as Reviewed',
+    'revert_to_draft' => 'Revert to Draft',
+    'approve_confirm' => 'Approve this Knowledge Unit? It will become read-only.',
+    'ku_locked' => 'This Knowledge Unit is approved and locked.',
+    'ku_locked_hint' => 'This Knowledge Unit is approved and cannot be edited. To make changes, reject it first to revert to draft status.',
+    'review' => 'Review',
+    'metadata' => 'Metadata',
+    'row_count' => 'Row count',
+    'pipeline_job' => 'Pipeline Job',
+    'last_edited' => 'Last edited',
+    'case_label' => 'Case :number',
+    'back_to_knowledge_units' => 'Back to Knowledge Units',
+
+    // ── Dashboard: Version history ────────────────────────
+    'no_version_history' => 'No version history yet.',
+    'timeline' => 'Timeline',
+
+    // ── Dashboard: Cluster Results (show) ─────────────────
+    'cluster_results' => 'Cluster Results',
+    'noise_points_label' => 'Noise Points',
+    'silhouette_score' => 'Silhouette Score',
+    'pipeline_steps' => 'Pipeline Steps',
+    'view_knowledge_units' => 'View Knowledge Units',
+    'no_clusters_found' => 'No clusters found for this job.',
+    'back_to_dashboard' => 'Back to Dashboard',
 ];

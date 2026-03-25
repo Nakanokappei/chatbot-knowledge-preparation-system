@@ -38,8 +38,8 @@
 </head>
 <body>
     <div class="container">
-        <a href="{{ route('dashboard') }}" class="back">&larr; Back to Dashboard</a>
-        <h1>Job #{{ $job->id }} — Cluster Results</h1>
+        <a href="{{ route('dashboard') }}" class="back">&larr; {{ __('ui.back_to_dashboard') }}</a>
+        <h1>Job #{{ $job->id }} — {{ __('ui.cluster_results') }}</h1>
         <p class="subtitle">{{ $job->dataset->name ?? 'Unknown dataset' }} &middot; {{ $job->status }} &middot; {{ $job->completed_at?->format('Y-m-d H:i') ?? '' }}</p>
 
         {{-- Summary stats: total rows, cluster count, noise points, and silhouette score --}}
@@ -57,25 +57,25 @@
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-value">{{ $totalRows }}</div>
-                <div class="stat-label">Total Rows</div>
+                <div class="stat-label">{{ __('ui.total_rows') }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" style="color: #0071e3;">{{ $nClusters }}</div>
-                <div class="stat-label">Clusters</div>
+                <div class="stat-label">{{ __('ui.clusters') }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" style="color: #5f6368;">{{ $nNoise }}</div>
-                <div class="stat-label">Noise Points</div>
+                <div class="stat-label">{{ __('ui.noise_points_label') }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value">{{ number_format($silhouette, 3) }}</div>
-                <div class="stat-label">Silhouette Score</div>
+                <div class="stat-label">{{ __('ui.silhouette_score') }}</div>
             </div>
         </div>
 
         {{-- Pipeline step outputs: preprocess, embedding, and clustering parameters --}}
         <div class="card">
-            <h2>Pipeline Steps</h2>
+            <h2>{{ __('ui.pipeline_steps') }}</h2>
             <dl class="step-outputs">
                 @if($preprocessOutput)
                     <dt>Preprocess:</dt>
@@ -101,13 +101,13 @@
         @if($job->step_outputs_json && isset($job->step_outputs_json['knowledge_unit_generation']))
             <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h2 style="margin-bottom: 4px;">Knowledge Units</h2>
+                    <h2 style="margin-bottom: 4px;">{{ __('ui.knowledge_units') }}</h2>
                     <span style="font-size: 13px; color: #5f6368;">
                         {{ $job->step_outputs_json['knowledge_unit_generation']['knowledge_units_created'] ?? 0 }} KUs generated
                     </span>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                    <a href="{{ route('dashboard.knowledge-units', $job) }}" class="btn btn-sm" style="background: #0071e3; color: #fff; text-decoration: none;">View Knowledge Units</a>
+                    <a href="{{ route('dashboard.knowledge-units', $job) }}" class="btn btn-sm" style="background: #0071e3; color: #fff; text-decoration: none;">{{ __('ui.view_knowledge_units') }}</a>
                     <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json']) }}" class="btn btn-sm btn-outline" style="text-decoration: none;">JSON</a>
                     <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv']) }}" class="btn btn-sm btn-outline" style="text-decoration: none;">CSV</a>
                 </div>
@@ -119,7 +119,7 @@
             <h2>Clusters ({{ $clusters->count() }})</h2>
 
             @if($clusters->isEmpty())
-                <p style="color: #5f6368; text-align: center; padding: 24px;">No clusters found for this job.</p>
+                <p style="color: #5f6368; text-align: center; padding: 24px;">{{ __('ui.no_clusters_found') }}</p>
             @else
                 @foreach($clusters as $cluster)
                     @php
@@ -149,7 +149,7 @@
                         @if($clusterReps->isNotEmpty())
                             <div class="cluster-detail">
                                 <div style="font-size: 12px; font-weight: 600; color: #5f6368; margin-bottom: 8px;">
-                                    Representative Rows (closest to centroid)
+                                    {{ __('ui.representative_rows') }}
                                 </div>
                                 @foreach($clusterReps as $rep)
                                     <p>

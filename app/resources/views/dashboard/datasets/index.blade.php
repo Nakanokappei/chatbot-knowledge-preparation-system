@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Knowledge Datasets</title>
+    <title>{{ __('ui.knowledge_datasets') }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
@@ -34,15 +34,15 @@
 <div class="container">
     <div class="nav">
         <a href="{{ route('dashboard') }}">Dashboard</a> /
-        <strong>Knowledge Datasets</strong>
-        <a href="{{ route('kd.create') }}" class="btn btn-primary" style="margin-left: auto;">+ New Dataset</a>
+        <strong>{{ __('ui.knowledge_datasets') }}</strong>
+        <a href="{{ route('kd.create') }}" class="btn btn-primary" style="margin-left: auto;">{{ __('ui.new_dataset_btn') }}</a>
     </div>
 
     @if(session('success'))
         <div class="success">{{ session('success') }}</div>
     @endif
 
-    <h1>Knowledge Datasets</h1>
+    <h1>{{ __('ui.knowledge_datasets') }}</h1>
 
     @forelse($datasets as $dataset)
         <div class="card">
@@ -57,15 +57,15 @@
                 <p style="margin-bottom: 8px; color: #374151;">{{ $dataset->description }}</p>
             @endif
             <div class="meta">
-                <span>{{ $dataset->ku_count }} Knowledge Units</span>
+                <span>{{ $dataset->ku_count }} {{ __('ui.knowledge_units') }}</span>
                 <span>Created {{ $dataset->created_at->diffForHumans() }}</span>
             </div>
         </div>
     @empty
         <div class="card empty">
-            <p>No datasets yet. Create one from your approved Knowledge Units.</p>
+            <p>{{ __('ui.no_datasets_hint') }}</p>
             <br>
-            <a href="{{ route('kd.create') }}" class="btn btn-primary">+ New Dataset</a>
+            <a href="{{ route('kd.create') }}" class="btn btn-primary">{{ __('ui.new_dataset_btn') }}</a>
         </div>
     @endforelse
 </div>

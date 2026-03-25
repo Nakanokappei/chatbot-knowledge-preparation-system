@@ -46,27 +46,27 @@
 </head>
 <body>
     <div class="container">
-        <a href="{{ route('dashboard.show', $job) }}" class="back">&larr; Back to Cluster Results</a>
-        <h1>Job #{{ $job->id }} — Knowledge Units</h1>
+        <a href="{{ route('dashboard.show', $job) }}" class="back">&larr; {{ __('ui.back_to_cluster_results') }}</a>
+        <h1>Job #{{ $job->id }} — {{ __('ui.knowledge_units') }}</h1>
         <p class="subtitle">{{ $job->dataset->name ?? 'Unknown dataset' }} &middot; {{ $knowledgeUnits->count() }} Knowledge Units &middot; review_status: draft</p>
 
         {{-- Stats grid: total KUs, total rows, draft count, and approved count --}}
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-value" style="color: #0071e3;">{{ $knowledgeUnits->count() }}</div>
-                <div class="stat-label">Knowledge Units</div>
+                <div class="stat-label">{{ __('ui.knowledge_units') }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value">{{ $knowledgeUnits->sum('row_count') }}</div>
-                <div class="stat-label">Total Rows</div>
+                <div class="stat-label">{{ __('ui.total_rows') }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" style="color: #ff9500;">{{ $knowledgeUnits->where('review_status', 'draft')->count() }}</div>
-                <div class="stat-label">Draft</div>
+                <div class="stat-label">{{ __('ui.draft') }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" style="color: #34c759;">{{ $knowledgeUnits->where('review_status', 'approved')->count() }}</div>
-                <div class="stat-label">Approved</div>
+                <div class="stat-label">{{ __('ui.approved') }}</div>
             </div>
         </div>
 
@@ -74,14 +74,14 @@
         @if($knowledgeUnits->where('review_status', 'draft')->count() > 0 || $knowledgeUnits->where('review_status', 'reviewed')->count() > 0)
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin-bottom: 0;">Bulk Actions</h2>
+                <h2 style="margin-bottom: 0;">{{ __('ui.bulk_actions') }}</h2>
                 <div style="display: flex; gap: 8px;">
                     @if($knowledgeUnits->where('review_status', 'draft')->count() > 0)
                     <form method="POST" action="{{ route('knowledge-units.bulk-approve', $job) }}" style="display: inline;">
                         @csrf
                         <button type="submit" class="btn" style="background: #34c759; color: white;"
                                 onclick="return confirm('Approve all {{ $knowledgeUnits->where('review_status', 'draft')->count() + $knowledgeUnits->where('review_status', 'reviewed')->count() }} Knowledge Units?')">
-                            Approve All ({{ $knowledgeUnits->where('review_status', '!=', 'approved')->where('review_status', '!=', 'rejected')->count() }})
+                            {{ __('ui.approve_all') }} ({{ $knowledgeUnits->where('review_status', '!=', 'approved')->where('review_status', '!=', 'rejected')->count() }})
                         </button>
                     </form>
                     @endif
@@ -93,7 +93,7 @@
         {{-- Export section: JSON/CSV download links for approved or all KUs --}}
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin-bottom: 0;">Export</h2>
+                <h2 style="margin-bottom: 0;">{{ __('ui.export') }}</h2>
                 <div class="export-bar">
                     <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'approved']) }}" class="btn btn-outline">JSON (Approved)</a>
                     <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'approved']) }}" class="btn btn-outline">CSV (Approved)</a>
@@ -111,21 +111,21 @@
                         <a href="{{ route('knowledge-units.show', $ku) }}" style="text-decoration: none; color: inherit;">
                             <div class="ku-topic">{{ $ku->topic }}</div>
                         </a>
-                        <div class="ku-intent">Intent: {{ $ku->intent }}</div>
+                        <div class="ku-intent">{{ __('ui.intent') }}: {{ $ku->intent }}</div>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <span class="badge badge-{{ $ku->review_status }}">{{ $ku->review_status }}</span>
-                        <a href="{{ route('knowledge-units.show', $ku) }}" class="btn btn-sm btn-outline" style="text-decoration: none; font-size: 12px; padding: 3px 10px;">Edit / Review</a>
+                        <a href="{{ route('knowledge-units.show', $ku) }}" class="btn btn-sm btn-outline" style="text-decoration: none; font-size: 12px; padding: 3px 10px;">{{ __('ui.edit_review') }}</a>
                     </div>
                 </div>
 
                 <div class="ku-summary">{{ $ku->summary }}</div>
 
                 <div class="ku-meta">
-                    <div><strong>{{ $ku->row_count }}</strong> rows</div>
-                    <div>Version <strong>{{ $ku->version }}</strong></div>
-                    <div>Cluster <strong>{{ $ku->cluster_id }}</strong></div>
-                    <div>Created <strong>{{ $ku->created_at->format('m/d H:i') }}</strong></div>
+                    <div><strong>{{ $ku->row_count }}</strong> {{ __('ui.rows') }}</div>
+                    <div>{{ __('ui.version') }} <strong>{{ $ku->version }}</strong></div>
+                    <div>{{ __('ui.cluster') }} <strong>{{ $ku->cluster_id }}</strong></div>
+                    <div>{{ __('ui.created') }} <strong>{{ $ku->created_at->format('m/d H:i') }}</strong></div>
                 </div>
 
                 @if($ku->keywords_json)
@@ -138,7 +138,7 @@
 
                 @if($ku->typical_cases_json && count($ku->typical_cases_json) > 0)
                     <div class="typical-case">
-                        <div class="typical-case-label">Typical Case</div>
+                        <div class="typical-case-label">{{ __('ui.typical_case') }}</div>
                         {{ Str::limit($ku->typical_cases_json[0], 250) }}
                     </div>
                 @endif

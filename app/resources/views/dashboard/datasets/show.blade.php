@@ -63,8 +63,8 @@
         @if($dataset->isEditable())
             <form method="POST" action="{{ route('kd.publish', $dataset) }}">
                 @csrf
-                <button type="submit" class="btn btn-success" onclick="return confirm('Publish this dataset? It will become available for retrieval.')">
-                    Publish
+                <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">
+                    {{ __('ui.publish') }}
                 </button>
             </form>
         @endif
@@ -72,12 +72,12 @@
         @if($dataset->isPublished())
             <form method="POST" action="{{ route('kd.new-version', $dataset) }}">
                 @csrf
-                <button type="submit" class="btn btn-primary">New Version (v{{ $dataset->version + 1 }})</button>
+                <button type="submit" class="btn btn-primary">{{ __('ui.new_version') }} (v{{ $dataset->version + 1 }})</button>
             </form>
 
-            <a href="{{ route('kd.export', $dataset) }}" class="btn btn-outline">Export JSON</a>
+            <a href="{{ route('kd.export', $dataset) }}" class="btn btn-outline">{{ __('ui.export_json') }}</a>
 
-            <a href="{{ route('kd.chat', $dataset) }}" class="btn btn-primary">Chat</a>
+            <a href="{{ route('kd.chat', $dataset) }}" class="btn btn-primary">{{ __('ui.chat') }}</a>
         @endif
     </div>
 
@@ -85,19 +85,19 @@
     <div class="card">
         <div class="meta-grid">
             <div class="meta-item">
-                <div class="meta-label">Knowledge Units</div>
+                <div class="meta-label">{{ __('ui.knowledge_units') }}</div>
                 <div class="meta-value">{{ $dataset->ku_count }}</div>
             </div>
             <div class="meta-item">
-                <div class="meta-label">Status</div>
+                <div class="meta-label">{{ __('ui.status') }}</div>
                 <div class="meta-value">{{ ucfirst($dataset->status) }}</div>
             </div>
             <div class="meta-item">
-                <div class="meta-label">Version</div>
+                <div class="meta-label">{{ __('ui.version') }}</div>
                 <div class="meta-value">v{{ $dataset->version }}</div>
             </div>
             <div class="meta-item">
-                <div class="meta-label">Created By</div>
+                <div class="meta-label">{{ __('ui.created_by') }}</div>
                 <div class="meta-value">{{ $dataset->creator?->name ?? 'System' }}</div>
             </div>
         </div>
@@ -105,16 +105,16 @@
 
     {{-- KU items table: lists each knowledge unit with topic, intent, row count, and version --}}
     <div class="card">
-        <h2 style="margin-bottom: 12px;">Knowledge Units</h2>
+        <h2 style="margin-bottom: 12px;">{{ __('ui.knowledge_units') }}</h2>
         <table>
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Topic</th>
-                    <th>Intent</th>
-                    <th>Rows</th>
-                    <th>Confidence</th>
-                    <th>KU Version</th>
+                    <th>{{ __('ui.topic') }}</th>
+                    <th>{{ __('ui.intent') }}</th>
+                    <th>{{ __('ui.rows') }}</th>
+                    <th>{{ __('ui.confidence') }}</th>
+                    <th>{{ __('ui.ku_version') }}</th>
                 </tr>
             </thead>
             <tbody>

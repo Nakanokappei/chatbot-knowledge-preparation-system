@@ -163,12 +163,136 @@ return [
     'silhouette_typical_text' => '標準的（テキスト）',
     'silhouette_poor' => '要改善',
 
+    // ── Auth ──────────────────────────────────────────────
+    'sign_in_to_continue' => 'サインインしてください',
+    'sign_in' => 'サインイン',
+
+    // ── Layout ────────────────────────────────────────────
+    'usage' => '使用状況',
+    'toggle_sidebar' => 'サイドバー切替',
+
     // ── Profile ─────────────────────────────────────────
     'profile' => 'プロフィール',
+    'profile_settings' => 'プロフィール設定',
     'change_password' => 'パスワード変更',
     'current_password' => '現在のパスワード',
     'new_password' => '新しいパスワード',
     'confirm_password' => 'パスワード確認',
+    'confirm_new_password' => '新しいパスワード（確認）',
     'update_profile' => 'プロフィール更新',
     'name' => '名前',
+
+    // ── KU Detail (workspace) ─────────────────────────────
+    'details' => '詳細',
+    'question' => '質問',
+    'symptoms' => '症状',
+    'root_cause' => '根本原因',
+    'resolution_summary' => '解決策',
+    'cause_summary' => '原因要約',
+    'product' => '製品',
+    'category' => 'カテゴリ',
+    'notes' => 'メモ',
+    'edit_comment' => '編集コメント',
+    'save_changes' => '変更を保存',
+    'no_keywords' => 'キーワードなし',
+    'version_history' => 'バージョン履歴',
+    'approve' => '承認',
+    'reject' => '却下',
+
+    // ── Usage / Cost dashboard ────────────────────────────
+    'usage_description' => 'トークン使用量と推定コスト（過去30日）',
+    'cost_30days' => 'コスト（30日）',
+    'tokens_30days' => 'トークン（30日）',
+    'requests_30days' => 'リクエスト（30日）',
+    'daily_tokens' => '日別トークン',
+    'daily_cost' => '日別コスト',
+    'cost_by_endpoint' => 'エンドポイント別コスト',
+    'cost_by_model' => 'モデル別コスト',
+    'endpoint' => 'エンドポイント',
+    'requests' => 'リクエスト',
+    'tokens' => 'トークン',
+    'no_usage_data' => 'データなし',
+    'embedding' => 'Embedding',
+
+    // ── RAG Chat ──────────────────────────────────────────
+    'rag_chat' => 'RAG Chat',
+    'ask_question_about' => 'このデータセットのナレッジについて質問してください。',
+    'ask_question_placeholder' => '質問を入力...',
+
+    // ── Evaluation ────────────────────────────────────────
+    'retrieval_quality_evaluation' => '検索品質評価',
+    'hit_rate' => 'Hit Rate @5',
+    'mrr' => 'MRR',
+    'avg_top1_similarity' => '平均Top-1類似度',
+    'avg_latency' => '平均レイテンシ',
+    'avg_latency_ms' => '平均レイテンシ (ms)',
+    'test_queries' => 'テストクエリ',
+    'test_queries_hint' => 'JSON形式でテストクエリを入力。expected_ku_idsでHit Rate計算用のKU IDを指定可能。',
+    'run_evaluation' => '評価実行',
+    'results' => '結果',
+    'running' => '実行中...',
+    'evaluation' => '評価',
+
+    // ── Knowledge Datasets ────────────────────────────────
+    'knowledge_datasets' => 'ナレッジデータセット',
+    'new_dataset_btn' => '+ 新規データセット',
+    'no_datasets_hint' => 'データセットがありません。承認済みKUからデータセットを作成してください。',
+    'create_knowledge_dataset' => 'ナレッジデータセット作成',
+    'description_optional' => '説明（任意）',
+    'select_all_btn' => 'すべて選択',
+    'deselect_all' => 'すべて解除',
+    'selected' => '件選択中',
+    'no_approved_kus' => '承認済みKUがありません。先にKUを承認してください。',
+    'create_dataset' => 'データセット作成',
+    'datasets' => 'データセット',
+
+    // ── Dataset show ──────────────────────────────────────
+    'publish' => '公開',
+    'publish_confirm' => 'データセットを公開しますか？検索可能になります。',
+    'new_version' => '新バージョン',
+    'export_json' => 'JSON出力',
+    'knowledge_units' => 'ナレッジユニット',
+    'version' => 'バージョン',
+    'created_by' => '作成者',
+    'confidence' => '確信度',
+    'ku_version' => 'KUバージョン',
+
+    // ── Dashboard: Knowledge Units listing ────────────────
+    'total_rows' => '合計行数',
+    'draft' => '下書き',
+    'approved' => '承認済み',
+    'bulk_actions' => '一括操作',
+    'approve_all' => 'すべて承認',
+    'edit_review' => '編集 / レビュー',
+    'cluster' => 'クラスター',
+    'typical_case' => '代表的なケース',
+    'typical_cases' => '代表的なケース',
+    'back_to_cluster_results' => 'クラスター結果に戻る',
+
+    // ── Dashboard: KU show / review ───────────────────────
+    'mark_as_reviewed' => 'レビュー済みにする',
+    'revert_to_draft' => '下書きに戻す',
+    'approve_confirm' => '承認すると編集不可になります。続けますか？',
+    'ku_locked' => 'このKUは承認済みでロックされています。',
+    'ku_locked_hint' => '承認済みのため編集できません。変更するには却下して下書きに戻してください。',
+    'review' => 'レビュー',
+    'metadata' => 'メタデータ',
+    'row_count' => '行数',
+    'pipeline_job' => 'パイプラインジョブ',
+    'last_edited' => '最終編集',
+    'case_label' => 'ケース :number',
+    'back_to_knowledge_units' => 'ナレッジユニットに戻る',
+
+    // ── Dashboard: Version history ────────────────────────
+    'no_version_history' => 'バージョン履歴なし',
+    'timeline' => 'タイムライン',
+
+    // ── Dashboard: Cluster Results (show) ─────────────────
+    'cluster_results' => 'クラスター結果',
+    'noise_points_label' => 'ノイズポイント',
+    'silhouette_score' => 'シルエットスコア',
+    'pipeline_steps' => 'パイプラインステップ',
+    'view_knowledge_units' => 'ナレッジユニットを表示',
+    'no_clusters_found' => 'クラスターが見つかりません。',
+    'back_to_dashboard' => 'ダッシュボードに戻る',
 ];

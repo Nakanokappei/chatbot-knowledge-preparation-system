@@ -53,7 +53,7 @@
 </head>
 <body>
     <div class="container">
-        <a href="{{ route('dashboard.knowledge-units', $ku->pipeline_job_id) }}" class="back">&larr; Back to Knowledge Units</a>
+        <a href="{{ route('dashboard.knowledge-units', $ku->pipeline_job_id) }}" class="back">&larr; {{ __('ui.back_to_knowledge_units') }}</a>
 
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
             <h1>KU #{{ $ku->id }} — {{ $ku->topic }}</h1>
@@ -76,43 +76,43 @@
         {{-- Review actions: status transition buttons (approve, review, reject, revert) --}}
         @if(count($allowedTransitions) > 0)
             <div class="card">
-                <h2>Review</h2>
+                <h2>{{ __('ui.review') }}</h2>
                 <div class="review-bar">
                     @foreach($allowedTransitions as $status)
                         <form method="POST" action="{{ route('knowledge-units.review', $ku) }}" style="display: inline;">
                             @csrf
                             <input type="hidden" name="new_status" value="{{ $status }}">
                             @if($status === 'approved')
-                                <button type="submit" class="btn btn-green" onclick="return confirm('Approve this Knowledge Unit? It will become read-only.')">Approve</button>
+                                <button type="submit" class="btn btn-green" onclick="return confirm('{{ __('ui.approve_confirm') }}')">{{ __('ui.approve') }}</button>
                             @elseif($status === 'reviewed')
-                                <button type="submit" class="btn btn-primary">Mark as Reviewed</button>
+                                <button type="submit" class="btn btn-primary">{{ __('ui.mark_as_reviewed') }}</button>
                             @elseif($status === 'rejected')
-                                <button type="submit" class="btn btn-danger">Reject</button>
+                                <button type="submit" class="btn btn-danger">{{ __('ui.reject') }}</button>
                             @elseif($status === 'draft')
-                                <button type="submit" class="btn btn-orange">Revert to Draft</button>
+                                <button type="submit" class="btn btn-orange">{{ __('ui.revert_to_draft') }}</button>
                             @endif
                         </form>
                     @endforeach
-                    <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-sm btn-outline">Version History ({{ $ku->versions->count() }})</a>
+                    <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-sm btn-outline">{{ __('ui.version_history') }} ({{ $ku->versions->count() }})</a>
                 </div>
             </div>
         @else
             <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <h2 style="margin-bottom: 4px;">Review</h2>
-                    <span style="font-size: 13px; color: #155724;">This Knowledge Unit is approved and locked.</span>
+                    <h2 style="margin-bottom: 4px;">{{ __('ui.review') }}</h2>
+                    <span style="font-size: 13px; color: #155724;">{{ __('ui.ku_locked') }}</span>
                 </div>
-                <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-sm btn-outline">Version History ({{ $ku->versions->count() }})</a>
+                <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-sm btn-outline">{{ __('ui.version_history') }} ({{ $ku->versions->count() }})</a>
             </div>
         @endif
 
         {{-- Edit form: editable fields with version bump on save; disabled when KU is approved --}}
         <div class="card">
-            <h2>Edit</h2>
+            <h2>{{ __('ui.edit') }}</h2>
 
             @if(!$ku->isEditable())
                 <div class="locked-notice">
-                    This Knowledge Unit is approved and cannot be edited. To make changes, reject it first to revert to draft status.
+                    {{ __('ui.ku_locked_hint') }}
                 </div>
             @endif
 
@@ -122,62 +122,62 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="topic">Topic</label>
+                        <label for="topic">{{ __('ui.topic') }}</label>
                         <input type="text" id="topic" name="topic" value="{{ $ku->topic }}" @if(!$ku->isEditable()) disabled @endif>
                     </div>
                     <div class="form-group">
-                        <label for="intent">Intent</label>
+                        <label for="intent">{{ __('ui.intent') }}</label>
                         <input type="text" id="intent" name="intent" value="{{ $ku->intent }}" @if(!$ku->isEditable()) disabled @endif>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="summary">Summary</label>
+                    <label for="summary">{{ __('ui.summary') }}</label>
                     <textarea id="summary" name="summary" rows="3" @if(!$ku->isEditable()) disabled @endif>{{ $ku->summary }}</textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="cause_summary">Cause Summary</label>
+                    <label for="cause_summary">{{ __('ui.cause_summary') }}</label>
                     <textarea id="cause_summary" name="cause_summary" rows="3" placeholder="Describe the root cause of this issue pattern..." @if(!$ku->isEditable()) disabled @endif>{{ $ku->cause_summary }}</textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="resolution_summary">Resolution Summary</label>
+                    <label for="resolution_summary">{{ __('ui.resolution_summary') }}</label>
                     <textarea id="resolution_summary" name="resolution_summary" rows="3" placeholder="Describe how to resolve this issue..." @if(!$ku->isEditable()) disabled @endif>{{ $ku->resolution_summary }}</textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="notes">Notes</label>
+                    <label for="notes">{{ __('ui.notes') }}</label>
                     <textarea id="notes" name="notes" rows="2" placeholder="Internal notes..." @if(!$ku->isEditable()) disabled @endif>{{ $ku->notes }}</textarea>
                 </div>
 
                 <div class="form-group">
-                    <label for="edit_comment">Edit Comment</label>
+                    <label for="edit_comment">{{ __('ui.edit_comment') }}</label>
                     <input type="text" id="edit_comment" name="edit_comment" placeholder="What did you change?" @if(!$ku->isEditable()) disabled @endif>
                 </div>
 
                 @if($ku->isEditable())
-                    <button type="submit" class="btn btn-primary">Save Changes (creates v{{ $ku->version + 1 }})</button>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.save_changes') }} (creates v{{ $ku->version + 1 }})</button>
                 @endif
             </form>
         </div>
 
         {{-- Metadata card: row count, confidence score, version, pipeline job, and keyword tags --}}
         <div class="card">
-            <h2>Metadata</h2>
+            <h2>{{ __('ui.metadata') }}</h2>
             <div class="meta">
-                <div>Row count: <strong>{{ $ku->row_count }}</strong></div>
-                <div>Confidence: <strong>{{ $ku->confidence }}</strong></div>
-                <div>Version: <strong>{{ $ku->version }}</strong></div>
-                <div>Pipeline Job: <strong>#{{ $ku->pipeline_job_id }}</strong></div>
-                <div>Created: <strong>{{ $ku->created_at->format('Y-m-d H:i') }}</strong></div>
+                <div>{{ __('ui.row_count') }}: <strong>{{ $ku->row_count }}</strong></div>
+                <div>{{ __('ui.confidence') }}: <strong>{{ $ku->confidence }}</strong></div>
+                <div>{{ __('ui.version') }}: <strong>{{ $ku->version }}</strong></div>
+                <div>{{ __('ui.pipeline_job') }}: <strong>#{{ $ku->pipeline_job_id }}</strong></div>
+                <div>{{ __('ui.created') }}: <strong>{{ $ku->created_at->format('Y-m-d H:i') }}</strong></div>
                 @if($ku->edited_at)
-                    <div>Last edited: <strong>{{ $ku->edited_at->format('Y-m-d H:i') }}</strong></div>
+                    <div>{{ __('ui.last_edited') }}: <strong>{{ $ku->edited_at->format('Y-m-d H:i') }}</strong></div>
                 @endif
             </div>
 
             @if($ku->keywords_json)
-                <label style="margin-bottom: 8px;">Keywords</label>
+                <label style="margin-bottom: 8px;">{{ __('ui.keywords') }}</label>
                 <div class="keywords">
                     @foreach($ku->keywords_json as $kw)
                         <span class="keyword">{{ $kw }}</span>
@@ -189,10 +189,10 @@
         {{-- Typical cases: representative example texts extracted from the cluster --}}
         @if($ku->typical_cases_json && count($ku->typical_cases_json) > 0)
             <div class="card">
-                <h2>Typical Cases</h2>
+                <h2>{{ __('ui.typical_cases') }}</h2>
                 @foreach($ku->typical_cases_json as $i => $case)
                     <div class="typical-case">
-                        <span style="font-size: 11px; font-weight: 600; color: #5f6368;">Case {{ $i + 1 }}</span><br>
+                        <span style="font-size: 11px; font-weight: 600; color: #5f6368;">{{ __('ui.case_label', ['number' => $i + 1]) }}</span><br>
                         {{ $case }}
                     </div>
                 @endforeach

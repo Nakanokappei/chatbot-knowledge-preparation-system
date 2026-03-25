@@ -18,29 +18,29 @@
 @section('body')
     <div class="page-content">
         <div class="page-container">
-            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Usage</h1>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">Token usage and estimated costs (last 30 days)</p>
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.usage') }}</h1>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.usage_description') }}</p>
 
             {{-- Summary stats: 30-day totals for cost, tokens, and requests --}}
             <div class="stats-grid">
-                <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">Cost (30 days)</div></div>
-                <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">Tokens (30 days)</div></div>
-                <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">Requests (30 days)</div></div>
+                <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">{{ __('ui.cost_30days') }}</div></div>
+                <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">{{ __('ui.tokens_30days') }}</div></div>
+                <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">{{ __('ui.requests_30days') }}</div></div>
             </div>
 
             {{-- Daily charts: side-by-side token and cost bar charts drawn on canvas --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div class="card">
-                    <h2>Daily Tokens</h2>
+                    <h2>{{ __('ui.daily_tokens') }}</h2>
                     <div class="chart-container"><canvas id="tokensChart"></canvas></div>
                 </div>
                 <div class="card">
-                    <h2>Daily Cost</h2>
+                    <h2>{{ __('ui.daily_cost') }}</h2>
                     <div class="chart-container"><canvas id="costChart"></canvas></div>
                     <div class="chart-legend">
-                        <span style="--c: #0071e3;">Pipeline</span>
-                        <span style="--c: #34c759;">Chat</span>
-                        <span style="--c: #ff9500;">Embedding</span>
+                        <span style="--c: #0071e3;">{{ __('ui.pipeline') }}</span>
+                        <span style="--c: #34c759;">{{ __('ui.chat') }}</span>
+                        <span style="--c: #ff9500;">{{ __('ui.embedding') }}</span>
                     </div>
                 </div>
             </div>
@@ -48,28 +48,28 @@
             {{-- Breakdown tables: cost aggregated by API endpoint and by model --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div class="card">
-                    <h2>Cost by Endpoint</h2>
+                    <h2>{{ __('ui.cost_by_endpoint') }}</h2>
                     <table>
-                        <thead><tr><th>Endpoint</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>
+                        <thead><tr><th>{{ __('ui.endpoint') }}</th><th>{{ __('ui.requests') }}</th><th>{{ __('ui.tokens') }}</th><th>{{ __('ui.cost') }}</th></tr></thead>
                         <tbody>
                         @forelse($byEndpoint as $row)
                             <tr><td>{{ $row->endpoint }}</td><td>{{ number_format($row->requests) }}</td><td>{{ number_format($row->tokens) }}</td><td>${{ number_format($row->cost, 4) }}</td></tr>
                         @empty
-                            <tr><td colspan="4" class="empty">No usage data yet</td></tr>
+                            <tr><td colspan="4" class="empty">{{ __('ui.no_usage_data') }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>
                 </div>
 
                 <div class="card">
-                    <h2>Cost by Model</h2>
+                    <h2>{{ __('ui.cost_by_model') }}</h2>
                     <table>
-                        <thead><tr><th>Model</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>
+                        <thead><tr><th>{{ __('ui.llm_model') }}</th><th>{{ __('ui.requests') }}</th><th>{{ __('ui.tokens') }}</th><th>{{ __('ui.cost') }}</th></tr></thead>
                         <tbody>
                         @forelse($byModel as $row)
                             <tr><td style="font-size: 12px;">{{ $row->model_id }}</td><td>{{ number_format($row->requests) }}</td><td>{{ number_format($row->tokens) }}</td><td>${{ number_format($row->cost, 4) }}</td></tr>
                         @empty
-                            <tr><td colspan="4" class="empty">No usage data yet</td></tr>
+                            <tr><td colspan="4" class="empty">{{ __('ui.no_usage_data') }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>

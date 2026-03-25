@@ -36,7 +36,7 @@
 </head>
 <body>
 <div class="header">
-    <a href="{{ route('kd.show', $dataset) }}">Back</a>
+    <a href="{{ route('kd.show', $dataset) }}">{{ __('ui.back') }}</a>
     <h2>{{ $dataset->name }} v{{ $dataset->version }}</h2>
     <span class="badge">{{ $dataset->ku_count }} KUs</span>
 </div>
@@ -44,8 +44,8 @@
 {{-- Chat message area: scrollable container for user/assistant message bubbles --}}
 <div class="chat-container" id="chat-container">
     <div class="empty-state" id="empty-state">
-        <h3>RAG Chat</h3>
-        <p>Ask a question about the knowledge in this dataset.</p>
+        <h3>{{ __('ui.rag_chat') }}</h3>
+        <p>{{ __('ui.ask_question_about') }}</p>
         <p style="font-size: 12px; margin-top: 8px;">Retrieval + Augmented Generation against {{ $dataset->ku_count }} approved Knowledge Units</p>
     </div>
 </div>
@@ -53,9 +53,9 @@
 {{-- Input area: text input and send button for composing messages --}}
 <div class="input-area">
     <div class="input-row">
-        <input type="text" id="message-input" placeholder="Ask a question..." autofocus
+        <input type="text" id="message-input" placeholder="{{ __('ui.ask_question_placeholder') }}" autofocus
                onkeydown="if(event.key==='Enter' && !event.shiftKey) sendMessage()">
-        <button id="send-btn" onclick="sendMessage()">Send</button>
+        <button id="send-btn" onclick="sendMessage()">{{ __('ui.send') }}</button>
     </div>
 </div>
 
@@ -82,7 +82,7 @@ async function sendMessage() {
     // Show typing indicator
     const typingEl = document.createElement('div');
     typingEl.className = 'message message-assistant';
-    typingEl.innerHTML = '<div class="typing">Thinking...</div>';
+    typingEl.innerHTML = '<div class="typing">{{ __('ui.thinking') }}</div>';
     typingEl.id = 'typing';
     document.getElementById('chat-container').appendChild(typingEl);
     scrollToBottom();
@@ -119,7 +119,7 @@ async function sendMessage() {
             const sourceLinks = data.sources.map(s =>
                 `<a href="/knowledge-units/${s.knowledge_unit_id}">${s.topic}</a> (${(s.similarity * 100).toFixed(0)}%)`
             ).join(', ');
-            sourcesHtml = `<div class="sources">Sources: ${sourceLinks}</div>`;
+            sourcesHtml = `<div class="sources">{{ __('ui.sources') }}: ${sourceLinks}</div>`;
         }
 
         const usageHtml = `<div class="usage">${data.model} | ${data.usage.input_tokens + data.usage.output_tokens} tokens | ${data.latency_ms}ms</div>`;

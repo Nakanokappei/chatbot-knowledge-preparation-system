@@ -26,7 +26,7 @@
     {{-- Login card: centered form with app title and credential inputs --}}
     <div class="login-card">
         <h1>{{ __('ui.app_name') }}</h1>
-        <p class="subtitle">Sign in to continue</p>
+        <p class="subtitle">{{ __('ui.sign_in_to_continue') }}</p>
 
         @if($errors->any())
             <div class="error">{{ $errors->first() }}</div>
@@ -44,7 +44,7 @@
                 <input type="checkbox" name="remember"> {{ __('ui.remember_me') }}
             </label>
 
-            <button type="submit" class="btn btn-primary">Sign In</button>
+            <button type="submit" class="btn btn-primary">{{ __('ui.sign_in') }}</button>
         </form>
     </div>
 </body>

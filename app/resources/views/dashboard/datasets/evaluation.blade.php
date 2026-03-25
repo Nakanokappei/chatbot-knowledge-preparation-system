@@ -40,36 +40,36 @@
 <body>
 <div class="container">
     <div class="nav">
-        <a href="{{ route('kd.show', $dataset) }}">{{ $dataset->name }}</a> / <strong>Evaluation</strong>
+        <a href="{{ route('kd.show', $dataset) }}">{{ $dataset->name }}</a> / <strong>{{ __('ui.evaluation') }}</strong>
     </div>
 
-    <h1>Retrieval Quality Evaluation</h1>
+    <h1>{{ __('ui.retrieval_quality_evaluation') }}</h1>
 
     {{-- Summary stats cards: hit rate, MRR, avg similarity, avg latency (populated by JS) --}}
     <div class="stats-grid">
         <div class="stat">
             <div class="stat-value" id="hit-rate">—</div>
-            <div class="stat-label">Hit Rate @5</div>
+            <div class="stat-label">{{ __('ui.hit_rate') }}</div>
         </div>
         <div class="stat">
             <div class="stat-value" id="mrr">—</div>
-            <div class="stat-label">MRR</div>
+            <div class="stat-label">{{ __('ui.mrr') }}</div>
         </div>
         <div class="stat">
             <div class="stat-value" id="avg-similarity">—</div>
-            <div class="stat-label">Avg Top-1 Similarity</div>
+            <div class="stat-label">{{ __('ui.avg_top1_similarity') }}</div>
         </div>
         <div class="stat">
             <div class="stat-value" id="avg-latency">—</div>
-            <div class="stat-label">Avg Latency (ms)</div>
+            <div class="stat-label">{{ __('ui.avg_latency_ms') }}</div>
         </div>
     </div>
 
     {{-- Test queries input: JSON textarea for entering evaluation queries --}}
     <div class="card">
-        <h2 style="margin-bottom: 12px;">Test Queries</h2>
+        <h2 style="margin-bottom: 12px;">{{ __('ui.test_queries') }}</h2>
         <p style="margin-bottom: 12px; color: #6b7280; font-size: 13px;">
-            Enter test queries in JSON format. Each query can optionally specify expected KU IDs for hit rate calculation.
+            {{ __('ui.test_queries_hint') }}
         </p>
         <textarea id="test-queries" placeholder='[
   {"query": "How do I reset my password?", "expected_ku_ids": [1]},
@@ -77,12 +77,12 @@
   {"query": "Shipping is delayed"}
 ]'></textarea>
         <br><br>
-        <button class="btn btn-primary" onclick="runEvaluation()" id="run-btn">Run Evaluation</button>
+        <button class="btn btn-primary" onclick="runEvaluation()" id="run-btn">{{ __('ui.run_evaluation') }}</button>
     </div>
 
     {{-- Results container: populated by JS after running evaluation --}}
     <div class="card" id="results-card" style="display: none;">
-        <h2 style="margin-bottom: 12px;">Results</h2>
+        <h2 style="margin-bottom: 12px;">{{ __('ui.results') }}</h2>
         <div id="results-container"></div>
     </div>
 </div>
@@ -106,7 +106,7 @@ async function runEvaluation() {
     }
 
     btn.disabled = true;
-    btn.textContent = 'Running...';
+    btn.textContent = '{{ __('ui.running') }}';
 
     const results = [];
     let totalLatency = 0;
@@ -213,7 +213,7 @@ async function runEvaluation() {
     });
 
     btn.disabled = false;
-    btn.textContent = 'Run Evaluation';
+    btn.textContent = '{{ __('ui.run_evaluation') }}';
 }
 
 function escapeHtml(text) {

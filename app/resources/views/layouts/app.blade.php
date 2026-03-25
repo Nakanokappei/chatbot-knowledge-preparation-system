@@ -82,14 +82,14 @@
     {{-- Top navigation bar: hamburger menu, app title, nav links, and user dropdown --}}
     <div class="topbar">
         <div class="topbar-left">
-            <button class="hamburger" onclick="toggleSidebar()" title="Toggle sidebar">
+            <button class="hamburger" onclick="toggleSidebar()" title="{{ __('ui.toggle_sidebar') }}">
                 <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
                     <line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/>
                 </svg>
             </button>
             <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
-                <a href="{{ route('cost') }}" class="{{ request()->routeIs('cost') ? 'active' : '' }}">Usage</a>
+                <a href="{{ route('cost') }}" class="{{ request()->routeIs('cost') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
                 <a href="{{ route('settings.models') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
             </nav>
         </div>

@@ -41,14 +41,14 @@
 <body>
     <div class="container">
         <a href="{{ route('knowledge-units.show', $ku) }}" class="back">&larr; Back to KU #{{ $ku->id }}</a>
-        <h1>Version History — {{ $ku->topic }}</h1>
+        <h1>{{ __('ui.version_history') }} — {{ $ku->topic }}</h1>
         <p class="subtitle">KU #{{ $ku->id }} &middot; Current: v{{ $ku->version }} &middot; {{ $ku->review_status }}</p>
 
         <div class="card">
-            <h2>Timeline</h2>
+            <h2>{{ __('ui.timeline') }}</h2>
 
             @if($versions->isEmpty() && $reviews->isEmpty())
-                <div class="empty">No version history yet.</div>
+                <div class="empty">{{ __('ui.no_version_history') }}</div>
             @else
                 {{-- Merge versions and reviews into a single timeline sorted by date --}}
                 @php
@@ -81,30 +81,30 @@
                             @if($event['type'] === 'version')
                                 <div class="timeline-dot dot-version"></div>
                                 <div class="timeline-header">
-                                    <span class="timeline-title">Version {{ $event['version'] }}</span>
+                                    <span class="timeline-title">{{ __('ui.version') }} {{ $event['version'] }}</span>
                                     <span class="timeline-date">{{ $event['date']->format('Y-m-d H:i') }}</span>
                                 </div>
                                 @if($event['snapshot'])
                                     <div class="snapshot">
                                         <dl>
                                             @if(isset($event['snapshot']['topic']))
-                                                <dt>Topic</dt>
+                                                <dt>{{ __('ui.topic') }}</dt>
                                                 <dd>{{ $event['snapshot']['topic'] }}</dd>
                                             @endif
                                             @if(isset($event['snapshot']['intent']))
-                                                <dt>Intent</dt>
+                                                <dt>{{ __('ui.intent') }}</dt>
                                                 <dd>{{ $event['snapshot']['intent'] }}</dd>
                                             @endif
                                             @if(isset($event['snapshot']['summary']))
-                                                <dt>Summary</dt>
+                                                <dt>{{ __('ui.summary') }}</dt>
                                                 <dd>{{ Str::limit($event['snapshot']['summary'], 300) }}</dd>
                                             @endif
                                             @if(!empty($event['snapshot']['edit_comment']))
-                                                <dt>Edit Comment</dt>
+                                                <dt>{{ __('ui.edit_comment') }}</dt>
                                                 <dd>{{ $event['snapshot']['edit_comment'] }}</dd>
                                             @endif
                                             @if(isset($event['snapshot']['review_status']))
-                                                <dt>Status</dt>
+                                                <dt>{{ __('ui.status') }}</dt>
                                                 <dd><span class="badge badge-{{ $event['snapshot']['review_status'] }}">{{ $event['snapshot']['review_status'] }}</span></dd>
                                             @endif
                                         </dl>
@@ -114,7 +114,7 @@
                                 <div class="timeline-dot dot-review"></div>
                                 <div class="timeline-header">
                                     <span class="timeline-title">
-                                        Review: <span class="badge badge-{{ $event['status'] }}">{{ $event['status'] }}</span>
+                                        {{ __('ui.review') }}: <span class="badge badge-{{ $event['status'] }}">{{ $event['status'] }}</span>
                                     </span>
                                     <span class="timeline-date">{{ $event['date']->format('Y-m-d H:i') }}</span>
                                 </div>

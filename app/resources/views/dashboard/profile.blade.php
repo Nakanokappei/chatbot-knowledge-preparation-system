@@ -14,7 +14,7 @@
 @section('body')
     <div class="page-content">
         <div class="page-container" style="max-width: 600px;">
-            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Profile Settings</h1>
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.profile_settings') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">
                 Tenant: {{ $user->tenant->name ?? 'N/A' }} · Joined: {{ $user->created_at->format('Y-m-d') }}
             </p>
@@ -28,29 +28,29 @@
 
             {{-- Profile update form: name and email --}}
             <div class="card">
-                <h2>Profile</h2>
+                <h2>{{ __('ui.profile') }}</h2>
                 <form method="POST" action="{{ route('profile.update') }}">
                     @csrf @method('PUT')
-                    <label for="name">Name</label>
+                    <label for="name">{{ __('ui.name') }}</label>
                     <input type="text" name="name" id="name" value="{{ old('name', $user->name) }}" required>
-                    <label for="email">Email</label>
+                    <label for="email">{{ __('ui.email') }}</label>
                     <input type="email" name="email" id="email" value="{{ old('email', $user->email) }}" required>
-                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.save') }}</button>
                 </form>
             </div>
 
             {{-- Password change form: current password + new password with confirmation --}}
             <div class="card">
-                <h2>Change Password</h2>
+                <h2>{{ __('ui.change_password') }}</h2>
                 <form method="POST" action="{{ route('profile.password') }}">
                     @csrf @method('PUT')
-                    <label for="current_password">Current Password</label>
+                    <label for="current_password">{{ __('ui.current_password') }}</label>
                     <input type="password" name="current_password" id="current_password" required>
-                    <label for="password">New Password</label>
+                    <label for="password">{{ __('ui.new_password') }}</label>
                     <input type="password" name="password" id="password" required>
-                    <label for="password_confirmation">Confirm New Password</label>
+                    <label for="password_confirmation">{{ __('ui.confirm_new_password') }}</label>
                     <input type="password" name="password_confirmation" id="password_confirmation" required>
-                    <button type="submit" class="btn btn-primary">Change Password</button>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.change_password') }}</button>
                 </form>
             </div>
         </div>

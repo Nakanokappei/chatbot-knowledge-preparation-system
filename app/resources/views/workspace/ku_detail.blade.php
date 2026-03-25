@@ -38,14 +38,14 @@
                             <form method="POST" action="{{ route('knowledge-units.review', $ku) }}">
                                 @csrf
                                 <input type="hidden" name="status" value="approved">
-                                <button type="submit" class="btn btn-success">Approve</button>
+                                <button type="submit" class="btn btn-success">{{ __('ui.approve') }}</button>
                             </form>
                         @endif
                         @if($ku->review_status !== 'rejected')
                             <form method="POST" action="{{ route('knowledge-units.review', $ku) }}">
                                 @csrf
                                 <input type="hidden" name="status" value="rejected">
-                                <button type="submit" class="btn btn-danger">Reject</button>
+                                <button type="submit" class="btn btn-danger">{{ __('ui.reject') }}</button>
                             </form>
                         @endif
                     </div>
@@ -54,7 +54,7 @@
 
             {{-- Editable fields form: all KU content fields with save button --}}
             <div class="card">
-                <h2>Details</h2>
+                <h2>{{ __('ui.details') }}</h2>
                 <form method="POST" action="{{ route('knowledge-units.update', $ku) }}">
                     @csrf
                     @method('PUT')
@@ -67,7 +67,7 @@
                         <input type="text" name="intent" value="{{ $ku->intent }}">
                     </div>
                     <div class="field">
-                        <label>Question</label>
+                        <label>{{ __('ui.question') }}</label>
                         <textarea name="question">{{ $ku->question }}</textarea>
                     </div>
                     <div class="field">
@@ -75,40 +75,40 @@
                         <textarea name="summary">{{ $ku->summary }}</textarea>
                     </div>
                     <div class="field">
-                        <label>Symptoms</label>
+                        <label>{{ __('ui.symptoms') }}</label>
                         <textarea name="symptoms">{{ $ku->symptoms }}</textarea>
                     </div>
                     <div class="field">
-                        <label>Root Cause</label>
+                        <label>{{ __('ui.root_cause') }}</label>
                         <textarea name="root_cause">{{ $ku->root_cause }}</textarea>
                     </div>
                     <div class="field">
-                        <label>Resolution Summary</label>
+                        <label>{{ __('ui.resolution_summary') }}</label>
                         <textarea name="resolution_summary">{{ $ku->resolution_summary }}</textarea>
                     </div>
                     <div class="field">
-                        <label>Cause Summary</label>
+                        <label>{{ __('ui.cause_summary') }}</label>
                         <textarea name="cause_summary">{{ $ku->cause_summary }}</textarea>
                     </div>
                     <div style="display: flex; gap: 16px;">
                         <div class="field" style="flex: 1;">
-                            <label>Product</label>
+                            <label>{{ __('ui.product') }}</label>
                             <input type="text" name="product" value="{{ $ku->product }}">
                         </div>
                         <div class="field" style="flex: 1;">
-                            <label>Category</label>
+                            <label>{{ __('ui.category') }}</label>
                             <input type="text" name="category" value="{{ $ku->category }}">
                         </div>
                     </div>
                     <div class="field">
-                        <label>Notes</label>
+                        <label>{{ __('ui.notes') }}</label>
                         <textarea name="notes">{{ $ku->notes }}</textarea>
                     </div>
                     <div class="field">
-                        <label>Edit Comment</label>
+                        <label>{{ __('ui.edit_comment') }}</label>
                         <input type="text" name="edit_comment" placeholder="Describe your changes...">
                     </div>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.save_changes') }}</button>
                 </form>
             </div>
 
@@ -120,7 +120,7 @@
                         <span class="keyword">{{ $keyword }}</span>
                     @endforeach
                     @if(empty($ku->keywords_json))
-                        <span style="color: #5f6368; font-size: 13px;">No keywords</span>
+                        <span style="color: #5f6368; font-size: 13px;">{{ __('ui.no_keywords') }}</span>
                     @endif
                 </div>
             </div>
@@ -138,7 +138,7 @@
             @endif
 
             <div style="margin-top: 16px;">
-                <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-outline">Version History</a>
+                <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-outline">{{ __('ui.version_history') }}</a>
             </div>
         </div>
     </div>

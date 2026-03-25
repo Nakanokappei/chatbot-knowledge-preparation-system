@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Knowledge Dataset</title>
+    <title>{{ __('ui.create_knowledge_dataset') }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
@@ -35,19 +35,19 @@
 <body>
 <div class="container">
     <div class="nav">
-        <a href="{{ route('kd.index') }}">Datasets</a> / <strong>New Dataset</strong>
+        <a href="{{ route('kd.index') }}">{{ __('ui.datasets') }}</a> / <strong>{{ __('ui.new_dataset') }}</strong>
     </div>
 
-    <h1>Create Knowledge Dataset</h1>
+    <h1>{{ __('ui.create_knowledge_dataset') }}</h1>
 
     <div class="card">
         <form method="POST" action="{{ route('kd.store') }}">
             @csrf
 
-            <label for="name">Dataset Name</label>
+            <label for="name">{{ __('ui.dataset_name') }}</label>
             <input type="text" name="name" id="name" value="{{ old('name') }}" required placeholder="e.g. Customer Support v1">
 
-            <label for="description">Description (optional)</label>
+            <label for="description">{{ __('ui.description_optional') }}</label>
             <textarea name="description" id="description" placeholder="What is this dataset for?">{{ old('description') }}</textarea>
 
             @error('knowledge_unit_ids')
@@ -59,9 +59,9 @@
 
             <div class="ku-list">
                 <div class="select-bar">
-                    <a onclick="document.querySelectorAll('.ku-checkbox').forEach(c => c.checked = true)">Select All</a>
-                    <a onclick="document.querySelectorAll('.ku-checkbox').forEach(c => c.checked = false)">Deselect All</a>
-                    <span id="selected-count" style="margin-left: auto;">0 selected</span>
+                    <a onclick="document.querySelectorAll('.ku-checkbox').forEach(c => c.checked = true)">{{ __('ui.select_all_btn') }}</a>
+                    <a onclick="document.querySelectorAll('.ku-checkbox').forEach(c => c.checked = false)">{{ __('ui.deselect_all') }}</a>
+                    <span id="selected-count" style="margin-left: auto;">0 {{ __('ui.selected') }}</span>
                 </div>
                 @forelse($approvedKUs as $ku)
                     <label class="ku-item">
@@ -79,13 +79,13 @@
                     </label>
                 @empty
                     <div style="padding: 20px; text-align: center; color: #6b7280;">
-                        No approved Knowledge Units available. Review and approve KUs first.
+                        {{ __('ui.no_approved_kus') }}
                     </div>
                 @endforelse
             </div>
 
             <button type="submit" class="btn btn-primary" {{ $approvedKUs->isEmpty() ? 'disabled' : '' }}>
-                Create Dataset
+                {{ __('ui.create_dataset') }}
             </button>
         </form>
     </div>
@@ -95,7 +95,7 @@
 // Update the selected checkbox count display
 function updateCount() {
     const checked = document.querySelectorAll('.ku-checkbox:checked').length;
-    document.getElementById('selected-count').textContent = checked + ' selected';
+    document.getElementById('selected-count').textContent = checked + ' {{ __('ui.selected') }}';
 }
 // Initialize count on page load
 updateCount();
