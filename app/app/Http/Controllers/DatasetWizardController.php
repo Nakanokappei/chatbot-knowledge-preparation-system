@@ -406,8 +406,17 @@ class DatasetWizardController extends Controller
             $pipelineConfig['knowledge_mapping'] = $knowledgeMapping;
 
             // Send to SQS
-            $sqsUrl = env('SQS_PREFIX', '') . '/' . env('SQS_QUEUE', 'ckps-pipeline-dev');
-            if (env('SQS_PREFIX')) {
+            $sqsUrl = env('SQS_QUEUE_URL');
+            if (!$sqsUrl) {
+                // Build URL from prefix + queue name as fallback
+                $prefix = env('SQS_PREFIX', '');
+                $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
+                if ($prefix) {
+                    $sqsUrl = $prefix . '/' . $queue;
+                }
+            }
+
+            if ($sqsUrl) {
                 $sqs = new SqsClient([
                     'region' => env('SQS_REGION', 'ap-northeast-1'),
                     'version' => 'latest',
@@ -423,6 +432,10 @@ class DatasetWizardController extends Controller
                         'pipeline_config' => $pipelineConfig,
                     ]),
                 ]);
+
+                Log::info("Pipeline job {$pipelineJob->id} dispatched to SQS");
+            } else {
+                Log::warning("SQS not configured — job {$pipelineJob->id} created but not dispatched");
             }
 
             DB::commit();
@@ -509,6 +522,7 @@ class DatasetWizardController extends Controller
         }
 
         $name = $dataset->name;
+        $tenantId = auth()->user()->tenant_id;
 
         // Delete related pipeline jobs first (they reference dataset_id)
         \App\Models\PipelineJob::where('dataset_id', $dataset->id)->delete();
@@ -516,6 +530,20 @@ class DatasetWizardController extends Controller
         // Delete rows (cascade should handle this, but be explicit)
         DatasetRow::where('dataset_id', $dataset->id)->delete();
         $dataset->delete();
+
+        // Check if all datasets are now gone and orphaned jobs remain
+        $remainingDatasets = Dataset::where('tenant_id', $tenantId)->count();
+        if ($remainingDatasets === 0) {
+            $orphanedJobs = \App\Models\PipelineJob::where('tenant_id', $tenantId)
+                ->whereIn('status', ['failed', 'submitted'])
+                ->count();
+
+            if ($orphanedJobs > 0) {
+                return redirect()->route('workspace.index')
+                    ->with('success', "Dataset \"{$name}\" deleted.")
+                    ->with('confirm_cleanup', $orphanedJobs);
+            }
+        }
 
         return redirect()->route('workspace.index')
             ->with('success', "Dataset \"{$name}\" deleted.");

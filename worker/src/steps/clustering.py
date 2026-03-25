@@ -374,10 +374,30 @@ def run_clustering(
             f"Supported: {list(CLUSTERING_METHODS.keys())}"
         )
 
-    # Merge user params over defaults
+    # Merge user params over defaults.
+    # Form params arrive with method prefix (e.g. "hdbscan_min_cluster_size"),
+    # so strip the prefix and keep only params relevant to the selected method.
     effective_params = dict(DEFAULT_PARAMS.get(method, {}))
     if params:
-        effective_params.update(params)
+        prefix = method + "_"
+        cleaned = {}
+        for key, value in params.items():
+            if key.startswith(prefix):
+                cleaned[key[len(prefix):]] = value
+            elif "_" not in key or not any(key.startswith(m + "_") for m in CLUSTERING_METHODS):
+                # Keep params without a method prefix (generic params)
+                cleaned[key] = value
+        # Cast numeric strings to appropriate types
+        for key, value in cleaned.items():
+            if isinstance(value, str):
+                try:
+                    cleaned[key] = int(value)
+                except ValueError:
+                    try:
+                        cleaned[key] = float(value)
+                    except ValueError:
+                        pass
+        effective_params.update(cleaned)
 
     logger.info("Clustering method: %s, params: %s", method, effective_params)
 

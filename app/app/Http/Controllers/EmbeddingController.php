@@ -83,17 +83,18 @@ class EmbeddingController extends Controller
             ->limit(200)
             ->get();
 
+        // Compute stats before any filtering (use filter() to avoid mutating)
         $jobStats = [
             'total' => $allJobs->count(),
-            'completed' => $allJobs->where('status', 'completed')->count(),
-            'processing' => $allJobs->whereNotIn('status', ['completed', 'failed', 'submitted'])->count(),
-            'failed' => $allJobs->where('status', 'failed')->count(),
+            'completed' => $allJobs->filter(fn($j) => $j->status === 'completed')->count(),
+            'processing' => $allJobs->filter(fn($j) => !in_array($j->status, ['completed', 'failed']))->count(),
+            'failed' => $allJobs->filter(fn($j) => $j->status === 'failed')->count(),
         ];
 
         $filteredJobs = match ($pipelineFilter) {
-            'completed' => $allJobs->where('status', 'completed'),
-            'processing' => $allJobs->whereNotIn('status', ['completed', 'failed', 'submitted']),
-            'failed' => $allJobs->where('status', 'failed'),
+            'completed' => $allJobs->filter(fn($j) => $j->status === 'completed'),
+            'processing' => $allJobs->filter(fn($j) => !in_array($j->status, ['completed', 'failed'])),
+            'failed' => $allJobs->filter(fn($j) => $j->status === 'failed'),
             default => $allJobs,
         };
 
@@ -239,18 +240,59 @@ class EmbeddingController extends Controller
      */
     public function destroy(int $embeddingId)
     {
-        $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
+        $tenantId = auth()->user()->tenant_id;
+        $embedding = Embedding::where('tenant_id', $tenantId)
             ->findOrFail($embeddingId);
 
         $name = $embedding->name;
+        $datasetId = $embedding->dataset_id;
 
-        // Delete related KUs
+        // Find the next embedding to select after deletion
+        // Get all embeddings for the same dataset, ordered
+        $siblings = Embedding::where('tenant_id', $tenantId)
+            ->where('dataset_id', $datasetId)
+            ->orderBy('created_at', 'desc')
+            ->pluck('id')
+            ->toArray();
+
+        $currentIdx = array_search($embeddingId, $siblings);
+        $nextId = null;
+
+        if ($currentIdx !== false && count($siblings) > 1) {
+            // Try same position, or the one before
+            if (isset($siblings[$currentIdx + 1])) {
+                $nextId = $siblings[$currentIdx + 1];
+            } elseif ($currentIdx > 0) {
+                $nextId = $siblings[$currentIdx - 1];
+            }
+        }
+
+        // Delete related KUs and the embedding
         KnowledgeUnit::where('embedding_id', $embeddingId)->delete();
-
-        // Delete the embedding itself
         $embedding->delete();
+
+        // Redirect to the next sibling embedding, or workspace root
+        if ($nextId) {
+            return redirect()->route('workspace.embedding', $nextId)
+                ->with('success', "Deleted: {$name}");
+        }
 
         return redirect()->route('workspace.index')
             ->with('success', "Deleted: {$name}");
+    }
+
+    /**
+     * Delete all orphaned pipeline jobs (failed/submitted jobs with no matching dataset).
+     */
+    public function cleanupJobs(): \Illuminate\Http\RedirectResponse
+    {
+        $tenantId = auth()->user()->tenant_id;
+
+        $deleted = PipelineJob::where('tenant_id', $tenantId)
+            ->whereIn('status', ['failed', 'submitted'])
+            ->delete();
+
+        return redirect()->route('workspace.index', ['pipeline' => 'jobs', 'pf' => 'all'])
+            ->with('success', "Cleaned up {$deleted} job(s).");
     }
 }

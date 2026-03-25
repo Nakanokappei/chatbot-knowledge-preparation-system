@@ -446,7 +446,11 @@
             });
 
             // Drop zone for empty list or appending to end
-            dropZone.style.display = selectedColumns.length === 0 ? 'block' : 'none';
+            // Always show drop zone — change text based on state
+            dropZone.style.display = 'block';
+            dropZone.textContent = selectedColumns.length === 0
+                ? 'Drag columns here or click + to add'
+                : 'Drop here to add to end';
             dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('over'); };
             dropZone.ondragleave = () => dropZone.classList.remove('over');
             dropZone.ondrop = (e) => {

@@ -209,7 +209,7 @@
                                 </td>
                                 <!-- Right: date + status icon -->
                                 <td style="white-space: nowrap; text-align: right; vertical-align: top;">
-                                    <div style="font-size: 12px; color: #5f6368;">{{ $job->created_at->format('m/d H:i') }}</div>
+                                    <div style="font-size: 12px; color: #5f6368;"><time datetime="{{ $job->created_at->toIso8601String() }}">{{ $job->created_at->format('m/d H:i') }}</time></div>
                                     <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($job->progress > 0 && $job->progress < 100)
                                             <div class="progress-bar" style="width: 60px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle;">

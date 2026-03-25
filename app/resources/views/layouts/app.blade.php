@@ -132,6 +132,24 @@
             if (!sidebar) return;
             sidebar.classList.toggle('collapsed');
         }
+
+        // Convert all <time> elements with datetime attribute to local time
+        function localizeTimestamps() {
+            document.querySelectorAll('time[datetime]').forEach(el => {
+                const utc = new Date(el.getAttribute('datetime'));
+                if (isNaN(utc)) return;
+                const fmt = el.dataset.format || 'short';
+                if (fmt === 'date') {
+                    el.textContent = utc.toLocaleDateString(undefined, { month: '2-digit', day: '2-digit' });
+                } else if (fmt === 'full') {
+                    el.textContent = utc.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                } else {
+                    el.textContent = utc.toLocaleString(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', localizeTimestamps);
+
         @yield('scripts')
     </script>
 </body>

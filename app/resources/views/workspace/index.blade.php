@@ -118,7 +118,7 @@
                 @endforelse
 
                 <!-- Pipeline section -->
-                <div style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
+                <div id="pipeline-sidebar" style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">
                     <div style="padding: 6px 12px; font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px;">{{ __('ui.pipeline') }}</div>
 
                     <a href="?pipeline=jobs&pf=all"
@@ -200,7 +200,7 @@
                                     </div>
                                 </td>
                                 <td style="white-space: nowrap; text-align: right; vertical-align: top;">
-                                    <div style="font-size: 12px; color: #5f6368;">{{ $job->created_at->format('m/d H:i') }}</div>
+                                    <div style="font-size: 12px; color: #5f6368;"><time datetime="{{ $job->created_at->toIso8601String() }}">{{ $job->created_at->format('m/d H:i') }}</time></div>
                                     <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($job->progress > 0 && $job->progress < 100)
                                             <div style="width: 60px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle;">
@@ -363,7 +363,7 @@
                                 @endif
                                 <tr>
                                     <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.created') }}</td>
-                                    <td style="padding: 3px 0; border: none;">{{ $current->created_at->format('Y/m/d H:i') }}</td>
+                                    <td style="padding: 3px 0; border: none;"><time datetime="{{ $current->created_at->toIso8601String() }}" data-format="full">{{ $current->created_at->format('Y/m/d H:i') }}</time></td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.rows') }}</td>
@@ -790,11 +790,30 @@
                 if (!response.ok) return;
                 const html = await response.text();
                 const doc = new DOMParser().parseFromString(html, 'text/html');
+                // Refresh job list
                 const freshJobs = doc.getElementById('job-list');
                 const currentJobs = document.getElementById('job-list');
                 if (freshJobs && currentJobs) currentJobs.innerHTML = freshJobs.innerHTML;
+                // Refresh sidebar counts
+                const freshSidebar = doc.getElementById('pipeline-sidebar');
+                const currentSidebar = document.getElementById('pipeline-sidebar');
+                if (freshSidebar && currentSidebar) currentSidebar.innerHTML = freshSidebar.innerHTML;
+                localizeTimestamps();
             } catch (e) { }
         }
         setInterval(refreshJobList, 5000);
+        @endif
+
+        // Show cleanup confirmation after last dataset is deleted
+        @if(session('confirm_cleanup'))
+        if (confirm('All datasets have been deleted. There are {{ session('confirm_cleanup') }} failed/pending job(s) remaining.\n\nWould you like to clean these up as well?')) {
+            fetch('{{ route('workspace.cleanup-jobs') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
+            }).then(() => window.location.reload());
+        }
         @endif
 @endsection

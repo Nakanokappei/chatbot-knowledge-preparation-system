@@ -45,6 +45,7 @@ services:
       DB_DATABASE: knowledge_prep
       DB_USERNAME: ckps_user
       DB_PASSWORD: ckps_local_password
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-}
       SQS_PREFIX: ${SQS_PREFIX:-}
       SQS_QUEUE: ${SQS_QUEUE:-ckps-pipeline-dev}
       SQS_REGION: ${SQS_REGION:-ap-northeast-1}

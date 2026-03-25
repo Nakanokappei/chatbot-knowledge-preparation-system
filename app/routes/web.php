@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/workspace/{embeddingId}/bulk-status', [EmbeddingController::class, 'bulkUpdateStatus'])->name('workspace.ku.bulk-status');
     Route::put('/workspace/{embeddingId}/rename', [EmbeddingController::class, 'rename'])->name('workspace.rename');
     Route::delete('/workspace/{embeddingId}', [EmbeddingController::class, 'destroy'])->name('workspace.destroy');
+    Route::post('/workspace/cleanup-jobs', [EmbeddingController::class, 'cleanupJobs'])->name('workspace.cleanup-jobs');
     Route::get('/workspace/{embeddingId}/export', [EmbeddingController::class, 'export'])->name('workspace.export');
     Route::post('/workspace/{embeddingId}/chat', [\App\Http\Controllers\EmbeddingChatController::class, 'chat'])->name('workspace.chat');
 
