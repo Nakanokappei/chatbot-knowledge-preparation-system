@@ -229,7 +229,7 @@
                     </div>
 
                     {{-- Primary Filter (required) --}}
-                    <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_primary_filter') }} <sup style="color: #d93025; font-size: 9px; font-weight: normal;">{{ __('ui.required_field') }}</sup></label>
+                    <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_primary_filter') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <select name="km_product_source" id="km-product-source" onchange="toggleKmLlm('product')" required
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
