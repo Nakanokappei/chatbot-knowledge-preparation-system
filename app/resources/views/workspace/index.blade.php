@@ -13,7 +13,8 @@
         .sidebar.collapsed .tree-dataset-name,
         .sidebar.collapsed .tree-emb-label,
         .sidebar.collapsed .tree-children,
-        .sidebar.collapsed .tree-create-link { display: none; }
+        .sidebar.collapsed .tree-create-link,
+        .sidebar.collapsed .tree-dataset-menu { display: none; }
         .sidebar.collapsed .tree-dataset-header { justify-content: center; padding: 7px 0; position: relative; flex-direction: column; gap: 0; align-items: center; }
         .sidebar.collapsed .tree-toggle { display: none; }
         .sidebar.collapsed .tree-dataset-count { font-size: 9px; position: absolute; bottom: -2px; right: 2px; }
@@ -27,13 +28,17 @@
 
         /* Tree: dataset node (parent) */
         .tree-dataset { margin-bottom: 2px; }
-        .tree-dataset-header { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; border-radius: 0 100px 100px 0; cursor: pointer; transition: background 0.15s; user-select: none; margin-right: 8px; }
+        .tree-dataset-header { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; border-radius: 0 100px 100px 0; cursor: pointer; transition: background 0.15s; user-select: none; margin-right: 8px; position: relative; }
         .tree-dataset-header:hover { background: #E9E9E9; }
-        .tree-toggle { font-size: 9px; color: #5f6368; width: 12px; text-align: center; flex-shrink: 0; transition: transform 0.15s; }
+        .tree-toggle { font-size: 9px; color: #5f6368; width: 12px; text-align: center; flex-shrink: 0; transition: transform 0.15s; cursor: pointer; }
         .tree-toggle.open { transform: rotate(90deg); }
         .tree-icon { flex-shrink: 0; color: #5f6368; }
         .tree-dataset-name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
         .tree-dataset-count { font-size: 12px; color: #5f6368; flex-shrink: 0; }
+        .tree-dataset-menu { display: none; flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: none; background: transparent; cursor: pointer; font-size: 14px; color: #5f6368; line-height: 24px; text-align: center; padding: 0; }
+        .tree-dataset-header:hover .tree-dataset-menu { display: flex; align-items: center; justify-content: center; }
+        .tree-dataset-header:hover .tree-dataset-count { display: none; }
+        .tree-dataset-menu:hover { background: #dadce0; color: #202124; }
 
         /* Tree: embedding node (child) — left edge flush with window */
         .tree-children { padding-left: 0; margin-left: 0; overflow: hidden; transition: max-height 0.2s ease; }
@@ -82,6 +87,7 @@
                 @forelse($datasets as $ds)
                     @php
                         $hasActiveChild = $current && $ds->embeddings->contains('id', $current->id);
+                        $hasStoredCsv = !empty($ds->schema_json['stored_path']);
                     @endphp
                     <div class="tree-dataset">
                         <div class="tree-dataset-header" onclick="toggleTree(this)">
@@ -91,6 +97,10 @@
                             </svg>
                             <span class="tree-dataset-name">{{ $ds->name }}</span>
                             <span class="tree-dataset-count">{{ $ds->row_count }}</span>
+                            @if($hasStoredCsv)
+                                <a href="{{ route('dataset.configure', $ds) }}" class="tree-dataset-menu"
+                                   onclick="event.stopPropagation();" title="{{ __('ui.reconfigure') }}">⋯</a>
+                            @endif
                         </div>
                         <div class="tree-children {{ !$hasActiveChild && !$loop->first ? 'collapsed' : '' }}"
                              style="max-height: {{ ($hasActiveChild || $loop->first) ? ($ds->embeddings->count() * 40 + 80) . 'px' : '0' }};">
@@ -105,7 +115,7 @@
                                         <line x1="4.2" y1="10.6" x2="9.8" y2="7.4" stroke="currentColor" stroke-width="0.8"/>
                                     </svg>
                                     <span class="tree-emb-label">{{ $emb->name }}</span>
-                                    <span class="tree-emb-count">{{ $emb->row_count }}</span>
+                                    <span class="tree-emb-count">{{ $emb->knowledge_units_count > 0 ? $emb->knowledge_units_count : $emb->row_count }}</span>
                                 </a>
                             @empty
                                 <div style="padding: 4px 32px; font-size: 11px; color: #aaa;">{{ __('ui.no_embeddings') }}</div>
@@ -242,7 +252,11 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <h2 id="emb-title" style="font-size: 18px; font-weight: 600; cursor: pointer;"
                                 onclick="startRename()" title="Click to rename">{{ $current->name }}</h2>
-                            <button onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #5f6368; font-size: 13px;" title="{{ __('ui.rename') }}">✏️</button>
+                            <button id="rename-pen" onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #5f6368; padding: 2px;" title="{{ __('ui.rename') }}">
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"/>
+                                </svg>
+                            </button>
                         </div>
                         <!-- Rename form (hidden) -->
                         <form id="rename-form" method="POST" action="{{ route('workspace.rename', $current->id) }}"
@@ -268,15 +282,13 @@
                         <!-- Summary cards -->
                         <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
                             @if($cl)
-                                <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;">
+                                <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
+                                    <div style="font-size: 11px; color: #5f6368;">&nbsp;</div>
                                     <div style="font-size: 20px; font-weight: 700;">{{ $cl['n_clusters'] ?? '?' }}</div>
                                     <div style="font-size: 11px; color: #5f6368;">{{ __('ui.clusters') }}</div>
                                 </div>
                                 @if(isset($cl['silhouette_score']))
                                 @php
-                                    // Text embeddings produce structurally lower silhouette scores
-                                    // than numeric data due to high dimensionality and soft cluster
-                                    // boundaries. Thresholds are calibrated for text clustering.
                                     $sil = $cl['silhouette_score'];
                                     if ($sil >= 0.5)       { $silBg = '#d4edda'; $silColor = '#155724'; $silLabel = __('ui.silhouette_excellent'); }
                                     elseif ($sil >= 0.3)   { $silBg = '#e8f5e9'; $silColor = '#2e7d32'; $silLabel = __('ui.silhouette_good'); }
@@ -284,14 +296,16 @@
                                     elseif ($sil >= 0.0)   { $silBg = '#F6F6F6'; $silColor = '#555';    $silLabel = __('ui.silhouette_typical'); }
                                     else                   { $silBg = '#f8d7da'; $silColor = '#721c24'; $silLabel = __('ui.silhouette_poor'); }
                                 @endphp
-                                <div style="background: {{ $silBg }}; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;"
-                                     title="Text embeddings typically score 0.0–0.3 due to high dimensionality. Scores above 0.1 indicate meaningful cluster separation.">
+                                <div style="background: {{ $silBg }}; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;"
+                                     title="Text embeddings typically score 0.0–0.3 due to high dimensionality.">
+                                    <div style="font-size: 11px; color: {{ $silColor }};">{{ $silLabel }}</div>
                                     <div style="font-size: 20px; font-weight: 700; color: {{ $silColor }};">{{ number_format($sil, 3) }}</div>
-                                    <div style="font-size: 11px; color: {{ $silColor }};">{{ __('ui.silhouette') }} · {{ $silLabel }}</div>
+                                    <div style="font-size: 11px; color: {{ $silColor }};">{{ __('ui.silhouette') }}</div>
                                 </div>
                                 @endif
                                 @if(isset($cl['n_noise']))
-                                <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 80px;">
+                                <div style="background: #F6F6F6; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
+                                    <div style="font-size: 11px; color: #5f6368;">&nbsp;</div>
                                     <div style="font-size: 20px; font-weight: 700;">{{ $cl['n_noise'] }}</div>
                                     <div style="font-size: 11px; color: #5f6368;">{{ __('ui.noise') }}</div>
                                 </div>
@@ -300,24 +314,28 @@
 
                             @if($statusCounts->get('draft', 0) > 0)
                             <div style="background: #f0f0f2; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
+                                <div style="font-size: 11px; color: #5f6368;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #5f6368;">{{ $statusCounts['draft'] }}</div>
                                 <div style="font-size: 11px; color: #5f6368;">Draft</div>
                             </div>
                             @endif
                             @if($statusCounts->get('reviewed', 0) > 0)
                             <div style="background: #fff3cd; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
+                                <div style="font-size: 11px; color: #856404;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #856404;">{{ $statusCounts['reviewed'] }}</div>
                                 <div style="font-size: 11px; color: #856404;">Reviewed</div>
                             </div>
                             @endif
                             @if($statusCounts->get('approved', 0) > 0)
                             <div style="background: #d4edda; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
+                                <div style="font-size: 11px; color: #155724;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #155724;">{{ $statusCounts['approved'] }}</div>
                                 <div style="font-size: 11px; color: #155724;">Approved</div>
                             </div>
                             @endif
                             @if($statusCounts->get('rejected', 0) > 0)
                             <div style="background: #f8d7da; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
+                                <div style="font-size: 11px; color: #721c24;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #721c24;">{{ $statusCounts['rejected'] }}</div>
                                 <div style="font-size: 11px; color: #721c24;">Rejected</div>
                             </div>
@@ -326,11 +344,11 @@
                         </div>
 
                         <!-- Detail list (contact-card style) + Chat button -->
-                        <div style="margin-top: 12px; font-size: 13px; border-top: 1px solid #f0f0f2; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-start;">
-                            <table style="border-collapse: collapse; width: auto;">
+                        <div style="margin-top: 12px; font-size: 13px; border-top: 1px solid #f0f0f2; padding-top: 10px; display: flex; align-items: center; gap: 24px;">
+                            <table style="border-collapse: collapse;">
                                 @if(isset($cl['clustering_method']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none; vertical-align: top;">{{ __('ui.method') }}</td>
+                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none; vertical-align: top;">{{ __('ui.method') }}</td>
                                     @php
                                         $methodNames = [
                                             'hdbscan' => 'HDBSCAN (density-based, auto)',
@@ -339,7 +357,7 @@
                                             'leiden' => 'HNSW + Leiden (graph community)',
                                         ];
                                     @endphp
-                                    <td style="padding: 3px 0; font-weight: 500; border: none;">{{ $methodNames[$cl['clustering_method']] ?? strtoupper($cl['clustering_method']) }}
+                                    <td style="padding: 4px 0; font-weight: 500; border: none; white-space: nowrap;">{{ $methodNames[$cl['clustering_method']] ?? strtoupper($cl['clustering_method']) }}
                                         @if(isset($cl['clustering_params']))
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px 16px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e0e0e2;">
                                             @foreach($cl['clustering_params'] as $pKey => $pVal)
@@ -354,8 +372,8 @@
                                 @endif
                                 @if(isset($cl['remove_language_bias']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.lang_debias') }}</td>
-                                    <td style="padding: 3px 0; border: none;">
+                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.lang_debias') }}</td>
+                                    <td style="padding: 4px 0; border: none;">
                                         @if($cl['remove_language_bias'])
                                             <span style="color: #30d158;">{{ __('ui.enabled') }}</span>
                                             @if(isset($cl['language_stats']) && is_array($cl['language_stats']) && count($cl['language_stats']) > 1)
@@ -371,21 +389,25 @@
                                 @endif
                                 @if($ca && isset($ca['model']))
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.llm') }}</td>
-                                    <td style="padding: 3px 0; font-weight: 500; border: none;">{{ Str::afterLast(Str::beforeLast($ca['model'], ':'), '.') }}</td>
+                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.llm') }}</td>
+                                    <td style="padding: 4px 0; font-weight: 500; border: none; white-space: nowrap;">{{ Str::afterLast(Str::beforeLast($ca['model'], ':'), '.') }}</td>
                                 </tr>
                                 @endif
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.created') }}</td>
-                                    <td style="padding: 3px 0; border: none;"><time datetime="{{ $current->created_at->toIso8601String() }}" data-format="full">{{ $current->created_at->format('Y/m/d H:i') }}</time></td>
+                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.created') }}</td>
+                                    <td style="padding: 4px 0; border: none;"><time datetime="{{ $current->created_at->toIso8601String() }}" data-format="full">{{ $current->created_at->format('Y/m/d H:i') }}</time></td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 3px 0; color: #5f6368; width: 100px; border: none;">{{ __('ui.rows') }}</td>
-                                    <td style="padding: 3px 0; border: none;">{{ $current->row_count }}</td>
+                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.rows') }}</td>
+                                    <td style="padding: 4px 0; border: none;">{{ $current->row_count }}</td>
                                 </tr>
                             </table>
+                            <div style="flex: 1;"></div>
+                            @php $hasApproved = ($statusCounts->get('approved', 0) > 0); @endphp
                             <button onclick="openChatOverlay()" class="btn btn-primary"
-                                style="padding: 12px 28px; font-size: 15px; border-radius: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; align-self: flex-start;">
+                                style="padding: 12px 28px; font-size: 15px; border-radius: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap; {{ !$hasApproved ? 'opacity: 0.4; pointer-events: none;' : '' }}"
+                                {{ !$hasApproved ? 'disabled' : '' }}
+                                title="{{ !$hasApproved ? __('ui.approve_ku_first') ?? 'Approve at least one KU to enable chat' : '' }}">
                                 💬 {{ __('ui.chat_with_data') }}
                             </button>
                         </div>
@@ -410,9 +432,27 @@
                     <p style="color: #34c759; font-size: 13px; margin-bottom: 16px;">✓ {{ session('success') }}</p>
                 @endif
 
-                @if($knowledgeUnits->isEmpty())
+                @if($embeddingJob && !in_array($embeddingJob->status, ['completed', 'failed']))
                     <div class="empty">
-                        <div class="empty-icon">📊</div>
+                        <div class="empty-icon" style="color: #ff9500;">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="24" cy="24" r="20"/><path d="M24 14v12l8 4"/>
+                            </svg>
+                        </div>
+                        <div class="empty-title">{{ __('ui.pipeline_processing') }}</div>
+                        <p>{{ __('ui.pipeline_processing_hint') }}</p>
+                        <div style="margin-top: 12px; width: 200px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden;">
+                            <div style="width: {{ $embeddingJob->progress }}%; height: 100%; background: #ff9500; border-radius: 2px; transition: width 0.3s;"></div>
+                        </div>
+                        <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">{{ $embeddingJob->progress }}%</div>
+                    </div>
+                @elseif($knowledgeUnits->isEmpty())
+                    <div class="empty">
+                        <div class="empty-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="6" y="30" width="8" height="12" rx="1"/><rect x="20" y="18" width="8" height="24" rx="1"/><rect x="34" y="6" width="8" height="36" rx="1"/>
+                            </svg>
+                        </div>
                         <div class="empty-title">{{ __('ui.no_clusters_yet') }}</div>
                         <p>{{ __('ui.run_pipeline_to_generate') }}</p>
                     </div>
@@ -504,7 +544,12 @@
                 @endif
             @else
                 <div class="empty">
-                    <div class="empty-icon">🗂</div>
+                    <div class="empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M6 12a2 2 0 012-2h10l4 4h18a2 2 0 012 2v20a2 2 0 01-2 2H8a2 2 0 01-2-2V12z"/>
+                            <line x1="16" y1="24" x2="32" y2="24"/><line x1="16" y1="30" x2="28" y2="30"/>
+                        </svg>
+                    </div>
                     <div class="empty-title">{{ __('ui.select_embedding') }}</div>
                     <p>{{ __('ui.select_embedding_hint') }}</p>
                 </div>
@@ -520,7 +565,7 @@
         <!-- Modal header (draggable look) -->
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px;
             background: #F3F3F3; border-radius: 12px 12px 0 0; cursor: default;">
-            <span style="font-size: 14px; font-weight: 600; color: #1d1d1f;">{{ __('ui.new_dataset') ?? 'New Dataset' }}</span>
+            <span style="font-size: 14px; font-weight: 400; color: #1d1d1f;">{{ __('ui.new_dataset') ?? 'New Dataset' }}</span>
             <button onclick="closeDispatchModal()" style="background: none; border: none; cursor: pointer;
                 color: #5f6368; font-size: 18px; line-height: 1; padding: 0 4px;">✕</button>
         </div>
@@ -645,6 +690,7 @@
         // Rename embedding inline
         function startRename() {
             document.getElementById('emb-title').style.display = 'none';
+            document.getElementById('rename-pen').style.display = 'none';
             document.getElementById('rename-form').style.display = 'block';
             const input = document.getElementById('rename-input');
             input.focus();
@@ -652,6 +698,7 @@
         }
         function cancelRename() {
             document.getElementById('emb-title').style.display = '';
+            document.getElementById('rename-pen').style.display = '';
             document.getElementById('rename-form').style.display = 'none';
         }
 
@@ -666,6 +713,67 @@
 
         function closeChatOverlay() {
             document.getElementById('chat-overlay').style.display = 'none';
+        }
+
+        // Markdown to HTML converter for chat responses — line-by-line processing
+        function renderMarkdown(text) {
+            const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const inline = s => s
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code style="background:#e8e8e8;padding:1px 4px;border-radius:3px;font-size:12px;">$1</code>');
+
+            const lines = text.split('\n');
+            let html = '';
+            let inList = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = esc(lines[i]);
+
+                // Headings (must check ### before ##)
+                if (/^#{3}\s+(.+)/.test(line)) {
+                    if (inList) { html += '</div>'; inList = false; }
+                    html += '<div style="font-weight:600;margin:10px 0 4px;">' + inline(line.replace(/^#{3}\s+/, '')) + '</div>';
+                    continue;
+                }
+                if (/^#{2}\s+(.+)/.test(line)) {
+                    if (inList) { html += '</div>'; inList = false; }
+                    html += '<div style="font-weight:600;font-size:15px;margin:12px 0 4px;">' + inline(line.replace(/^#{2}\s+/, '')) + '</div>';
+                    continue;
+                }
+
+                // Bullet list items (with indent support)
+                const bulletMatch = line.match(/^(\s*)[-*]\s+(.+)/);
+                if (bulletMatch) {
+                    if (!inList) { html += '<div style="margin:4px 0;">'; inList = true; }
+                    const indent = Math.floor((bulletMatch[1] || '').length / 2) * 16 + 8;
+                    html += '<div style="padding-left:' + indent + 'px;">• ' + inline(bulletMatch[2]) + '</div>';
+                    continue;
+                }
+
+                // Numbered list items
+                const numMatch = line.match(/^(\s*)(\d+)\.\s+(.+)/);
+                if (numMatch) {
+                    if (!inList) { html += '<div style="margin:4px 0;">'; inList = true; }
+                    const indent = Math.floor((numMatch[1] || '').length / 2) * 16 + 8;
+                    html += '<div style="padding-left:' + indent + 'px;">' + numMatch[2] + '. ' + inline(numMatch[3]) + '</div>';
+                    continue;
+                }
+
+                // Close list if we hit a non-list line
+                if (inList) { html += '</div>'; inList = false; }
+
+                // Empty line = paragraph break
+                if (line.trim() === '') {
+                    html += '<div style="height:8px;"></div>';
+                    continue;
+                }
+
+                // Normal paragraph
+                html += '<div>' + inline(line) + '</div>';
+            }
+            if (inList) html += '</div>';
+            return html;
         }
 
         function clearChat() {
@@ -691,7 +799,11 @@
                 padding: 10px 14px; border-radius: ${isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px'};
                 font-size: 14px; line-height: 1.5; word-wrap: break-word;
             `;
-            bubble.textContent = content;
+            if (isUser) {
+                bubble.textContent = content;
+            } else {
+                bubble.innerHTML = renderMarkdown(content);
+            }
 
             container.appendChild(bubble);
 

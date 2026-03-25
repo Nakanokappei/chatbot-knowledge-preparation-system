@@ -32,7 +32,9 @@ class EmbeddingController extends Controller
         $datasets = Dataset::where('tenant_id', $tenantId)
             ->where('row_count', '>', 0)
             ->with(['embeddings' => function ($q) use ($tenantId) {
-                $q->where('tenant_id', $tenantId)->orderByDesc('created_at');
+                $q->where('tenant_id', $tenantId)
+                  ->withCount('knowledgeUnits')
+                  ->orderByDesc('created_at');
             }])
             ->orderByDesc('created_at')
             ->get();
@@ -56,14 +58,17 @@ class EmbeddingController extends Controller
 
         $embeddingJob = null;
         if ($current) {
-            $knowledgeUnits = KnowledgeUnit::where('embedding_id', $current->id)
-                ->orderByDesc('row_count')
-                ->get();
-
             // Load the latest pipeline job for this embedding (for header info)
             $embeddingJob = PipelineJob::where('embedding_id', $current->id)
                 ->orderByDesc('created_at')
                 ->first();
+
+            // Only show KUs when the pipeline has fully completed
+            if ($embeddingJob && $embeddingJob->status === 'completed') {
+                $knowledgeUnits = KnowledgeUnit::where('embedding_id', $current->id)
+                    ->orderByDesc('row_count')
+                    ->get();
+            }
         }
 
         // Pipeline data (for integrated pipeline section)

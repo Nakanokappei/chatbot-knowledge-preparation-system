@@ -56,37 +56,79 @@ class BedrockService
     }
 
     /**
-     * Invoke a Claude model on Bedrock for chat completion.
+     * Invoke an LLM on Bedrock for chat completion via Converse API.
      *
+     * Uses the model-agnostic Converse API so any Bedrock model works
+     * (Claude, Llama, Mistral, OpenAI-compatible, etc.).
      * Returns the assistant message text and token usage.
      */
     public function invokeChat(string $modelId, string $systemPrompt, array $messages, int $maxTokens = 1024): array
     {
         $startTime = microtime(true);
 
-        $body = [
-            'anthropic_version' => 'bedrock-2023-05-31',
-            'max_tokens' => $maxTokens,
-            'system' => $systemPrompt,
-            'messages' => $messages,
+        // Convert simple {role, content} messages to Converse API format
+        $converseMessages = array_map(function ($msg) {
+            $content = is_string($msg['content'])
+                ? [['text' => $msg['content']]]
+                : $msg['content'];
+            return ['role' => $msg['role'], 'content' => $content];
+        }, $messages);
+
+        $params = [
+            'modelId' => $modelId,
+            'messages' => $converseMessages,
+            'inferenceConfig' => [
+                'maxTokens' => $maxTokens,
+            ],
         ];
 
-        $response = $this->client->invokeModel([
-            'modelId' => $modelId,
-            'contentType' => 'application/json',
-            'accept' => 'application/json',
-            'body' => json_encode($body),
-        ]);
+        // Add system prompt if provided
+        if (!empty($systemPrompt)) {
+            $params['system'] = [['text' => $systemPrompt]];
+        }
 
-        $result = json_decode($response['body']->getContents(), true);
+        $response = $this->client->converse($params);
         $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
 
+        // Extract text from Converse API response
+        $contentText = '';
+        foreach ($response['output']['message']['content'] ?? [] as $block) {
+            if (isset($block['text'])) {
+                $contentText .= $block['text'];
+            }
+        }
+
+        $usage = $response['usage'] ?? [];
+
         return [
-            'content' => $result['content'][0]['text'] ?? '',
-            'input_tokens' => $result['usage']['input_tokens'] ?? 0,
-            'output_tokens' => $result['usage']['output_tokens'] ?? 0,
+            'content' => $contentText,
+            'input_tokens' => $usage['inputTokens'] ?? 0,
+            'output_tokens' => $usage['outputTokens'] ?? 0,
             'latency_ms' => $latencyMs,
             'model_id' => $modelId,
         ];
+    }
+
+    /**
+     * Send a single prompt and parse a JSON response from the LLM.
+     *
+     * Strips markdown fences and returns the parsed array, or null on failure.
+     * Used for structured data extraction (dataset metadata, etc.).
+     */
+    public function invokeJson(string $modelId, string $prompt, int $maxTokens = 2048): ?array
+    {
+        $result = $this->invokeChat($modelId, '', [
+            ['role' => 'user', 'content' => $prompt],
+        ], $maxTokens);
+
+        $jsonText = trim($result['content']);
+        if (str_starts_with($jsonText, '```')) {
+            $lines = explode("\n", $jsonText);
+            $lines = array_filter($lines, fn($l) => !str_starts_with(trim($l), '```'));
+            $jsonText = implode("\n", $lines);
+        }
+
+        $parsed = json_decode($jsonText, true);
+        return is_array($parsed) ? $parsed : null;
     }
 }

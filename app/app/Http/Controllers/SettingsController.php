@@ -399,6 +399,23 @@ class SettingsController extends Controller
                 ->with('success', "{$llmModel->display_name} is now the default model.");
         }
 
+        // Update pricing per 1M tokens
+        if ($action === 'update_pricing') {
+            $data = [];
+            if ($request->has('input_price_per_1m')) {
+                $data['input_price_per_1m'] = max(0, (float) $request->input('input_price_per_1m'));
+            }
+            if ($request->has('output_price_per_1m')) {
+                $data['output_price_per_1m'] = max(0, (float) $request->input('output_price_per_1m'));
+            }
+            if (!empty($data)) {
+                $llmModel->update($data);
+            }
+
+            return redirect()->route('settings.models')
+                ->with('success', "Pricing updated for {$llmModel->display_name}.");
+        }
+
         // Generic field update (display_name, sort_order)
         $request->validate([
             'display_name' => 'sometimes|string|max:100',
@@ -500,6 +517,16 @@ class SettingsController extends Controller
             $embeddingModel->update(['is_default' => true]);
             return redirect()->route('settings.models')
                 ->with('success', "{$embeddingModel->display_name} is now the default embedding model.");
+        }
+
+        if ($action === 'update_pricing') {
+            if ($request->has('input_price_per_1m')) {
+                $embeddingModel->update([
+                    'input_price_per_1m' => max(0, (float) $request->input('input_price_per_1m')),
+                ]);
+            }
+            return redirect()->route('settings.models')
+                ->with('success', "Pricing updated for {$embeddingModel->display_name}.");
         }
 
         return redirect()->route('settings.models');

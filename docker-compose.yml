@@ -52,6 +52,8 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+    volumes:
+      - csv-uploads:/var/www/html/storage/app/private/csv-uploads
     depends_on:
       db:
         condition: service_healthy
@@ -101,3 +103,4 @@ services:
 
 volumes:
   pgdata:
+  csv-uploads:

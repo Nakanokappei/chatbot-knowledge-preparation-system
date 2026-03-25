@@ -37,6 +37,8 @@ return [
     'no_datasets' => 'No datasets yet.',
     'delete_dataset' => 'Delete this dataset',
     'confirm_delete_dataset' => 'Delete this dataset and all its rows? This cannot be undone.',
+    'reconfigure' => 'Reconfigure this dataset',
+    'csv_not_available' => 'CSV file no longer available for reconfiguration',
 
     // ── Sidebar: Pipeline ───────────────────────────────
     'pipeline' => 'Pipeline',
@@ -67,6 +69,10 @@ return [
     'set_rejected' => 'Set Rejected',
     'no_clusters_yet' => 'No clusters yet',
     'run_pipeline_to_generate' => 'Run the pipeline to generate clusters from this embedding.',
+    'pipeline_processing' => 'Pipeline is processing',
+    'pipeline_processing_hint' => 'Knowledge units will appear here once the pipeline completes.',
+    'approve_ku_first' => 'Approve at least one KU to enable chat',
+    'chat_no_match' => 'No matching knowledge found for your question.',
     'select_embedding' => 'Select an embedding',
     'select_embedding_hint' => 'Choose an embedding from the sidebar to view its clusters.',
 

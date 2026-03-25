@@ -6,6 +6,7 @@ use App\Models\Embedding;
 use App\Models\KnowledgeUnit;
 use App\Models\LlmModel;
 use App\Services\BedrockService;
+use App\Services\CostTrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -50,46 +51,64 @@ class EmbeddingChatController extends Controller
             $vectorString = '[' . implode(',', $queryEmbedding) . ']';
 
             // Step 2: Vector search against this embedding's approved KUs
+            // Similarity threshold: only include KUs with cosine similarity >= 0.5
             $topK = 5;
+            $similarityThreshold = 0.1;
             $retrievedKUs = DB::select("
                 SELECT
-                    id, topic, intent, summary,
+                    id, topic, intent, summary, question,
+                    symptoms, root_cause, resolution_summary,
                     1 - (search_embedding <=> ?::vector) AS similarity
                 FROM knowledge_units
                 WHERE embedding_id = ?
                   AND review_status = 'approved'
                   AND search_embedding IS NOT NULL
+                  AND 1 - (search_embedding <=> ?::vector) >= ?
                 ORDER BY search_embedding <=> ?::vector
                 LIMIT ?
-            ", [$vectorString, $embeddingId, $vectorString, $topK]);
+            ", [$vectorString, $embeddingId, $vectorString, $similarityThreshold, $vectorString, $topK]);
 
             if (empty($retrievedKUs)) {
                 return response()->json([
-                    'message' => 'No approved clusters found for this embedding. Please approve some clusters first.',
+                    'message' => __('ui.chat_no_match') ?: 'No matching knowledge found for your question.',
                     'sources' => [],
                 ]);
             }
 
-            // Step 3: Build RAG context
+            // Step 3: Build RAG context with full KU details
+            // Helper: check if a text field contains meaningful content (not CSV garbage)
+            $isUseful = function(?string $text): bool {
+                if (!$text || strlen(trim($text)) < 10) return false;
+                // Detect CSV garbage: short sentences joined by semicolons with no real content
+                if (preg_match('/^(\w+\s+){1,4}\w+\.;\s/', $text)) return false;
+                return true;
+            };
+
             $contextSections = [];
             foreach ($retrievedKUs as $ku) {
-                $section = "### {$ku->topic} ({$ku->intent})\n{$ku->summary}";
+                $section = "### {$ku->topic}";
+                if ($ku->question) $section .= "\nQuestion: {$ku->question}";
+                if ($isUseful($ku->symptoms)) $section .= "\nSymptoms: {$ku->symptoms}";
+                if ($isUseful($ku->root_cause)) $section .= "\nRoot Cause: {$ku->root_cause}";
+                if ($isUseful($ku->resolution_summary)) $section .= "\nResolution: {$ku->resolution_summary}";
+                if (!$ku->question && !$isUseful($ku->symptoms)) $section .= "\nSummary: {$ku->summary}";
                 $contextSections[] = $section;
             }
             $knowledgeContext = implode("\n\n", $contextSections);
 
             $systemPrompt = <<<PROMPT
-You are a helpful assistant. Answer the user's question based ONLY on the following knowledge base articles derived from cluster analysis.
-
-If the knowledge base does not contain relevant information, say "I don't have information about that in the current clusters."
+You are a support assistant. Answer the user's question based ONLY on the knowledge base below.
 
 ## Knowledge Base
 {$knowledgeContext}
 
-## Instructions
-- Answer concisely and helpfully
-- Mention which topic(s) your answer is based on
-- If uncertain, say so
+## Rules
+- Respond in the SAME LANGUAGE as the user's question
+- Format your response in Markdown: use **bold** for key terms, bullet lists for steps, and headings if needed
+- Provide a concise, direct answer to the question
+- Include actionable steps or workarounds if available in the knowledge base
+- Do NOT simply repeat the knowledge base entries; synthesize a helpful response
+- If the knowledge base does not contain relevant information, respond that no matching information was found
 PROMPT;
 
             // Step 4: Build messages with history
@@ -124,6 +143,13 @@ PROMPT;
                 'intent' => $ku->intent,
                 'similarity' => round((float) $ku->similarity, 4),
             ], $retrievedKUs);
+
+            // Record token usage for cost tracking
+            (new CostTrackingService())->recordUsage(
+                auth()->user()->tenant_id, auth()->id(), 'chat',
+                $llmResult['model_id'],
+                $llmResult['input_tokens'], $llmResult['output_tokens'],
+            );
 
             return response()->json([
                 'message' => $llmResult['content'],

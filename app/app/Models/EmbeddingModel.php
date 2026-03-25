@@ -17,7 +17,7 @@ class EmbeddingModel extends Model
 
     protected $fillable = [
         'tenant_id', 'display_name', 'model_id', 'dimension',
-        'is_default', 'is_active', 'sort_order',
+        'is_default', 'is_active', 'sort_order', 'input_price_per_1m',
     ];
 
     protected $casts = [

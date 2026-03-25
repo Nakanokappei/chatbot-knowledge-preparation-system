@@ -717,10 +717,30 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         quality_score=quality_score,
     )
 
-    # Link clusters to embedding record
+    # Link clusters to embedding record and update its display name
     embedding_id = pipeline_config.get("embedding_id")
     if embedding_id:
         link_clusters_to_embedding(job_id, embedding_id)
+        # Rename embedding to reflect clustering method and key parameters
+        key_params = {
+            "hdbscan": lambda p: f"min_size={p.get('min_cluster_size', '?')}",
+            "kmeans": lambda p: f"k={p.get('n_clusters', '?')}",
+            "agglomerative": lambda p: f"k={p.get('n_clusters', '?')}, {p.get('linkage', 'ward')}",
+            "leiden": lambda p: f"res={p.get('resolution', '?')}",
+        }
+        param_str = key_params.get(method_used, lambda p: "")(effective_params)
+        cluster_name = f"{method_used.upper()} ({param_str})" if param_str else method_used.upper()
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE embeddings SET name = %s, updated_at = NOW() WHERE id = %s",
+                    (cluster_name, embedding_id),
+                )
+            conn.commit()
+            logger.info("Renamed embedding %d to '%s'", embedding_id, cluster_name)
+        finally:
+            conn.close()
 
     update_job_status(job_id, status="clustering", progress=85)
 

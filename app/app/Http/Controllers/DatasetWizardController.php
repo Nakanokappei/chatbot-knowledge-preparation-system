@@ -62,6 +62,13 @@ class DatasetWizardController extends Controller
             file_put_contents($csvPath, $converted);
         }
 
+        // Strip UTF-8 BOM (EF BB BF) if present — fgetcsv does not handle BOM
+        $bom = file_get_contents($csvPath, false, null, 0, 3);
+        if ($bom === "\xEF\xBB\xBF") {
+            $content = substr(file_get_contents($csvPath), 3);
+            file_put_contents($csvPath, $content);
+        }
+
         // Detect delimiter from the first line
         $handle = fopen($csvPath, 'r');
         if (!$handle) {
@@ -108,8 +115,52 @@ class DatasetWizardController extends Controller
                 ->with('error', 'CSV must contain at least one data row.');
         }
 
-        // Store the (possibly converted) CSV file
+        // Sample rows for LLM description generation
+        // Pick 5 rows at equal intervals: first, 2/5, 3/5, 4/5, last
+        $sampleTargets = [];
+        if ($totalDataRows <= 5) {
+            $sampleTargets = range(0, $totalDataRows - 1);
+        } else {
+            $sampleTargets = [
+                0,
+                (int) floor($totalDataRows * 2 / 5),
+                (int) floor($totalDataRows * 3 / 5),
+                (int) floor($totalDataRows * 4 / 5),
+                $totalDataRows - 1,
+            ];
+            $sampleTargets = array_unique($sampleTargets);
+            sort($sampleTargets);
+        }
+
+        $sampleRows = [];
+        $handle = fopen($csvPath, 'r');
+        fgetcsv($handle, 0, $delimiter, '"', '"'); // Skip header
+        $rowIdx = 0;
+        $targetIdx = 0;
+        while (($row = fgetcsv($handle, 0, $delimiter, '"', '"')) !== false && $targetIdx < count($sampleTargets)) {
+            if ($rowIdx === $sampleTargets[$targetIdx]) {
+                $sampleRows[] = $row;
+                $targetIdx++;
+            }
+            $rowIdx++;
+        }
+        fclose($handle);
+
+        // Auto-generate dataset metadata using LLM
+        $llmMetadata = $this->generateDatasetMetadata(
+            $file->getClientOriginalName(), $headerCols, $sampleRows
+        );
+
+        // Use LLM-generated name if available, otherwise fall back to filename
+        if (!empty($llmMetadata['dataset_name'])) {
+            $datasetName = $llmMetadata['dataset_name'];
+        }
+
+        // Store the converted UTF-8 CSV and the original raw file
         $storedFilename = 'tenant' . $tenantId . '_' . time() . '_' . $file->getClientOriginalName();
+        $rawFilename = $storedFilename . '.raw';
+        // Always save the original raw file for re-encoding
+        $file->storeAs('csv-uploads', $rawFilename, 'local');
         if ($detectedEncoding !== 'UTF-8') {
             // Store the converted UTF-8 version
             Storage::disk('local')->put(
@@ -118,7 +169,11 @@ class DatasetWizardController extends Controller
             );
             unlink($csvPath);
         } else {
-            $file->storeAs('csv-uploads', $storedFilename, 'local');
+            // UTF-8: copy the raw file as the working CSV
+            Storage::disk('local')->copy(
+                'csv-uploads/' . $rawFilename,
+                'csv-uploads/' . $storedFilename,
+            );
         }
         $storedPath = 'csv-uploads/' . $storedFilename;
 
@@ -132,10 +187,13 @@ class DatasetWizardController extends Controller
             'schema_json' => [
                 'status' => 'configuring',
                 'stored_path' => $storedPath,
+                'raw_path' => 'csv-uploads/' . $rawFilename,
                 'detected_encoding' => $detectedEncoding,
                 'delimiter' => $delimiter,
                 'columns' => $headerCols,
                 'total_lines' => $totalDataRows,
+                'dataset_description' => $llmMetadata['dataset_description'] ?? '',
+                'column_descriptions' => $llmMetadata['column_descriptions'] ?? [],
             ],
         ]);
 
@@ -193,6 +251,72 @@ class DatasetWizardController extends Controller
             'totalLines' => $schema['total_lines'] ?? 0,
             'llmModels' => $llmModels,
             'embeddingModels' => $embeddingModels,
+        ]);
+    }
+
+    /**
+     * Re-encode the CSV with a user-specified encoding and update columns.
+     *
+     * Reads the original raw file, converts it to UTF-8 using the specified
+     * encoding, re-detects headers and preview rows, then updates schema_json.
+     * Returns the new column list and preview data as JSON.
+     */
+    public function reEncode(Request $request, Dataset $dataset)
+    {
+        $this->authorizeDataset($dataset);
+        $schema = $dataset->schema_json;
+
+        $encoding = $request->input('encoding', 'UTF-8');
+        $rawPath = $schema['raw_path'] ?? null;
+
+        if (!$rawPath || !Storage::disk('local')->exists($rawPath)) {
+            return response()->json(['error' => 'Raw file not found'], 404);
+        }
+
+        // Read raw file and convert to UTF-8 with the specified encoding
+        $rawFullPath = Storage::disk('local')->path($rawPath);
+        $rawContent = file_get_contents($rawFullPath);
+        $converted = ($encoding !== 'UTF-8')
+            ? mb_convert_encoding($rawContent, 'UTF-8', $encoding)
+            : $rawContent;
+
+        // Strip UTF-8 BOM if present after conversion
+        if (str_starts_with($converted, "\xEF\xBB\xBF")) {
+            $converted = substr($converted, 3);
+        }
+
+        // Write the re-encoded CSV over the working copy
+        $storedPath = $schema['stored_path'] ?? null;
+        if ($storedPath) {
+            Storage::disk('local')->put($storedPath, $converted);
+        }
+
+        // Re-read headers and preview rows from the converted content
+        $tmpFile = tempnam(sys_get_temp_dir(), 'csv_re_');
+        file_put_contents($tmpFile, $converted);
+        $delimiter = $schema['delimiter'] ?? ',';
+
+        $handle = fopen($tmpFile, 'r');
+        $headerCols = fgetcsv($handle, 0, $delimiter, '"', '"') ?: [];
+
+        $previewRows = [];
+        $count = 0;
+        while ($count < 5 && ($row = fgetcsv($handle, 0, $delimiter, '"', '"')) !== false) {
+            $previewRows[] = $row;
+            $count++;
+        }
+        fclose($handle);
+        unlink($tmpFile);
+
+        // Update schema_json with new columns and encoding
+        $schema['columns'] = $headerCols;
+        $schema['detected_encoding'] = $encoding;
+        $dataset->update(['schema_json' => $schema]);
+
+        return response()->json([
+            'columns' => $headerCols,
+            'previewRows' => $previewRows,
+            'encoding' => $encoding,
         ]);
     }
 
@@ -290,6 +414,10 @@ class DatasetWizardController extends Controller
         $selectedColumns = $request->input('selected_columns');
         $columnLabels = $request->input('column_labels');
 
+        // Test mode: limit to N rows for quick pipeline validation
+        $testMode = $request->input('test_mode');
+        $maxRows = $testMode ? (int) $testMode : null;
+
         // Determine header names
         if ($hasHeader) {
             $headers = $allColumns;
@@ -321,6 +449,9 @@ class DatasetWizardController extends Controller
             $batch = [];
 
             while (($row = fgetcsv($handle, 0, $delimiter, '"', '"')) !== false) {
+                // Enforce test mode row limit
+                if ($maxRows && ($rowNo - 1) >= $maxRows) break;
+
                 $embeddingText = $this->buildEmbeddingText(
                     $row, $selectedColumns, $columnLabels, $headers
                 );
@@ -357,16 +488,25 @@ class DatasetWizardController extends Controller
                 DatasetRow::insert($batch);
             }
 
-            // Update dataset metadata
+            // Collect user-edited descriptions from the form
+            $datasetDescription = $request->input('dataset_description', '');
+            $columnDescriptions = $request->input('column_descriptions', []);
+
+            // Update dataset metadata, preserving stored_path from upload step
             $dataset->update([
                 'row_count' => $rowNo - 1,
                 'schema_json' => [
                     'status' => 'ready',
+                    'stored_path' => $storedPath,
+                    'detected_encoding' => $schema['detected_encoding'] ?? 'UTF-8',
+                    'total_lines' => $schema['total_lines'] ?? 0,
                     'columns' => $allColumns,
                     'selected_columns' => $selectedColumns,
                     'column_labels' => $columnLabels,
                     'has_header' => $hasHeader,
                     'delimiter' => $delimiter,
+                    'dataset_description' => $datasetDescription,
+                    'column_descriptions' => $columnDescriptions,
                 ],
             ]);
 
@@ -405,6 +545,9 @@ class DatasetWizardController extends Controller
             $pipelineConfig['clustering_params'] = $clusteringParams;
             $pipelineConfig['knowledge_mapping'] = $knowledgeMapping;
             $pipelineConfig['column_names'] = $allColumns;
+            $pipelineConfig['llm_fallback'] = $request->boolean('llm_fallback', true);
+            $pipelineConfig['dataset_description'] = $datasetDescription;
+            $pipelineConfig['column_descriptions'] = $columnDescriptions;
 
             // Send to SQS
             $sqsUrl = env('SQS_QUEUE_URL');
@@ -441,8 +584,7 @@ class DatasetWizardController extends Controller
 
             DB::commit();
 
-            // Clean up temporary CSV file
-            Storage::disk('local')->delete($storedPath);
+            // Keep CSV file for reconfiguration (stored in persistent volume)
 
             return redirect()->route('dashboard')
                 ->with('success', "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). Pipeline Job #{$pipelineJob->id} dispatched.");
@@ -487,12 +629,20 @@ class DatasetWizardController extends Controller
      */
     private function detectEncoding(string $sample): string
     {
-        $encodings = [
-            'UTF-8', 'Shift_JIS', 'EUC-JP', 'ISO-2022-JP',
-            'ISO-8859-1', 'ASCII',
-        ];
+        // Check for BOM signatures first — mb_detect_encoding often misdetects BOM files
+        if (str_starts_with($sample, "\xEF\xBB\xBF")) return 'UTF-8';
+        if (str_starts_with($sample, "\xFF\xFE")) return 'UTF-16LE';
+        if (str_starts_with($sample, "\xFE\xFF")) return 'UTF-16BE';
+
+        // Try mb_detect_encoding with strict mode
+        $encodings = ['ASCII', 'UTF-8', 'Shift_JIS', 'EUC-JP', 'ISO-2022-JP'];
         $detected = mb_detect_encoding($sample, $encodings, true);
-        return $detected ?: 'UTF-8';
+        if ($detected) return $detected;
+
+        // Fallback: if all fail, check if it validates as UTF-8
+        if (mb_check_encoding($sample, 'UTF-8')) return 'UTF-8';
+
+        return 'ISO-8859-1';
     }
 
     /**
@@ -525,6 +675,14 @@ class DatasetWizardController extends Controller
         $name = $dataset->name;
         $tenantId = auth()->user()->tenant_id;
 
+        // Delete the stored CSV and raw files from persistent volume
+        foreach (['stored_path', 'raw_path'] as $pathKey) {
+            $path = $dataset->schema_json[$pathKey] ?? null;
+            if ($path && Storage::disk('local')->exists($path)) {
+                Storage::disk('local')->delete($path);
+            }
+        }
+
         // Delete related pipeline jobs first (they reference dataset_id)
         \App\Models\PipelineJob::where('dataset_id', $dataset->id)->delete();
 
@@ -548,5 +706,71 @@ class DatasetWizardController extends Controller
 
         return redirect()->route('workspace.index')
             ->with('success', "Dataset \"{$name}\" deleted.");
+    }
+
+    /**
+     * Generate dataset name, description, and column descriptions using Bedrock LLM.
+     *
+     * Sends sample rows from the CSV to a language model which infers what the
+     * dataset contains and what each column represents. Returns an associative
+     * array with keys: dataset_name, dataset_description, column_descriptions.
+     * On failure returns an empty array so the caller can fall back gracefully.
+     */
+    private function generateDatasetMetadata(string $filename, array $headers, array $sampleRows): array
+    {
+        try {
+            // Format sample rows for the prompt
+            $rowsText = '';
+            foreach ($sampleRows as $i => $row) {
+                $values = array_map(fn($v) => mb_substr((string) $v, 0, 200), $row);
+                $rowsText .= "Row " . ($i + 1) . ": " . json_encode($values, JSON_UNESCAPED_UNICODE) . "\n";
+            }
+
+            $headerJson = json_encode($headers, JSON_UNESCAPED_UNICODE);
+
+            $prompt = <<<PROMPT
+Analyze this CSV dataset and generate metadata.
+
+Filename: {$filename}
+Headers: {$headerJson}
+
+Sample rows (from evenly spaced positions in the file):
+{$rowsText}
+Respond ONLY with a JSON object (no markdown, no explanation):
+{
+  "dataset_name": "Short descriptive name for this dataset (2-5 words, in the language of the data)",
+  "dataset_description": "1-2 sentence description of what this dataset contains and its purpose (in the language of the data)",
+  "column_descriptions": {
+    "column_name": "brief description of what this column contains"
+  }
+}
+
+IMPORTANT:
+- Include ALL columns in column_descriptions
+- Respond in the same language as the data content
+- Keep descriptions concise but informative
+PROMPT;
+
+            $modelId = env('BEDROCK_LLM_MODEL', 'jp.anthropic.claude-haiku-4-5-20251001-v1:0');
+            $bedrock = new \App\Services\BedrockService();
+            $parsed = $bedrock->invokeJson($modelId, $prompt);
+
+            if ($parsed) {
+                Log::info('LLM generated dataset metadata', [
+                    'name' => $parsed['dataset_name'] ?? null,
+                    'columns_described' => count($parsed['column_descriptions'] ?? []),
+                ]);
+                return $parsed;
+            }
+
+            Log::warning('LLM dataset metadata response was not valid JSON');
+            return [];
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to generate dataset metadata via LLM', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
     }
 }

@@ -46,6 +46,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/dataset/upload', [DatasetWizardController::class, 'upload'])->name('dataset.upload');
     Route::get('/dataset/{dataset}/configure', [DatasetWizardController::class, 'configure'])->name('dataset.configure');
     Route::post('/dataset/{dataset}/preview', [DatasetWizardController::class, 'preview'])->name('dataset.preview');
+    Route::post('/dataset/{dataset}/re-encode', [DatasetWizardController::class, 'reEncode'])->name('dataset.re-encode');
     Route::post('/dataset/{dataset}/finalize', [DatasetWizardController::class, 'finalize'])->name('dataset.finalize');
     Route::delete('/dataset/{dataset}', [DatasetWizardController::class, 'destroy'])->name('dataset.destroy');
 

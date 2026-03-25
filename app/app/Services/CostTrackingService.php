@@ -73,11 +73,9 @@ class CostTrackingService
      */
     public function getMonthlyUsage(int $tenantId): array
     {
-        $startOfMonth = now()->startOfMonth()->toDateString();
-
         $usage = DB::table('daily_cost_summary')
             ->where('tenant_id', $tenantId)
-            ->where('date', '>=', $startOfMonth)
+            ->where('date', '>=', now()->subDays(30)->toDateString())
             ->selectRaw('SUM(total_tokens) as tokens, SUM(total_cost) as cost, SUM(request_count) as requests')
             ->first();
 

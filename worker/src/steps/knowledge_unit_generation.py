@@ -19,8 +19,9 @@ from datetime import datetime, timezone
 
 from src.bedrock_client import generate_embedding
 from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
-from src.db import (get_connection, update_job_status, update_job_step_outputs,
-                    link_knowledge_units_to_embedding, update_embedding_status)
+from src.db import (get_connection, db_cursor, update_job_status, update_job_step_outputs,
+                    link_knowledge_units_to_embedding, update_embedding_status,
+                    record_token_usage)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,8 @@ def build_knowledge_extraction_prompt(
     mapping: dict,
     representative_metadata: list[dict],
     column_names: list[str] = None,
+    dataset_description: str = "",
+    column_descriptions: dict = None,
 ) -> str:
     """
     Build a prompt for LLM to extract structured knowledge fields from
@@ -41,6 +44,7 @@ def build_knowledge_extraction_prompt(
     Only requests fields where the mapping says '_llm'.
     Includes column role hints so the LLM can distinguish dates, statuses,
     product names, and actual content fields.
+    Includes dataset and column descriptions for better context.
     """
     # Build column role context from the mapping configuration
     column_roles = []
@@ -97,9 +101,18 @@ Note: Columns like dates, status codes, and IDs are NOT useful content for extra
 Focus on descriptive text columns (e.g., subject, description, resolution notes) when extracting fields.
 """
 
+    # Build dataset context section from descriptions
+    dataset_context = ""
+    if dataset_description:
+        dataset_context += f"Dataset context: {dataset_description}\n"
+    if column_descriptions:
+        col_lines = [f"  - {col}: {desc}" for col, desc in column_descriptions.items() if desc]
+        if col_lines:
+            dataset_context += "Column descriptions:\n" + "\n".join(col_lines) + "\n"
+
     return f"""You are a knowledge base engineer. Analyze the following support ticket cluster
 and extract structured knowledge fields.
-
+{dataset_context}
 Cluster topic: {cluster['topic_name']}
 Cluster intent: {cluster['intent']}
 Cluster summary: {cluster['summary']}
@@ -124,15 +137,47 @@ IMPORTANT:
 - If a field cannot be determined, use null"""
 
 
+def _resolve_column_value(col_idx: int, column_names: list, meta: dict):
+    """Look up a value from metadata by column name (preferred) or index (fallback)."""
+    col_name = column_names[col_idx] if column_names and col_idx < len(column_names) else None
+    if col_name and col_name in meta:
+        return meta[col_name]
+    meta_values = list(meta.values())
+    return meta_values[col_idx] if col_idx < len(meta_values) else None
+
+
+def _check_field_quality(
+    field: str, result: dict, col_idx: int, column_names: list,
+    representative_metadata: list, min_length: int = 20, min_coverage: float = 0.4,
+) -> bool:
+    """Return True if a direct-mapped field value is low quality and should fall back to LLM."""
+    col_name = column_names[col_idx] if column_names and col_idx < len(column_names) else None
+    total = min(5, len(representative_metadata))
+    non_empty = sum(
+        1 for meta in representative_metadata[:5]
+        if col_name and col_name in meta and meta[col_name] and str(meta[col_name]).strip()
+    )
+    coverage = non_empty / total if total > 0 else 0
+    val = result.get(field)
+    return not val or len(val.strip()) < min_length or coverage < min_coverage
+
+
 def extract_knowledge_fields(
     cluster: dict,
     mapping: dict,
     representative_metadata: list[dict],
     llm_model_id: str,
     column_names: list[str] = None,
+    llm_fallback: bool = True,
+    dataset_description: str = "",
+    column_descriptions: dict = None,
 ) -> dict:
     """
     Extract knowledge fields using LLM or direct column mapping.
+
+    When llm_fallback is True, direct-mapped fields with low-quality values
+    (short text or low coverage across representative rows) are automatically
+    re-generated using LLM.
 
     Returns a dict with keys: question, symptoms, root_cause, resolution, product, category.
     """
@@ -145,44 +190,58 @@ def extract_knowledge_fields(
         "category": None,
     }
 
-    # Direct column mappings: look up values by column name from metadata dicts
+    # Direct column mappings: aggregate values from representative rows
     for field, source in mapping.items():
         if source and source not in ("_llm", "_none") and source.isdigit():
             col_idx = int(source)
-            # Resolve column index to column name for metadata lookup
-            col_name = None
-            if column_names and col_idx < len(column_names):
-                col_name = column_names[col_idx]
-
             values = set()
             for meta in representative_metadata[:5]:
-                val = None
-                if col_name and col_name in meta:
-                    # Preferred: look up by column name key
-                    val = meta[col_name]
-                else:
-                    # Fallback: positional index into dict values
-                    meta_values = list(meta.values())
-                    if col_idx < len(meta_values):
-                        val = meta_values[col_idx]
+                val = _resolve_column_value(col_idx, column_names, meta)
                 if val and str(val).strip():
                     values.add(str(val).strip())
             if values:
                 result[field] = "; ".join(list(values)[:3])
 
-    # LLM extraction for fields marked as '_llm'
+    # Quality check: detect low-quality direct-mapped values and fallback to LLM
+    fallback_fields = []
+    if llm_fallback:
+        for field, source in mapping.items():
+            if source and source not in ("_llm", "_none") and source.isdigit():
+                if _check_field_quality(field, result, int(source), column_names, representative_metadata):
+                    val = result.get(field)
+                    logger.info(
+                        "Cluster %d: field '%s' low quality (len=%d), falling back to LLM",
+                        cluster["id"], field, len(val.strip()) if val else 0,
+                    )
+                    fallback_fields.append(field)
+                    result[field] = None
+
+    # Combine explicitly-configured LLM fields with fallback fields
     llm_fields = [f for f, s in mapping.items() if s == "_llm"]
-    if llm_fields:
+    all_llm_fields = list(dict.fromkeys(llm_fields + fallback_fields))
+
+    if all_llm_fields:
+        # Temporarily override mapping so prompt builder includes fallback fields
+        augmented_mapping = dict(mapping)
+        for field in fallback_fields:
+            augmented_mapping[field] = "_llm"
+
         prompt = build_knowledge_extraction_prompt(
-            cluster, mapping, representative_metadata, column_names,
+            cluster, augmented_mapping, representative_metadata, column_names,
+            dataset_description=dataset_description,
+            column_descriptions=column_descriptions,
         )
         if prompt:
             try:
                 llm_result = invoke_claude(prompt, model_id=llm_model_id)
                 extracted = llm_result.get("parsed_json")
 
+                # Track token usage for cost aggregation
+                result["_input_tokens"] = llm_result.get("input_tokens", 0)
+                result["_output_tokens"] = llm_result.get("output_tokens", 0)
+
                 if extracted:
-                    for field in llm_fields:
+                    for field in all_llm_fields:
                         if field in extracted and extracted[field]:
                             result[field] = extracted[field]
                 else:
@@ -206,26 +265,20 @@ def load_representative_metadata(cluster_id: int) -> list[dict]:
     This gives access to all CSV columns (not just the embedding text),
     allowing LLM to extract product names, resolution steps, etc.
     """
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """SELECT dr.metadata_json
-                   FROM cluster_representatives cr
-                   JOIN dataset_rows dr ON cr.dataset_row_id = dr.id
-                   WHERE cr.cluster_id = %s
-                   ORDER BY cr.rank
-                   LIMIT 10""",
-                (cluster_id,),
-            )
-            rows = []
-            for row in cur.fetchall():
-                if row[0]:
-                    meta = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                    rows.append(meta)
-            return rows
-    finally:
-        conn.close()
+    with db_cursor() as cur:
+        cur.execute(
+            """SELECT dr.metadata_json
+               FROM cluster_representatives cr
+               JOIN dataset_rows dr ON cr.dataset_row_id = dr.id
+               WHERE cr.cluster_id = %s
+               ORDER BY cr.rank
+               LIMIT 10""",
+            (cluster_id,),
+        )
+        return [
+            json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            for row in cur.fetchall() if row[0]
+        ]
 
 
 def load_analyzed_clusters(job_id: int) -> list[dict]:
@@ -233,78 +286,60 @@ def load_analyzed_clusters(job_id: int) -> list[dict]:
     Load clusters that have completed LLM analysis, along with their
     representative texts and centroid vectors.
     """
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            # Fetch clusters with analysis results
+    with db_cursor() as cur:
+        # Fetch clusters with analysis results
+        cur.execute(
+            """SELECT c.id, c.cluster_label, c.topic_name, c.intent,
+                      c.summary, c.row_count, c.tenant_id
+               FROM clusters c
+               WHERE c.pipeline_job_id = %s AND c.topic_name IS NOT NULL
+               ORDER BY c.cluster_label""",
+            (job_id,),
+        )
+        clusters = [
+            {"id": r[0], "cluster_label": r[1], "topic_name": r[2], "intent": r[3],
+             "summary": r[4], "row_count": r[5], "tenant_id": r[6]}
+            for r in cur.fetchall()
+        ]
+
+        # Load representative texts, keywords, and centroids for each cluster
+        for cluster in clusters:
+            cid = cluster["id"]
+
             cur.execute(
-                """SELECT c.id, c.cluster_label, c.topic_name, c.intent,
-                          c.summary, c.row_count, c.tenant_id
-                   FROM clusters c
-                   WHERE c.pipeline_job_id = %s
-                     AND c.topic_name IS NOT NULL
-                   ORDER BY c.cluster_label""",
-                (job_id,),
+                """SELECT cr.dataset_row_id, dr.raw_text
+                   FROM cluster_representatives cr
+                   JOIN dataset_rows dr ON cr.dataset_row_id = dr.id
+                   WHERE cr.cluster_id = %s ORDER BY cr.rank LIMIT 10""",
+                (cid,),
             )
-            clusters = []
-            for row in cur.fetchall():
-                clusters.append({
-                    "id": row[0],
-                    "cluster_label": row[1],
-                    "topic_name": row[2],
-                    "intent": row[3],
-                    "summary": row[4],
-                    "row_count": row[5],
-                    "tenant_id": row[6],
-                })
+            cluster["representative_rows"] = [
+                {"row_id": r[0], "text": r[1]} for r in cur.fetchall()
+            ]
 
-            # Load representative texts for each cluster
-            for cluster in clusters:
-                cur.execute(
-                    """SELECT cr.dataset_row_id, dr.raw_text
-                       FROM cluster_representatives cr
-                       JOIN dataset_rows dr ON cr.dataset_row_id = dr.id
-                       WHERE cr.cluster_id = %s
-                       ORDER BY cr.rank
-                       LIMIT 10""",
-                    (cluster["id"],),
-                )
-                cluster["representative_rows"] = [
-                    {"row_id": r[0], "text": r[1]} for r in cur.fetchall()
-                ]
+            cur.execute(
+                """SELECT response_json FROM cluster_analysis_logs
+                   WHERE cluster_id = %s AND pipeline_job_id = %s
+                   ORDER BY created_at DESC LIMIT 1""",
+                (cid, job_id),
+            )
+            log_row = cur.fetchone()
+            if log_row and log_row[0]:
+                analysis = json.loads(log_row[0]) if isinstance(log_row[0], str) else log_row[0]
+                cluster["keywords"] = analysis.get("keywords", [])
+                cluster["language"] = analysis.get("language", "en")
+            else:
+                cluster["keywords"] = []
+                cluster["language"] = "en"
 
-            # Load keywords from cluster_analysis_logs for each cluster
-            for cluster in clusters:
-                cur.execute(
-                    """SELECT response_json
-                       FROM cluster_analysis_logs
-                       WHERE cluster_id = %s AND pipeline_job_id = %s
-                       ORDER BY created_at DESC LIMIT 1""",
-                    (cluster["id"], job_id),
-                )
-                log_row = cur.fetchone()
-                if log_row and log_row[0]:
-                    analysis = json.loads(log_row[0]) if isinstance(log_row[0], str) else log_row[0]
-                    cluster["keywords"] = analysis.get("keywords", [])
-                    cluster["language"] = analysis.get("language", "en")
-                else:
-                    cluster["keywords"] = []
-                    cluster["language"] = "en"
+            cur.execute(
+                "SELECT centroid_vector FROM cluster_centroids WHERE cluster_id = %s",
+                (cid,),
+            )
+            centroid_row = cur.fetchone()
+            cluster["centroid_vector"] = centroid_row[0] if centroid_row else None
 
-            # Load centroid vectors for each cluster
-            for cluster in clusters:
-                cur.execute(
-                    """SELECT centroid_vector
-                       FROM cluster_centroids
-                       WHERE cluster_id = %s""",
-                    (cluster["id"],),
-                )
-                centroid_row = cur.fetchone()
-                cluster["centroid_vector"] = centroid_row[0] if centroid_row else None
-
-            return clusters
-    finally:
-        conn.close()
+        return clusters
 
 
 def create_knowledge_unit(
@@ -330,96 +365,69 @@ def create_knowledge_unit(
     """
     now = datetime.now(timezone.utc)
     kf = knowledge_fields or {}
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            source_refs = {
-                "cluster_label": cluster["cluster_label"],
-                "representative_row_ids": [
-                    r["row_id"] for r in cluster["representative_rows"]
-                ],
-            }
 
-            typical_cases = [
-                r["text"][:300] for r in cluster["representative_rows"][:5]
-            ]
+    source_refs = {
+        "cluster_label": cluster["cluster_label"],
+        "representative_row_ids": [r["row_id"] for r in cluster["representative_rows"]],
+    }
+    typical_cases = [r["text"][:300] for r in cluster["representative_rows"][:5]]
 
-            cur.execute(
-                """INSERT INTO knowledge_units
-                   (tenant_id, dataset_id, pipeline_job_id, cluster_id,
-                    topic, intent, summary, question, symptoms,
-                    root_cause, product, category,
-                    typical_cases_json,
-                    cause_summary, resolution_summary,
-                    representative_rows_json, keywords_json,
-                    row_count, confidence, review_status,
-                    source_refs_json, pipeline_config_version, prompt_version,
-                    version, embedding, search_embedding, created_at, updated_at)
-                   VALUES (%s, %s, %s, %s,
-                           %s, %s, %s, %s, %s,
-                           %s, %s, %s,
-                           %s,
-                           %s, %s,
-                           %s, %s,
-                           %s, %s, %s,
-                           %s, %s, %s,
-                           %s, %s, %s, %s, %s)
-                   RETURNING id""",
-                (
-                    cluster["tenant_id"], dataset_id, job_id, cluster["id"],
-                    cluster["topic_name"], cluster["intent"], cluster["summary"],
-                    kf.get("question"), kf.get("symptoms"),
-                    kf.get("root_cause"), kf.get("product"), kf.get("category"),
-                    json.dumps(typical_cases),
-                    kf.get("root_cause") or None,
-                    kf.get("resolution") or None,
-                    json.dumps(cluster["representative_rows"]),
-                    json.dumps(cluster["keywords"]),
-                    cluster["row_count"],
-                    0.0,
-                    "draft",
-                    json.dumps(source_refs),
-                    pipeline_config.get("phase", "2"),
-                    KNOWLEDGE_EXTRACTION_PROMPT_VERSION,
-                    1,
-                    cluster["centroid_vector"],
-                    str(search_embedding) if search_embedding else None,
-                    now, now,
-                ),
-            )
-            ku_id = cur.fetchone()[0]
+    with db_cursor() as cur:
+        cur.execute(
+            """INSERT INTO knowledge_units
+               (tenant_id, dataset_id, pipeline_job_id, cluster_id,
+                topic, intent, summary, question, symptoms,
+                root_cause, product, category,
+                typical_cases_json, cause_summary, resolution_summary,
+                representative_rows_json, keywords_json,
+                row_count, confidence, review_status,
+                source_refs_json, pipeline_config_version, prompt_version,
+                version, embedding, search_embedding, created_at, updated_at)
+               VALUES (%s, %s, %s, %s,
+                       %s, %s, %s, %s, %s,
+                       %s, %s, %s,
+                       %s, %s, %s,
+                       %s, %s,
+                       %s, %s, %s,
+                       %s, %s, %s,
+                       %s, %s, %s, %s, %s)
+               RETURNING id""",
+            (
+                cluster["tenant_id"], dataset_id, job_id, cluster["id"],
+                cluster["topic_name"], cluster["intent"], cluster["summary"],
+                kf.get("question"), kf.get("symptoms"),
+                kf.get("root_cause"), kf.get("product"), kf.get("category"),
+                json.dumps(typical_cases),
+                kf.get("root_cause") or None, kf.get("resolution") or None,
+                json.dumps(cluster["representative_rows"]), json.dumps(cluster["keywords"]),
+                cluster["row_count"], 0.0, "draft",
+                json.dumps(source_refs), pipeline_config.get("phase", "2"),
+                KNOWLEDGE_EXTRACTION_PROMPT_VERSION,
+                1, cluster["centroid_vector"],
+                str(search_embedding) if search_embedding else None,
+                now, now,
+            ),
+        )
+        ku_id = cur.fetchone()[0]
 
-            snapshot = {
-                "topic": cluster["topic_name"],
-                "intent": cluster["intent"],
-                "summary": cluster["summary"],
-                "question": kf.get("question"),
-                "symptoms": kf.get("symptoms"),
-                "root_cause": kf.get("root_cause"),
-                "resolution": kf.get("resolution"),
-                "product": kf.get("product"),
-                "category": kf.get("category"),
-                "keywords": cluster["keywords"],
-                "row_count": cluster["row_count"],
-                "representative_rows": cluster["representative_rows"],
-                "review_status": "draft",
-            }
-
-            cur.execute(
-                """INSERT INTO knowledge_unit_versions
-                   (knowledge_unit_id, version, snapshot_json, created_at)
-                   VALUES (%s, %s, %s, %s)""",
-                (ku_id, 1, json.dumps(snapshot), now),
-            )
-
-            conn.commit()
-            return ku_id
-
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+        # Create initial version snapshot
+        snapshot = {
+            "topic": cluster["topic_name"], "intent": cluster["intent"],
+            "summary": cluster["summary"],
+            "question": kf.get("question"), "symptoms": kf.get("symptoms"),
+            "root_cause": kf.get("root_cause"), "resolution": kf.get("resolution"),
+            "product": kf.get("product"), "category": kf.get("category"),
+            "keywords": cluster["keywords"], "row_count": cluster["row_count"],
+            "representative_rows": cluster["representative_rows"],
+            "review_status": "draft",
+        }
+        cur.execute(
+            """INSERT INTO knowledge_unit_versions
+               (knowledge_unit_id, version, snapshot_json, created_at)
+               VALUES (%s, %s, %s, %s)""",
+            (ku_id, 1, json.dumps(snapshot), now),
+        )
+        return ku_id
 
 
 def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
@@ -452,6 +460,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     # Step 2: Extract knowledge fields and create Knowledge Units
     knowledge_mapping = pipeline_config.get("knowledge_mapping", {})
     column_names = pipeline_config.get("column_names", [])
+    llm_fallback = pipeline_config.get("llm_fallback", True)
+    dataset_description = pipeline_config.get("dataset_description", "")
+    column_descriptions = pipeline_config.get("column_descriptions", {})
     llm_model_id = pipeline_config.get("llm_model_id") or DEFAULT_MODEL_ID
     has_llm_fields = any(v == "_llm" for v in knowledge_mapping.values())
 
@@ -465,6 +476,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         logger.info("No LLM extraction needed — using direct column mappings only")
 
     ku_ids = []
+    total_ku_input_tokens = 0
+    total_ku_output_tokens = 0
     for i, cluster in enumerate(clusters):
         progress = 10 + int((i / len(clusters)) * 70)
         update_job_status(job_id, status="knowledge_unit_generation", progress=progress)
@@ -478,7 +491,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             knowledge_fields = extract_knowledge_fields(
                 cluster, knowledge_mapping, rep_metadata, llm_model_id,
                 column_names=column_names,
+                llm_fallback=llm_fallback,
+                dataset_description=dataset_description,
+                column_descriptions=column_descriptions,
             )
+            # Accumulate token usage from LLM calls
+            total_ku_input_tokens += knowledge_fields.pop("_input_tokens", 0)
+            total_ku_output_tokens += knowledge_fields.pop("_output_tokens", 0)
             logger.info(
                 "Cluster %d knowledge fields: question=%s, symptoms=%s, product=%s",
                 cluster["id"],
@@ -508,6 +527,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             "Created KU #%d from cluster %d (topic='%s', rows=%d)",
             ku_id, cluster["cluster_label"],
             cluster["topic_name"], cluster["row_count"],
+        )
+
+    # Record aggregated token usage for cost tracking
+    if total_ku_input_tokens > 0 or total_ku_output_tokens > 0:
+        record_token_usage(
+            tenant_id, "knowledge_extraction", llm_model_id,
+            total_ku_input_tokens, total_ku_output_tokens,
         )
 
     # Step 3: Link KUs to embedding and mark embedding as ready

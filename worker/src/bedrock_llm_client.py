@@ -72,36 +72,32 @@ def invoke_claude(
     if client is None:
         client = get_bedrock_client()
 
-    body = json.dumps({
-        "anthropic_version": ANTHROPIC_VERSION,
-        "max_tokens": max_tokens,
-        "temperature": temperature,
+    # Build Converse API request (model-agnostic: works with Claude, Llama, Mistral, etc.)
+    converse_params = {
+        "modelId": model_id,
         "messages": [
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": [{"text": prompt}]}
         ],
-    })
+        "inferenceConfig": {
+            "maxTokens": max_tokens,
+            "temperature": temperature,
+        },
+    }
 
     for attempt in range(MAX_RETRIES):
         try:
-            response = client.invoke_model(
-                modelId=model_id,
-                body=body,
-                contentType="application/json",
-                accept="application/json",
-            )
+            response = client.converse(**converse_params)
 
-            result = json.loads(response["body"].read())
-
-            # Extract response text
+            # Extract response text from Converse API output
             content_text = ""
-            for block in result.get("content", []):
-                if block.get("type") == "text":
+            for block in response.get("output", {}).get("message", {}).get("content", []):
+                if "text" in block:
                     content_text += block["text"]
 
-            # Extract token usage
-            usage = result.get("usage", {})
-            input_tokens = usage.get("input_tokens", 0)
-            output_tokens = usage.get("output_tokens", 0)
+            # Extract token usage from Converse API format
+            usage = response.get("usage", {})
+            input_tokens = usage.get("inputTokens", 0)
+            output_tokens = usage.get("outputTokens", 0)
 
             # Try to parse as JSON only when expected
             parsed_json = None

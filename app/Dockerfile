@@ -73,6 +73,8 @@ RUN apk add --no-cache \
 COPY --from=builder /app /var/www/html
 
 # Ensure storage and cache directories are writable
+# Note: csv-uploads is created at runtime by entrypoint.sh because it is
+# volume-mounted and must not be overwritten by the image layer.
 RUN mkdir -p storage/logs \
         storage/framework/cache \
         storage/framework/sessions \
@@ -151,4 +153,8 @@ OPCACHE
 
 EXPOSE 80
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+# Entrypoint: fix ownership of volume-mounted directories, then start supervisord
+RUN printf '#!/bin/sh\nmkdir -p /var/www/html/storage/app/private/csv-uploads\nchown -R www-data:www-data /var/www/html/storage/app/private/csv-uploads\nexec /usr/bin/supervisord -c /etc/supervisord.conf\n' > /entrypoint.sh \
+    && chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]

@@ -7,16 +7,24 @@
         .form-group { flex: 1; }
         .form-group label { display: block; font-size: 12px; color: #5f6368; margin-bottom: 4px; font-weight: 500; }
         .mono { font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; color: #5f6368; }
-        .actions { display: flex; gap: 6px; }
+        table th { white-space: nowrap; }
+        .actions { display: flex; flex-direction: column; gap: 4px; }
+        .actions form { margin: 0; }
+        .actions .btn { display: block; width: 100%; text-align: center; white-space: nowrap; padding: 4px 10px; font-size: 12px; box-sizing: border-box; }
+        .actions .btn-set-default { border-color: #0071e3; color: #0071e3; }
         .badge-active { background: #d4edda; color: #155724; }
         .badge-inactive { background: #f0f0f2; color: #5f6368; }
+        .price-input { width: 70px; padding: 2px 4px; border: 1px solid #d2d2d7; border-radius: 4px; font-size: 12px; }
+        .price-input.saved { border-color: #34c759; transition: border-color 0.3s; }
 @endsection
 
 @section('body')
     <div class="page-content">
         <div class="page-container">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.llm_models') }}</h1>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.llm_models_desc') }}</p>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.llm_models_desc') }}
+                <a href="https://aws.amazon.com/bedrock/pricing/" target="_blank" rel="noopener" style="color: #0071e3; text-decoration: none;">AWS Bedrock Pricing ↗</a>
+            </p>
 
             @if(session('success'))
                 <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✓ {{ session('success') }}</div>
@@ -79,23 +87,28 @@
                         </thead>
                         <tbody>
                             @foreach($models as $model)
-                            @php $p = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $model->model_id); @endphp
                             <tr @if(!$model->is_active) style="opacity: 0.5;" @endif>
                                 <td style="font-weight: 500;">{{ $model->display_name }}</td>
                                 <td><span class="mono">{{ $model->model_id }}</span></td>
                                 <td style="white-space: nowrap; font-size: 12px;">
-                                    @if($p && $p['input'] !== null)
-                                        ${{ number_format($p['input'], 6) }}<span style="color: #5f6368;">/{{ $p['unit'] ?? '1K tokens' }}</span>
-                                    @else
-                                        <span style="color: #d2d2d7;">N/A</span>
-                                    @endif
+                                    <form method="POST" action="{{ route('settings.models.update', $model) }}" style="display: inline; margin: 0;">
+                                        @csrf @method('PUT')
+                                        <input type="hidden" name="action" value="update_pricing">
+                                        <span style="color: #5f6368;">$</span><input type="number" name="input_price_per_1m" value="{{ $model->input_price_per_1m }}"
+                                            step="0.01" min="0" class="price-input"
+                                            onchange="savePricing(this)">
+                                        <span style="color: #5f6368;">/1M</span>
+                                    </form>
                                 </td>
                                 <td style="white-space: nowrap; font-size: 12px;">
-                                    @if($p && $p['output'] !== null)
-                                        ${{ number_format($p['output'], 6) }}<span style="color: #5f6368;">/{{ $p['unit'] ?? '1K tokens' }}</span>
-                                    @else
-                                        <span style="color: #d2d2d7;">N/A</span>
-                                    @endif
+                                    <form method="POST" action="{{ route('settings.models.update', $model) }}" style="display: inline; margin: 0;">
+                                        @csrf @method('PUT')
+                                        <input type="hidden" name="action" value="update_pricing">
+                                        <span style="color: #5f6368;">$</span><input type="number" name="output_price_per_1m" value="{{ $model->output_price_per_1m }}"
+                                            step="0.01" min="0" class="price-input"
+                                            onchange="savePricing(this)">
+                                        <span style="color: #5f6368;">/1M</span>
+                                    </form>
                                 </td>
                                 <td>
                                     @if($model->is_default)
@@ -109,7 +122,7 @@
                                 <td>
                                     <div class="actions">
                                         @if(!$model->is_default)
-                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">{{ __('ui.set_default') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
                                             <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
                                             <form method="POST" action="{{ route('settings.models.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
@@ -181,17 +194,19 @@
                         </thead>
                         <tbody>
                             @foreach($embeddingModels as $em)
-                            @php $ep = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $em->model_id); @endphp
                             <tr @if(!$em->is_active) style="opacity: 0.5;" @endif>
                                 <td style="font-weight: 500;">{{ $em->display_name }}</td>
                                 <td><span class="mono">{{ $em->model_id }}</span></td>
                                 <td style="text-align: center;">{{ $em->dimension }}</td>
                                 <td style="white-space: nowrap; font-size: 12px;">
-                                    @if($ep && $ep['input'] !== null)
-                                        ${{ number_format($ep['input'], 6) }}<span style="color: #5f6368;">/{{ $ep['unit'] ?? '1K tokens' }}</span>
-                                    @else
-                                        <span style="color: #d2d2d7;">N/A</span>
-                                    @endif
+                                    <form method="POST" action="{{ route('settings.embedding.update', $em) }}" style="display: inline; margin: 0;">
+                                        @csrf @method('PUT')
+                                        <input type="hidden" name="action" value="update_pricing">
+                                        <span style="color: #5f6368;">$</span><input type="number" name="input_price_per_1m" value="{{ $em->input_price_per_1m }}"
+                                            step="0.0001" min="0" class="price-input"
+                                            onchange="savePricing(this)">
+                                        <span style="color: #5f6368;">/1M</span>
+                                    </form>
                                 </td>
                                 <td>
                                     @if($em->is_default)
@@ -205,7 +220,7 @@
                                 <td>
                                     <div class="actions">
                                         @if(!$em->is_default)
-                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline" style="border-color: #0071e3; color: #0071e3;">{{ __('ui.set_default') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
                                             <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
                                             <form method="POST" action="{{ route('settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
@@ -234,5 +249,21 @@
             const option = select.options[select.selectedIndex];
             const displayName = option.getAttribute('data-display') || '';
             document.getElementById('emb_display_name').value = displayName;
+        }
+
+        // Save pricing via AJAX without page reload
+        function savePricing(input) {
+            const form = input.closest('form');
+            const formData = new FormData(form);
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            }).then(r => {
+                input.classList.add('saved');
+                setTimeout(() => input.classList.remove('saved'), 1500);
+            }).catch(() => {
+                input.style.borderColor = '#ff3b30';
+            });
         }
 @endsection

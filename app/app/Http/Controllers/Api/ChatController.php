@@ -8,6 +8,7 @@ use App\Models\ChatMessage;
 use App\Models\KnowledgeDataset;
 use App\Models\LlmModel;
 use App\Services\BedrockService;
+use App\Services\CostTrackingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +112,13 @@ class ChatController extends Controller
             'output_tokens' => $llmResult['output_tokens'],
             'latency_ms' => $llmResult['latency_ms'],
         ]);
+
+        // Record token usage for cost tracking
+        (new CostTrackingService())->recordUsage(
+            $tenantId, $request->user()->id, 'chat',
+            $llmResult['model_id'],
+            $llmResult['input_tokens'], $llmResult['output_tokens'],
+        );
 
         return response()->json([
             'conversation_id' => $conversation->id,

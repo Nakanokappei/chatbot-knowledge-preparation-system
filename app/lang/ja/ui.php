@@ -37,6 +37,8 @@ return [
     'no_datasets' => 'データセットがありません',
     'delete_dataset' => 'このデータセットを削除',
     'confirm_delete_dataset' => 'このデータセットと全行を削除しますか？この操作は元に戻せません。',
+    'reconfigure' => 'データセットを再設定',
+    'csv_not_available' => 'CSVファイルがないため再設定できません',
 
     // ── Sidebar: Pipeline ───────────────────────────────
     'pipeline' => 'パイプライン',
@@ -67,6 +69,10 @@ return [
     'set_rejected' => '却下に設定',
     'no_clusters_yet' => 'クラスターがありません',
     'run_pipeline_to_generate' => 'パイプラインを実行してクラスターを生成してください。',
+    'pipeline_processing' => 'パイプライン処理中',
+    'pipeline_processing_hint' => '処理が完了するとナレッジユニットが表示されます。',
+    'approve_ku_first' => '1つ以上のKUを承認するとチャットが有効になります',
+    'chat_no_match' => 'ご質問に該当するナレッジが見つかりませんでした。',
     'select_embedding' => '埋め込みを選択',
     'select_embedding_hint' => 'サイドバーから埋め込みを選択して、クラスターを表示します。',
 

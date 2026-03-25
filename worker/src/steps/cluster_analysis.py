@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
-from src.db import get_connection, update_job_status, update_job_step_outputs
+from src.db import get_connection, update_job_status, update_job_step_outputs, record_token_usage
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -36,18 +36,33 @@ def _format_tickets(representative_texts: list[str]) -> str:
     return formatted
 
 
-def build_analysis_prompt(representative_texts: list[str], cluster_size: int) -> str:
+def build_analysis_prompt(
+    representative_texts: list[str],
+    cluster_size: int,
+    dataset_description: str = "",
+    column_descriptions: dict = None,
+) -> str:
     """
     Build the initial LLM prompt for cluster analysis.
 
     The prompt instructs Claude to analyze representative tickets and produce
     a structured JSON response with topic, intent, summary, keywords, and language.
+    Includes optional dataset and column descriptions for better context.
     """
     formatted_tickets = _format_tickets(representative_texts)
 
+    # Build dataset context section if descriptions are available
+    context_section = ""
+    if dataset_description:
+        context_section += f"\nDataset context: {dataset_description}\n"
+    if column_descriptions:
+        col_lines = [f"  - {col}: {desc}" for col, desc in column_descriptions.items() if desc]
+        if col_lines:
+            context_section += "Column descriptions:\n" + "\n".join(col_lines) + "\n"
+
     return f"""You are a customer support analyst. Analyze the following support tickets
 that belong to the same cluster and extract structured information.
-
+{context_section}
 Cluster size: {cluster_size} tickets
 Representative tickets (closest to cluster center):
 {formatted_tickets}
@@ -390,6 +405,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     # Resolve LLM model from pipeline_config (user-selectable, default: Haiku 4.5)
     pipeline_config = kwargs.get("pipeline_config") or {}
     llm_model_id = pipeline_config.get("llm_model_id") or DEFAULT_MODEL_ID
+    dataset_description = pipeline_config.get("dataset_description", "")
+    column_descriptions = pipeline_config.get("column_descriptions", {})
     logger.info("Using LLM model: %s", llm_model_id)
 
     # Load clusters with representatives
@@ -412,6 +429,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         prompt = build_analysis_prompt(
             cluster["representative_texts"],
             cluster["row_count"],
+            dataset_description=dataset_description,
+            column_descriptions=column_descriptions,
         )
         analysis, in_tok, out_tok = _call_llm_for_cluster(
             cluster, prompt, llm_model_id, job_id,
@@ -480,6 +499,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         "total_output_tokens": total_output_tokens,
         "cluster_summaries": cluster_summaries,
     })
+
+    # Record aggregated token usage for cost tracking
+    if total_input_tokens > 0 or total_output_tokens > 0:
+        record_token_usage(
+            tenant_id, "cluster_analysis", llm_model_id,
+            total_input_tokens, total_output_tokens,
+        )
 
     logger.info(
         "Cluster analysis completed for job %d: %d clusters, %d in-tokens, %d out-tokens",

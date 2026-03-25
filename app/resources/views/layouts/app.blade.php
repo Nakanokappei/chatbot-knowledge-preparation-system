@@ -85,7 +85,7 @@
             </button>
             <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
-                <a href="{{ route('cost') }}" class="{{ request()->routeIs('cost') ? 'active' : '' }}">Cost</a>
+                <a href="{{ route('cost') }}" class="{{ request()->routeIs('cost') ? 'active' : '' }}">Usage</a>
                 <a href="{{ route('settings.models') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
             </nav>
         </div>

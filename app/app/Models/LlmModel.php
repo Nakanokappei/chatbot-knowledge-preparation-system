@@ -23,6 +23,8 @@ class LlmModel extends Model
         'is_default',
         'sort_order',
         'is_active',
+        'input_price_per_1m',
+        'output_price_per_1m',
     ];
 
     protected $casts = [

@@ -25,10 +25,12 @@ class CostController extends Controller
             ->orderBy('date')
             ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count']);
 
+        $thirtyDaysAgo = now()->subDays(30);
+
         // Cost by endpoint
         $byEndpoint = DB::table('token_usage')
             ->where('tenant_id', $tenantId)
-            ->where('created_at', '>=', now()->startOfMonth())
+            ->where('created_at', '>=', $thirtyDaysAgo)
             ->groupBy('endpoint')
             ->selectRaw('endpoint, SUM(input_tokens + output_tokens) as tokens, SUM(estimated_cost) as cost, COUNT(*) as requests')
             ->orderByDesc('cost')
@@ -37,18 +39,14 @@ class CostController extends Controller
         // Cost by model
         $byModel = DB::table('token_usage')
             ->where('tenant_id', $tenantId)
-            ->where('created_at', '>=', now()->startOfMonth())
+            ->where('created_at', '>=', $thirtyDaysAgo)
             ->groupBy('model_id')
             ->selectRaw('model_id, SUM(input_tokens + output_tokens) as tokens, SUM(estimated_cost) as cost, COUNT(*) as requests')
             ->orderByDesc('cost')
             ->get();
 
-        // Budget status
-        $tenant = auth()->user()->tenant;
-        $budgetStatus = $costService->checkBudgetStatus($tenantId, $tenant->monthly_token_budget ?? 1000000);
-
         return view('dashboard.cost', compact(
-            'monthly', 'dailyTrend', 'byEndpoint', 'byModel', 'budgetStatus', 'tenant'
+            'monthly', 'dailyTrend', 'byEndpoint', 'byModel'
         ));
     }
 }
