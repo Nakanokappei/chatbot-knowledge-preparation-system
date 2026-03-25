@@ -467,9 +467,19 @@
                                                    style="cursor: pointer;" onchange="updateSelectAll()">
                                         </td>
                                         <td style="max-width: 0; width: 100%;">
-                                            <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $ku->intent }}</div>
+                                            <div style="display: flex; align-items: baseline; gap: 8px;">
+                                                <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $ku->intent }}</span>
+                                                @if($ku->product)
+                                                    <span style="font-size: 11px; color: #0071e3; background: #e8f0fe; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->product, 30) }}</span>
+                                                @endif
+                                                @if($ku->category)
+                                                    <span style="font-size: 11px; color: #5f6368; background: #f0f0f2; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->category, 20) }}</span>
+                                                @endif
+                                            </div>
                                             <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">{{ $ku->topic }}</div>
-                                            @if($ku->summary)
+                                            @if($ku->question)
+                                                <div style="font-size: 12px; color: #1d1d1f; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Q: {{ $ku->question }}</div>
+                                            @elseif($ku->summary)
                                                 <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $ku->summary }}</div>
                                             @endif
                                         </td>

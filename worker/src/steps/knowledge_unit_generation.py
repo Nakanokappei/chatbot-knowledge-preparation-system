@@ -32,13 +32,27 @@ def build_knowledge_extraction_prompt(
     cluster: dict,
     mapping: dict,
     representative_metadata: list[dict],
+    column_names: list[str] = None,
 ) -> str:
     """
     Build a prompt for LLM to extract structured knowledge fields from
     representative rows of a cluster.
 
     Only requests fields where the mapping says '_llm'.
+    Includes column role hints so the LLM can distinguish dates, statuses,
+    product names, and actual content fields.
     """
+    # Build column role context from the mapping configuration
+    column_roles = []
+    if column_names:
+        for field, source in mapping.items():
+            if source and source not in ("_llm", "_none") and source.isdigit():
+                col_idx = int(source)
+                if col_idx < len(column_names):
+                    column_roles.append(
+                        f"- Column \"{column_names[col_idx]}\" is mapped to the '{field}' field"
+                    )
+
     # Build the context from representative row metadata
     rows_text = ""
     for i, meta in enumerate(representative_metadata[:5], 1):
@@ -72,6 +86,17 @@ def build_knowledge_extraction_prompt(
         json_schema[field] = f"<{field_instructions.get(field, field)}>"
         instructions.append(f"- {field}: {field_instructions.get(field, field)}")
 
+    # Add column role hints if available
+    role_section = ""
+    if column_roles:
+        role_section = f"""
+Column role information (these columns are directly mapped and handled separately):
+{chr(10).join(column_roles)}
+
+Note: Columns like dates, status codes, and IDs are NOT useful content for extraction.
+Focus on descriptive text columns (e.g., subject, description, resolution notes) when extracting fields.
+"""
+
     return f"""You are a knowledge base engineer. Analyze the following support ticket cluster
 and extract structured knowledge fields.
 
@@ -79,7 +104,7 @@ Cluster topic: {cluster['topic_name']}
 Cluster intent: {cluster['intent']}
 Cluster summary: {cluster['summary']}
 Cluster size: {cluster['row_count']} tickets
-
+{role_section}
 Representative tickets:
 {rows_text}
 
@@ -94,6 +119,7 @@ IMPORTANT:
 - For 'question', write it as if a customer is asking for help
 - For 'symptoms', focus on what the user observes, not the cause
 - For 'root_cause', focus on why the issue happens, not the symptoms
+- Do NOT use date values, status codes, or ticket IDs as content for any field
 - Respond in the same language as the input tickets
 - If a field cannot be determined, use null"""
 
@@ -103,6 +129,7 @@ def extract_knowledge_fields(
     mapping: dict,
     representative_metadata: list[dict],
     llm_model_id: str,
+    column_names: list[str] = None,
 ) -> dict:
     """
     Extract knowledge fields using LLM or direct column mapping.
@@ -118,19 +145,28 @@ def extract_knowledge_fields(
         "category": None,
     }
 
-    # Direct column mappings: aggregate values from representative rows
+    # Direct column mappings: look up values by column name from metadata dicts
     for field, source in mapping.items():
         if source and source not in ("_llm", "_none") and source.isdigit():
             col_idx = int(source)
-            # Collect unique values from representative metadata
+            # Resolve column index to column name for metadata lookup
+            col_name = None
+            if column_names and col_idx < len(column_names):
+                col_name = column_names[col_idx]
+
             values = set()
             for meta in representative_metadata[:5]:
-                # metadata keys are column names; we need to map index to name
-                meta_values = list(meta.values())
-                if col_idx < len(meta_values) and meta_values[col_idx]:
-                    val = str(meta_values[col_idx]).strip()
-                    if val:
-                        values.add(val)
+                val = None
+                if col_name and col_name in meta:
+                    # Preferred: look up by column name key
+                    val = meta[col_name]
+                else:
+                    # Fallback: positional index into dict values
+                    meta_values = list(meta.values())
+                    if col_idx < len(meta_values):
+                        val = meta_values[col_idx]
+                if val and str(val).strip():
+                    values.add(str(val).strip())
             if values:
                 result[field] = "; ".join(list(values)[:3])
 
@@ -138,7 +174,7 @@ def extract_knowledge_fields(
     llm_fields = [f for f, s in mapping.items() if s == "_llm"]
     if llm_fields:
         prompt = build_knowledge_extraction_prompt(
-            cluster, mapping, representative_metadata,
+            cluster, mapping, representative_metadata, column_names,
         )
         if prompt:
             try:
@@ -335,8 +371,8 @@ def create_knowledge_unit(
                     kf.get("question"), kf.get("symptoms"),
                     kf.get("root_cause"), kf.get("product"), kf.get("category"),
                     json.dumps(typical_cases),
-                    kf.get("root_cause", ""),
-                    kf.get("resolution", ""),
+                    kf.get("root_cause") or None,
+                    kf.get("resolution") or None,
                     json.dumps(cluster["representative_rows"]),
                     json.dumps(cluster["keywords"]),
                     cluster["row_count"],
@@ -415,6 +451,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
 
     # Step 2: Extract knowledge fields and create Knowledge Units
     knowledge_mapping = pipeline_config.get("knowledge_mapping", {})
+    column_names = pipeline_config.get("column_names", [])
     llm_model_id = pipeline_config.get("llm_model_id") or DEFAULT_MODEL_ID
     has_llm_fields = any(v == "_llm" for v in knowledge_mapping.values())
 
@@ -440,6 +477,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         if knowledge_mapping:
             knowledge_fields = extract_knowledge_fields(
                 cluster, knowledge_mapping, rep_metadata, llm_model_id,
+                column_names=column_names,
             )
             logger.info(
                 "Cluster %d knowledge fields: question=%s, symptoms=%s, product=%s",

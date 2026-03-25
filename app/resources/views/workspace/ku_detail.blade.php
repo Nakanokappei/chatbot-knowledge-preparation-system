@@ -64,8 +64,20 @@
                         <input type="text" name="intent" value="{{ $ku->intent }}">
                     </div>
                     <div class="field">
+                        <label>Question</label>
+                        <textarea name="question">{{ $ku->question }}</textarea>
+                    </div>
+                    <div class="field">
                         <label>{{ __('ui.summary') }}</label>
                         <textarea name="summary">{{ $ku->summary }}</textarea>
+                    </div>
+                    <div class="field">
+                        <label>Symptoms</label>
+                        <textarea name="symptoms">{{ $ku->symptoms }}</textarea>
+                    </div>
+                    <div class="field">
+                        <label>Root Cause</label>
+                        <textarea name="root_cause">{{ $ku->root_cause }}</textarea>
                     </div>
                     <div class="field">
                         <label>Resolution Summary</label>
@@ -74,6 +86,16 @@
                     <div class="field">
                         <label>Cause Summary</label>
                         <textarea name="cause_summary">{{ $ku->cause_summary }}</textarea>
+                    </div>
+                    <div style="display: flex; gap: 16px;">
+                        <div class="field" style="flex: 1;">
+                            <label>Product</label>
+                            <input type="text" name="product" value="{{ $ku->product }}">
+                        </div>
+                        <div class="field" style="flex: 1;">
+                            <label>Category</label>
+                            <input type="text" name="category" value="{{ $ku->category }}">
+                        </div>
                     </div>
                     <div class="field">
                         <label>Notes</label>

@@ -404,6 +404,7 @@ class DatasetWizardController extends Controller
             ]);
             $pipelineConfig['clustering_params'] = $clusteringParams;
             $pipelineConfig['knowledge_mapping'] = $knowledgeMapping;
+            $pipelineConfig['column_names'] = $allColumns;
 
             // Send to SQS
             $sqsUrl = env('SQS_QUEUE_URL');
