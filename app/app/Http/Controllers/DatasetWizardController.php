@@ -675,11 +675,20 @@ class DatasetWizardController extends Controller
     {
         $this->authorizeDataset($dataset);
 
+        // Guard: prevent deletion while pipeline is running
+        $hasRunningJobs = \App\Models\PipelineJob::where('dataset_id', $dataset->id)
+            ->whereNotIn('status', ['completed', 'failed'])
+            ->exists();
+        if ($hasRunningJobs) {
+            return redirect()->route('workspace.index')
+                ->with('error', __('ui.cannot_delete_running'));
+        }
+
         // Guard: prevent deletion of datasets with active embeddings
         $embeddingCount = \App\Models\Embedding::where('dataset_id', $dataset->id)->count();
         if ($embeddingCount > 0) {
             return redirect()->route('workspace.index')
-                ->with('error', 'Cannot delete a dataset that has embeddings.');
+                ->with('error', __('ui.cannot_delete_has_embeddings'));
         }
 
         $name = $dataset->name;

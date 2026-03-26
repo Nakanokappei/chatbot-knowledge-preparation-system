@@ -155,6 +155,8 @@ return [
     'km_hint_col_direct' => 'Uses this column directly',
     'km_hint_col_direct_question' => 'Uses this column directly as the question',
     'km_hint_col_direct_resolution' => 'Uses this column directly as resolution',
+    'cannot_delete_running' => 'Cannot delete: pipeline is still running.',
+    'cannot_delete_has_embeddings' => 'Cannot delete: dataset has embeddings.',
     'km_hint_field_empty' => 'This field will be empty',
 
     // ── Settings: Models ────────────────────────────────

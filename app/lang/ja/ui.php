@@ -155,6 +155,8 @@ return [
     'km_hint_col_direct' => 'この列の値をそのまま使用',
     'km_hint_col_direct_question' => 'この列の値を質問として使用',
     'km_hint_col_direct_resolution' => 'この列の値を解決策として使用',
+    'cannot_delete_running' => 'パイプライン処理中は削除できません。',
+    'cannot_delete_has_embeddings' => '埋め込みがあるため削除できません。',
     'km_hint_field_empty' => 'この項目は空になります',
 
     // ── Settings: Models ────────────────────────────────
