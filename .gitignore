@@ -34,6 +34,9 @@ Thumbs.db
 # Docker Compose env
 .env
 
+# Internal documents (architecture reviews, design specs)
+docs/
+
 # Claude
 .claude/
 .env.docker
