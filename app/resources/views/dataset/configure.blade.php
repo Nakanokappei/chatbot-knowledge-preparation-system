@@ -337,13 +337,24 @@
                     </label>
                 </div>
                 <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;">
+                    @if($isReconfigure)
+                    <button type="submit" class="btn" id="start-btn" disabled
+                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+                        {{ __('ui.create_cluster') }}
+                    </button>
+                    <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
+                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 2px solid #0071e3; border-radius: 8px; cursor: pointer;">
+                        {{ __('ui.test_cluster') }}
+                    </button>
+                    @else
                     <button type="submit" class="btn btn-success" id="start-btn" disabled style="padding: 10px 24px; font-size: 14px; white-space: nowrap;">
-                        {{ $isReconfigure ? __('ui.create_cluster') : __('ui.start_pipeline') }}
+                        {{ __('ui.start_pipeline') }}
                     </button>
                     <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
                         style="padding: 10px 24px; font-size: 14px; background: #ff9500; color: #fff; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;">
-                        {{ $isReconfigure ? __('ui.test_cluster') : __('ui.test_pipeline') }}
+                        {{ __('ui.test_pipeline') }}
                     </button>
+                    @endif
                     <span id="col-count-msg" style="font-size: 13px; color: #5f6368; white-space: nowrap;">{{ __('ui.select_one_column') }}</span>
                 </div>
             </div>
