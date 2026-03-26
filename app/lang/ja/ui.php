@@ -194,7 +194,7 @@ return [
     'root_cause' => '根本原因',
     'resolution_summary' => '解決策',
     'cause_summary' => '原因要約',
-    'product' => 'プライマリフィルタ',
+    'primary_filter' => 'プライマリフィルタ',
     'category' => 'カテゴリ',
     'notes' => 'メモ',
     'edit_comment' => '編集コメント',

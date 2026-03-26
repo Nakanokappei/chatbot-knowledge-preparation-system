@@ -92,8 +92,8 @@
                     </div>
                     <div style="display: flex; gap: 16px;">
                         <div class="field" style="flex: 1;">
-                            <label>{{ __('ui.product') }}</label>
-                            <input type="text" name="product" value="{{ $ku->product }}">
+                            <label>{{ __('ui.primary_filter') }}</label>
+                            <input type="text" name="primary_filter" value="{{ $ku->primary_filter }}">
                         </div>
                         <div class="field" style="flex: 1;">
                             <label>{{ __('ui.category') }}</label>

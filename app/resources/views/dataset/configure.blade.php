@@ -231,14 +231,14 @@
                     {{-- Primary Filter (required) --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_primary_filter') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <select name="km_product_source" id="km-product-source" onchange="toggleKmLlm('product')" required
+                        <select name="km_primary_filter_source" id="km-primary_filter-source" onchange="toggleKmLlm('primary_filter')" required
                             style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
                             <option value="_llm">{{ __('ui.extract_with_llm') }}</option>
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-product-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_primary_filter_hint') }}</span>
+                        <span id="km-primary_filter-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_primary_filter_hint') }}</span>
                     </div>
 
                     {{-- Category --}}
@@ -645,7 +645,7 @@
             symptoms: { _llm: 'Error messages, surface-level phenomena from user reports', _none: '', _col: 'Uses this column directly' },
             root_cause: { _llm: 'Underlying technical cause extracted from resolution data', _none: '', _col: 'Uses this column directly' },
             resolution: { _llm: 'LLM generates resolution steps from representative data', _none: '', _col: 'Uses this column directly as resolution' },
-            product: { _llm: 'LLM extracts product names from representative data', _none: 'This field will be empty', _col: 'Uses this column directly' },
+            primary_filter: { _llm: 'LLM extracts filter values from representative data', _none: 'This field will be empty', _col: 'Uses this column directly' },
             category: { _llm: 'LLM generates a category from cluster content', _none: 'This field will be empty', _col: 'Uses this column directly' },
         };
         function toggleKmLlm(field) {

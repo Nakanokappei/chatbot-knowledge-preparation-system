@@ -72,7 +72,7 @@ def build_knowledge_extraction_prompt(
         "symptoms": "Observable symptoms, error messages, or surface-level phenomena reported by users (2-3 sentences)",
         "root_cause": "The underlying technical or procedural cause of the issue (1-2 sentences)",
         "resolution": "Step-by-step resolution or recommended action (2-3 sentences)",
-        "product": "The primary filter value for this cluster — typically a product, service, region, or department name (short string, or null if unclear)",
+        "primary_filter": "The primary filter value for this cluster — typically a product, service, region, or department name (short string, or null if unclear)",
         "category": "A classification tag for this knowledge (e.g., 'billing', 'technical', 'account')",
     }
 
@@ -180,14 +180,14 @@ def extract_knowledge_fields(
     (short text or low coverage across representative rows) are automatically
     re-generated using LLM.
 
-    Returns a dict with keys: question, symptoms, root_cause, resolution, product, category.
+    Returns a dict with keys: question, symptoms, root_cause, resolution, primary_filter, category.
     """
     result = {
         "question": None,
         "symptoms": None,
         "root_cause": None,
         "resolution": None,
-        "product": None,
+        "primary_filter": None,
         "category": None,
     }
 
@@ -381,7 +381,7 @@ def create_knowledge_unit(
             """INSERT INTO knowledge_units
                (tenant_id, dataset_id, pipeline_job_id, cluster_id,
                 topic, intent, summary, question, symptoms,
-                root_cause, product, category,
+                root_cause, primary_filter, category,
                 typical_cases_json, cause_summary, resolution_summary,
                 representative_rows_json, keywords_json,
                 row_count, confidence, review_status,
@@ -402,7 +402,7 @@ def create_knowledge_unit(
                 cluster["tenant_id"], dataset_id, job_id, cluster["id"],
                 cluster["topic_name"], cluster["intent"], cluster["summary"],
                 extracted_fields.get("question"), extracted_fields.get("symptoms"),
-                extracted_fields.get("root_cause"), extracted_fields.get("product"), extracted_fields.get("category"),
+                extracted_fields.get("root_cause"), extracted_fields.get("primary_filter"), extracted_fields.get("category"),
                 json.dumps(typical_cases),
                 extracted_fields.get("root_cause") or None, extracted_fields.get("resolution") or None,
                 json.dumps(cluster["representative_rows"]), json.dumps(cluster["keywords"]),
@@ -423,7 +423,7 @@ def create_knowledge_unit(
             "summary": cluster["summary"],
             "question": extracted_fields.get("question"), "symptoms": extracted_fields.get("symptoms"),
             "root_cause": extracted_fields.get("root_cause"), "resolution": extracted_fields.get("resolution"),
-            "product": extracted_fields.get("product"), "category": extracted_fields.get("category"),
+            "primary_filter": extracted_fields.get("primary_filter"), "category": extracted_fields.get("category"),
             "keywords": cluster["keywords"], "row_count": cluster["row_count"],
             "representative_rows": cluster["representative_rows"],
             "review_status": "draft",
@@ -508,11 +508,11 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             total_ku_input_tokens += knowledge_fields.pop("_input_tokens", 0)
             total_ku_output_tokens += knowledge_fields.pop("_output_tokens", 0)
             logger.info(
-                "Cluster %d knowledge fields: question=%s, symptoms=%s, product=%s",
+                "Cluster %d knowledge fields: question=%s, symptoms=%s, primary_filter=%s",
                 cluster["id"],
                 "yes" if knowledge_fields.get("question") else "no",
                 "yes" if knowledge_fields.get("symptoms") else "no",
-                knowledge_fields.get("product", "N/A"),
+                knowledge_fields.get("primary_filter", "N/A"),
             )
 
         # Generate search embeddings for two-stage vector retrieval

@@ -194,7 +194,7 @@ return [
     'root_cause' => 'Root Cause',
     'resolution_summary' => 'Resolution Summary',
     'cause_summary' => 'Cause Summary',
-    'product' => 'Primary Filter',
+    'primary_filter' => 'Primary Filter',
     'category' => 'Category',
     'notes' => 'Notes',
     'edit_comment' => 'Edit Comment',

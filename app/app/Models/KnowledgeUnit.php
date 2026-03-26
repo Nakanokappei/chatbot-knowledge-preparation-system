@@ -21,7 +21,7 @@ class KnowledgeUnit extends Model
     protected $fillable = [
         'tenant_id', 'dataset_id', 'pipeline_job_id', 'cluster_id',
         'topic', 'intent', 'summary', 'question', 'symptoms',
-        'root_cause', 'product', 'category',
+        'root_cause', 'primary_filter', 'category',
         'typical_cases_json',
         'cause_summary', 'resolution_summary', 'notes',
         'representative_rows_json', 'keywords_json', 'row_count',

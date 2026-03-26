@@ -513,8 +513,8 @@
                                         <td style="max-width: 0; width: 100%;">
                                             <div style="display: flex; align-items: baseline; gap: 8px;">
                                                 <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $ku->intent }}</span>
-                                                @if($ku->product)
-                                                    <span style="font-size: 11px; color: #0071e3; background: #e8f0fe; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->product, 30) }}</span>
+                                                @if($ku->primary_filter)
+                                                    <span style="font-size: 11px; color: #0071e3; background: #e8f0fe; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->primary_filter, 30) }}</span>
                                                 @endif
                                                 @if($ku->category)
                                                     <span style="font-size: 11px; color: #5f6368; background: #f0f0f2; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->category, 20) }}</span>
@@ -706,8 +706,8 @@
             document.getElementById('rename-form').style.display = 'none';
         }
 
-        // Chat overlay — session state tracks extracted product/question
-        let chatContext = { product: null, question: null };
+        // Chat overlay — session state tracks extracted primary_filter/question
+        let chatContext = { primary_filter: null, question: null };
         let chatSending = false;
 
         function openChatOverlay() {
@@ -781,7 +781,7 @@
         }
 
         function clearChat() {
-            chatContext = { product: null, question: null };
+            chatContext = { primary_filter: null, question: null };
             const container = document.getElementById('chat-messages');
             container.innerHTML = '<div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">{{ __("ui.chat_placeholder") }}</div>';
         }
@@ -850,16 +850,16 @@
             // Show user message
             appendChatMessage('user', message);
 
-            // Show typing indicator — if we were asking for product, show product-specific message
+            // Show typing indicator — if we were asking for primary filter, show filter-specific message
             const container = document.getElementById('chat-messages');
             const typing = document.createElement('div');
             typing.id = 'typing-indicator';
             typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #5f6368;';
-            const wasAskingProduct = chatContext.question && !chatContext.product;
+            const wasAskingFilter = chatContext.question && !chatContext.primary_filter;
             const searchingTemplate = '{{ __("ui.chat_searching_for", ["name" => ":name"]) }}';
-            typing.textContent = wasAskingProduct
+            typing.textContent = wasAskingFilter
                 ? searchingTemplate.replace(':name', message)
-                : (chatContext.product ? searchingTemplate.replace(':name', chatContext.product) : '{{ __("ui.thinking") }}');
+                : (chatContext.primary_filter ? searchingTemplate.replace(':name', chatContext.primary_filter) : '{{ __("ui.thinking") }}');
             container.appendChild(typing);
             container.scrollTop = container.scrollHeight;
 
@@ -927,7 +927,7 @@
                 header.after(indicator);
             }
             const parts = [];
-            if (chatContext.product) parts.push('📦 ' + chatContext.product);
+            if (chatContext.primary_filter) parts.push('📦 ' + chatContext.primary_filter);
             if (chatContext.question) parts.push('❓ ' + chatContext.question.substring(0, 40) + (chatContext.question.length > 40 ? '...' : ''));
             indicator.textContent = parts.join('  ');
             indicator.style.display = parts.length ? 'block' : 'none';

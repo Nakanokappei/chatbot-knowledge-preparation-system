@@ -83,7 +83,7 @@ class RagService
 
         return DB::select("
             SELECT
-                id, topic, intent, summary, question, product,
+                id, topic, intent, summary, question, primary_filter,
                 symptoms, root_cause, resolution_summary,
                 1 - ({$embeddingColumn} <=> ?::vector) AS similarity
             FROM knowledge_units
@@ -240,13 +240,13 @@ PROMPT;
     // ── Conversational Chat Flow ────────────────────────────────
 
     /**
-     * Process a chat message with product extraction and multi-stage search.
+     * Process a chat message with primary filter extraction and multi-stage search.
      *
      * Flow:
-     *   1. Extract product name and question from user input via LLM
-     *   2. Merge with existing context (product/question carried across turns)
-     *   3. If product missing → ask the user which product
-     *   4. If product+question ready → search with product filter
+     *   1. Extract primary filter value and question from user input via LLM
+     *   2. Merge with existing context (primary_filter/question carried across turns)
+     *   3. If primary filter missing → ask the user
+     *   4. If primary_filter+question ready → search with LLM filter
      *   5. No filtered results → broad search as reference
      *   6. Nothing found → "no knowledge available"
      *
@@ -262,27 +262,27 @@ PROMPT;
     ): array {
         $modelId = $this->resolveModelId($tenantId);
 
-        // Step 1: Extract product name and question from user input
-        $extracted = $this->extractProductAndQuestion($userMessage, $existingContext, $modelId);
+        // Step 1: Extract primary filter value and question from user input
+        $extracted = $this->extractPrimaryFilterAndQuestion($userMessage, $existingContext, $modelId);
 
         // Step 2: Merge extracted values with existing session context
         $context = [
-            'product' => $extracted['product'] ?? $existingContext['product'] ?? null,
+            'primary_filter' => $extracted['primary_filter'] ?? $existingContext['primary_filter'] ?? null,
             'question' => $extracted['question'] ?? $existingContext['question'] ?? null,
         ];
 
-        // Special case: we previously asked for product name (question exists, product missing).
-        // If the user replied and LLM didn't detect a product, treat the entire reply as a product name.
-        $wasAskingForProduct = !empty($existingContext['question']) && empty($existingContext['product']);
-        if ($wasAskingForProduct && empty($extracted['product'])) {
-            $context['product'] = $userMessage;
+        // Special case: we previously asked for primary filter (question exists, filter missing).
+        // If the user replied and LLM didn't detect a filter value, treat the entire reply as the filter.
+        $wasAskingForFilter = !empty($existingContext['question']) && empty($existingContext['primary_filter']);
+        if ($wasAskingForFilter && empty($extracted['primary_filter'])) {
+            $context['primary_filter'] = $userMessage;
             $context['question'] = $existingContext['question'];
         }
 
-        // Step 3: If product is still missing, ask the user
-        if (empty($context['product']) && !empty($context['question'])) {
+        // Step 3: If primary filter is still missing, ask the user
+        if (empty($context['primary_filter']) && !empty($context['question'])) {
             return [
-                'action' => 'ask_product',
+                'action' => 'ask_primary_filter',
                 'message' => null,
                 'context' => $context,
                 'results' => [],
@@ -291,10 +291,10 @@ PROMPT;
             ];
         }
 
-        // If we have neither product nor question, ask for more detail
-        if (empty($context['product']) && empty($context['question'])) {
+        // If we have neither primary filter nor question, ask for more detail
+        if (empty($context['primary_filter']) && empty($context['question'])) {
             return [
-                'action' => 'ask_product',
+                'action' => 'ask_primary_filter',
                 'message' => null,
                 'context' => $context,
                 'results' => [],
@@ -303,7 +303,7 @@ PROMPT;
             ];
         }
 
-        // Step 4: Vector search by question (no product filter), then LLM product filtering
+        // Step 4: Vector search by question, then LLM primary filter matching
         $searchQuery = $context['question'] ?? $userMessage;
         $queryEmbedding = $this->bedrock->generateEmbedding($searchQuery);
         $vectorString = '[' . implode(',', $queryEmbedding) . ']';
@@ -349,9 +349,9 @@ PROMPT;
             ];
         }
 
-        // Step 5: LLM-based product filtering on retrieved candidates
-        $filteredKUs = $this->filterKUsByProduct(
-            $candidateKUs, $context['product'], $modelId
+        // Step 5: LLM-based primary filter matching on retrieved candidates
+        $filteredKUs = $this->filterKUsByPrimaryFilter(
+            $candidateKUs, $context['primary_filter'], $modelId
         );
 
         if (!empty($filteredKUs)) {
@@ -366,7 +366,7 @@ PROMPT;
             ];
         }
 
-        // No product match → return all candidates as reference
+        // No primary filter match → return all candidates as reference
         return [
             'action' => 'answer_broad',
             'message' => null,
@@ -386,52 +386,52 @@ PROMPT;
     }
 
     /**
-     * Extract product name and question from user input using LLM.
+     * Extract primary filter value and question from user input using LLM.
      *
      * Uses a lightweight prompt to classify the user's message into
-     * a product identifier and a question/symptom description.
+     * a primary filter identifier and a question/symptom description.
      */
-    private function extractProductAndQuestion(
+    private function extractPrimaryFilterAndQuestion(
         string $userMessage,
         array $existingContext,
         ?string $modelId,
     ): array {
         if (!$modelId) {
-            return ['product' => null, 'question' => $userMessage];
+            return ['primary_filter' => null, 'question' => $userMessage];
         }
 
         $contextHint = '';
-        if (!empty($existingContext['product'])) {
-            $contextHint = "\nNote: The user previously mentioned \"{$existingContext['product']}\".";
+        if (!empty($existingContext['primary_filter'])) {
+            $contextHint = "\nNote: The user previously mentioned \"{$existingContext['primary_filter']}\".";
         }
 
         $prompt = <<<PROMPT
 Extract the primary filter value and the user's question from this message.
-The "product" field is a primary filter — it identifies the specific entity being asked about
+The "primary_filter" field identifies the specific entity being asked about
 (e.g. a brand/model name, service name, region, department, or other distinguishing identifier).
 {$contextHint}
 
 User message: "{$userMessage}"
 
 Respond with JSON only, no explanation:
-{"product": "specific identifier or null", "question": "the question or symptom description or null"}
+{"primary_filter": "specific identifier or null", "question": "the question or symptom description or null"}
 
 Rules:
-- "product" must be a specific, named entity (e.g. "LG Smart TV", "PlayStation", "iPhone 15", "Tokyo Office", "Premium Plan")
-- Generic/category words are NOT valid identifiers: テレビ, パソコン, カメラ, スマホ, TV, computer, phone → set "product" to null
+- "primary_filter" must be a specific, named entity (e.g. "LG Smart TV", "PlayStation", "iPhone 15", "Tokyo Office", "Premium Plan")
+- Generic/category words are NOT valid identifiers: テレビ, パソコン, カメラ, スマホ, TV, computer, phone → set "primary_filter" to null
 - The question should include the full description, keeping general words in it
 - If the message contains BOTH a specific identifier and a question, extract both
 - If the message is just an identifier (answering a follow-up), set "question" to null
-- If the message has no specific named entity, set "product" to null
+- If the message has no specific named entity, set "primary_filter" to null
 - Keep the question in the original language
 
 Examples:
-- "LGテレビの画面がちらつく" → {"product": "LG TV", "question": "画面がちらつく"}
-- "テレビの画面がちらつく" → {"product": null, "question": "テレビの画面がちらつく"}
-- "My PlayStation screen flickers" → {"product": "PlayStation", "question": "screen flickers"}
-- "画面が映らない" → {"product": null, "question": "画面が映らない"}
-- "Canon EOS" → {"product": "Canon EOS", "question": null}
-- "パソコンが起動しない" → {"product": null, "question": "パソコンが起動しない"}
+- "LGテレビの画面がちらつく" → {"primary_filter": "LG TV", "question": "画面がちらつく"}
+- "テレビの画面がちらつく" → {"primary_filter": null, "question": "テレビの画面がちらつく"}
+- "My PlayStation screen flickers" → {"primary_filter": "PlayStation", "question": "screen flickers"}
+- "画面が映らない" → {"primary_filter": null, "question": "画面が映らない"}
+- "Canon EOS" → {"primary_filter": "Canon EOS", "question": null}
+- "パソコンが起動しない" → {"primary_filter": null, "question": "パソコンが起動しない"}
 PROMPT;
 
         try {
@@ -439,49 +439,49 @@ PROMPT;
 
             if ($parsed && is_array($parsed)) {
                 return [
-                    'product' => (!empty($parsed['product']) && $parsed['product'] !== 'null') ? $parsed['product'] : null,
+                    'primary_filter' => (!empty($parsed['primary_filter']) && $parsed['primary_filter'] !== 'null') ? $parsed['primary_filter'] : null,
                     'question' => (!empty($parsed['question']) && $parsed['question'] !== 'null') ? $parsed['question'] : null,
                 ];
             }
         } catch (\Exception $e) {
-            Log::warning("Product extraction failed: " . $e->getMessage());
+            Log::warning("Primary filter extraction failed: " . $e->getMessage());
         }
 
         // Fallback: treat entire message as the question
-        return ['product' => null, 'question' => $userMessage];
+        return ['primary_filter' => null, 'question' => $userMessage];
     }
 
     /**
-     * Filter retrieved KU candidates by product relevance using LLM.
+     * Filter retrieved KU candidates by primary filter relevance using LLM.
      *
-     * Given a list of KUs from vector search and a user-specified product name,
-     * ask LLM: "Which of these KUs are about this product?"
+     * Given a list of KUs from vector search and a user-specified filter value,
+     * ask LLM: "Which of these KUs match this entity?"
      * Returns only the matching KUs, preserving their original order and data.
      */
-    private function filterKUsByProduct(array $candidateKUs, string $userProduct, ?string $modelId): array
+    private function filterKUsByPrimaryFilter(array $candidateKUs, string $userFilterValue, ?string $modelId): array
     {
         if (!$modelId || empty($candidateKUs)) {
             return [];
         }
 
-        // Build a concise list of KU IDs with their product/topic for LLM
+        // Build a concise list of KU entries with their primary_filter/topic for LLM
         $kuList = [];
         foreach ($candidateKUs as $index => $ku) {
             $kuList[] = [
                 'index' => $index,
                 'topic' => $ku->topic,
-                'product' => $ku->product ?? 'unknown',
+                'primary_filter' => $ku->primary_filter ?? 'unknown',
             ];
         }
 
         $kuJson = json_encode($kuList, JSON_UNESCAPED_UNICODE);
         $prompt = <<<PROMPT
-The user is asking about: "{$userProduct}"
+The user is asking about: "{$userFilterValue}"
 
 Here are knowledge base entries retrieved by similarity search:
 {$kuJson}
 
-Which entries are relevant to the user's product "{$userProduct}"?
+Which entries are relevant to "{$userFilterValue}"?
 Account for abbreviations, nicknames, and language variations.
 Examples: "プレステ" matches "PlayStation", "LGテレビ" matches "LG Smart TV" or "LG OLED".
 
@@ -502,61 +502,61 @@ PROMPT;
                 return $filtered;
             }
         } catch (\Exception $e) {
-            Log::warning("KU product filtering failed: " . $e->getMessage());
+            Log::warning("KU primary filter matching failed: " . $e->getMessage());
         }
 
-        // Fallback: simple string match on product field
+        // Fallback: simple string match on primary_filter field
         return array_values(array_filter($candidateKUs, fn($ku) =>
-            $ku->product && (
-                stripos($ku->product, $userProduct) !== false ||
-                stripos($userProduct, $ku->product) !== false
+            $ku->primary_filter && (
+                stripos($ku->primary_filter, $userFilterValue) !== false ||
+                stripos($userFilterValue, $ku->primary_filter) !== false
             )
         ));
     }
 
     /**
-     * Match a user-provided product name against known products in KU data.
+     * Match a user-provided filter value against known primary_filter values in KU data.
      *
      * Uses LLM to handle name variations (e.g. "プレステ" ≒ "PlayStation").
-     * Returns array of matched product strings from the database.
+     * Returns array of matched filter strings from the database.
      */
-    private function matchProductNames(
-        string $userProductName,
+    private function matchPrimaryFilterValues(
+        string $userFilterValue,
         int $embeddingId,
         ?string $modelId,
     ): array {
-        // Collect all distinct product names from approved KUs in this embedding
-        $knownProducts = DB::select("
-            SELECT DISTINCT product FROM knowledge_units
+        // Collect all distinct primary_filter values from approved KUs in this embedding
+        $knownFilters = DB::select("
+            SELECT DISTINCT primary_filter FROM knowledge_units
             WHERE embedding_id = ? AND review_status = 'approved'
-              AND product IS NOT NULL AND product != ''
+              AND primary_filter IS NOT NULL AND primary_filter != ''
         ", [$embeddingId]);
 
-        $productList = array_map(fn($row) => $row->product, $knownProducts);
+        $filterList = array_map(fn($row) => $row->primary_filter, $knownFilters);
 
-        if (empty($productList)) {
+        if (empty($filterList)) {
             return [];
         }
 
         // Use LLM to match with fuzzy logic
         if (!$modelId) {
             // Fallback: simple substring match
-            return array_filter($productList, fn($p) =>
-                stripos($p, $userProductName) !== false ||
-                stripos($userProductName, $p) !== false
+            return array_filter($filterList, fn($p) =>
+                stripos($p, $userFilterValue) !== false ||
+                stripos($userFilterValue, $p) !== false
             );
         }
 
-        $productJson = json_encode($productList, JSON_UNESCAPED_UNICODE);
+        $filterJson = json_encode($filterList, JSON_UNESCAPED_UNICODE);
         $prompt = <<<PROMPT
-Given the user's product name and a list of known products, identify which known products match.
+Given the user's input and a list of known values, identify which known values match.
 Account for abbreviations, nicknames, and language variations.
 Examples: "プレステ" matches "PlayStation", "PS5" matches "PlayStation 5", "iPhone" matches "Apple iPhone 15".
 
-User's product name: "{$userProductName}"
-Known products: {$productJson}
+User's input: "{$userFilterValue}"
+Known values: {$filterJson}
 
-Respond with JSON only: {"matched": ["product1", "product2"]}
+Respond with JSON only: {"matched": ["value1", "value2"]}
 Return an empty array if no match found.
 PROMPT;
 
@@ -564,27 +564,27 @@ PROMPT;
             $parsed = $this->bedrock->invokeJson($modelId, $prompt);
 
             if ($parsed && isset($parsed['matched']) && is_array($parsed['matched'])) {
-                // Validate that returned products actually exist in our list
-                return array_values(array_intersect($parsed['matched'], $productList));
+                // Validate that returned values actually exist in our list
+                return array_values(array_intersect($parsed['matched'], $filterList));
             }
         } catch (\Exception $e) {
-            Log::warning("Product matching failed: " . $e->getMessage());
+            Log::warning("Primary filter matching failed: " . $e->getMessage());
         }
 
         // Fallback: simple substring match
-        return array_values(array_filter($productList, fn($p) =>
-            stripos($p, $userProductName) !== false ||
-            stripos($userProductName, $p) !== false
+        return array_values(array_filter($filterList, fn($p) =>
+            stripos($p, $userFilterValue) !== false ||
+            stripos($userFilterValue, $p) !== false
         ));
     }
 
     /**
-     * Vector search with product name filter.
+     * Vector search with primary_filter value filter.
      */
     private function filteredVectorSearch(
         string $vectorString,
         int $embeddingId,
-        array $productNames,
+        array $filterValues,
         string $embeddingColumn,
         float $threshold,
         int $topK,
@@ -593,24 +593,24 @@ PROMPT;
             throw new \InvalidArgumentException("Invalid embedding column: {$embeddingColumn}");
         }
 
-        // Build product filter placeholders
-        $placeholders = implode(',', array_fill(0, count($productNames), '?'));
+        // Build primary_filter value placeholders
+        $placeholders = implode(',', array_fill(0, count($filterValues), '?'));
 
         $params = array_merge(
             [$vectorString, $embeddingId],
-            $productNames,
+            $filterValues,
             [$vectorString, $threshold, $vectorString, $topK],
         );
 
         return DB::select("
             SELECT
-                id, topic, intent, summary, question, product,
+                id, topic, intent, summary, question, primary_filter,
                 symptoms, root_cause, resolution_summary,
                 1 - ({$embeddingColumn} <=> ?::vector) AS similarity
             FROM knowledge_units
             WHERE embedding_id = ?
               AND review_status = 'approved'
-              AND product IN ({$placeholders})
+              AND primary_filter IN ({$placeholders})
               AND {$embeddingColumn} IS NOT NULL
               AND 1 - ({$embeddingColumn} <=> ?::vector) >= ?
             ORDER BY {$embeddingColumn} <=> ?::vector

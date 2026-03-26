@@ -14,25 +14,25 @@ use Illuminate\Support\Facades\Log;
  * Chat with embedding clusters via conversational RAG.
  *
  * Manages a session-based conversation flow:
- *   1. Extract product name and question from user input
- *   2. Ask back if product name is missing
- *   3. Search with product filter when both are available
+ *   1. Extract primary filter value and question from user input
+ *   2. Ask back if primary filter is missing
+ *   3. Search with LLM-based filter when both are available
  *   4. Fall back to broad search or "no knowledge" as needed
  *
- * Session state (product, question, asked_product) is managed client-side
+ * Session state (primary_filter, question) is managed client-side
  * and passed with each request — no full conversation history needed.
  */
 class EmbeddingChatController extends Controller
 {
     /**
-     * Process a chat message with product-aware conversational flow.
+     * Process a chat message with primary-filter-aware conversational flow.
      */
     public function chat(Request $request, int $embeddingId): JsonResponse
     {
         $request->validate([
             'message' => 'required|string|max:4000',
             'context' => 'nullable|array',
-            'context.product' => 'nullable|string',
+            'context.primary_filter' => 'nullable|string',
             'context.question' => 'nullable|string',
         ]);
 
@@ -55,7 +55,7 @@ class EmbeddingChatController extends Controller
             $modelId = $chatResult['model_id'];
 
             // Action: ask the user which primary filter value they mean
-            if ($action === 'ask_product') {
+            if ($action === 'ask_primary_filter') {
                 // Resolve the CSV column name assigned to Primary Filter
                 $filterLabel = $this->resolvePrimaryFilterLabel($embedding);
 
@@ -63,7 +63,7 @@ class EmbeddingChatController extends Controller
                     'message' => $filterLabel
                         ? __('ui.chat_ask_filter_named', ['name' => $filterLabel])
                         : __('ui.chat_ask_filter'),
-                    'action' => 'ask_product',
+                    'action' => 'ask_primary_filter',
                     'context' => $context,
                     'sources' => [],
                 ]);
@@ -90,7 +90,7 @@ class EmbeddingChatController extends Controller
             // Build system prompt — add note for broad/reference results
             $systemPrompt = $rag->buildSystemPrompt($knowledgeContext);
             if ($action === 'answer_broad') {
-                $systemPrompt .= "\n\nIMPORTANT: The user asked about \"{$context['product']}\" but no exact match was found. The knowledge below is from other products and may be useful as reference. Clearly note this in your response.";
+                $systemPrompt .= "\n\nIMPORTANT: The user asked about \"{$context['primary_filter']}\" but no exact match was found. The knowledge below is from other entries and may be useful as reference. Clearly note this in your response.";
             }
 
             $messages = [['role' => 'user', 'content' => $context['question'] ?? $request->message]];
@@ -129,7 +129,7 @@ class EmbeddingChatController extends Controller
     /**
      * Resolve the CSV column name assigned to the Primary Filter field.
      *
-     * Looks up the dataset's knowledge_mapping_json for the 'product' slot,
+     * Looks up the dataset's knowledge_mapping_json for the 'primary_filter' slot,
      * then maps its column index back to the column name from schema_json.
      * Returns null if the mapping is LLM-generated or missing.
      */
@@ -141,7 +141,7 @@ class EmbeddingChatController extends Controller
         }
 
         $mapping = $dataset->knowledge_mapping_json ?? [];
-        $source = $mapping['product'] ?? null;
+        $source = $mapping['primary_filter'] ?? null;
 
         // Only resolve if mapped to a specific CSV column (numeric index)
         if (!$source || !is_numeric($source)) {
