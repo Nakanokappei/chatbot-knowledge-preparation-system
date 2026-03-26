@@ -63,7 +63,7 @@
     <div class="configure-overlay" onclick="if(event.target===this) window.location='{{ route('workspace.index') }}'">
         <div class="configure-panel">
             <div class="configure-titlebar">
-                <h1>{{ __('ui.new_dataset') }}: {{ $dataset->name }}</h1>
+                <h1>{{ $isReconfigure ? __('ui.new_cluster') : __('ui.new_dataset') }}: {{ $dataset->name }}</h1>
                 <a href="{{ route('workspace.index') }}" class="close-btn" title="{{ __('ui.close') }}">&times;</a>
             </div>
             <div class="configure-body">
@@ -338,11 +338,11 @@
                 </div>
                 <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;">
                     <button type="submit" class="btn btn-success" id="start-btn" disabled style="padding: 10px 24px; font-size: 14px; white-space: nowrap;">
-                        {{ __('ui.start_pipeline') }}
+                        {{ $isReconfigure ? __('ui.create_cluster') : __('ui.start_pipeline') }}
                     </button>
                     <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
                         style="padding: 10px 24px; font-size: 14px; background: #ff9500; color: #fff; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;">
-                        🧪 {{ __('ui.test_pipeline') }}
+                        {{ $isReconfigure ? __('ui.test_cluster') : __('ui.test_pipeline') }}
                     </button>
                     <span id="col-count-msg" style="font-size: 13px; color: #5f6368; white-space: nowrap;">{{ __('ui.select_one_column') }}</span>
                 </div>

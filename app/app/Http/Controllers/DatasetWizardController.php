@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Dataset;
 use App\Models\DatasetRow;
+use App\Models\Embedding;
 use App\Models\EmbeddingModel;
 use App\Models\LlmModel;
 use Aws\Sqs\SqsClient;
@@ -245,6 +246,9 @@ class DatasetWizardController extends Controller
             ->orderByDesc('is_default')
             ->get();
 
+        // Detect reconfigure mode: dataset already has embeddings from a previous run
+        $isReconfigure = Embedding::where('dataset_id', $dataset->id)->exists();
+
         return view('dataset.configure', [
             'dataset' => $dataset,
             'columns' => $columns,
@@ -253,6 +257,7 @@ class DatasetWizardController extends Controller
             'totalLines' => $schema['total_lines'] ?? 0,
             'llmModels' => $llmModels,
             'embeddingModels' => $embeddingModels,
+            'isReconfigure' => $isReconfigure,
         ]);
     }
 
