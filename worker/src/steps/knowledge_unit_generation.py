@@ -283,67 +283,6 @@ def load_representative_metadata(cluster_id: int) -> list[dict]:
         ]
 
 
-def split_cluster_by_primary_filter(
-    cluster: dict,
-    primary_filter_col_index: int,
-    column_names: list[str],
-) -> list[dict]:
-    """
-    Split a cluster into sub-clusters based on distinct primary_filter values.
-
-    Loads all member rows of the cluster, groups them by primary_filter value,
-    and returns one sub-cluster dict per distinct value. Each sub-cluster
-    inherits the parent's analysis (topic, intent, summary) but carries its
-    own primary_filter value and filtered representative metadata.
-
-    Returns a list of (sub_cluster_dict, representative_metadata) tuples.
-    If the cluster has only one primary_filter value (or none), returns it unchanged.
-    """
-    with db_cursor() as cur:
-        # Load all member rows' metadata for this cluster
-        cur.execute(
-            """SELECT dr.metadata_json
-               FROM cluster_memberships cm
-               JOIN dataset_rows dr ON cm.dataset_row_id = dr.id
-               WHERE cm.cluster_id = %s""",
-            (cluster["id"],),
-        )
-        all_rows = [
-            json.loads(r[0]) if isinstance(r[0], str) else r[0]
-            for r in cur.fetchall() if r[0]
-        ]
-
-    if not all_rows:
-        return [(cluster, [])]
-
-    # Group rows by primary_filter value
-    groups = {}
-    for meta in all_rows:
-        val = _resolve_column_value(primary_filter_col_index, column_names, meta)
-        key = str(val).strip() if val and str(val).strip() else "_unknown_"
-        groups.setdefault(key, []).append(meta)
-
-    # No split needed if only one group (or all unknown)
-    if len(groups) <= 1:
-        reps = load_representative_metadata(cluster["id"])
-        return [(cluster, reps)]
-
-    # Create sub-clusters — each inherits parent analysis but gets its own filter value
-    sub_clusters = []
-    for filter_value, members in groups.items():
-        sub = dict(cluster)  # shallow copy
-        sub["_primary_filter_override"] = filter_value if filter_value != "_unknown_" else None
-        sub["row_count"] = len(members)
-        # Use up to 5 members as representative metadata
-        sub_clusters.append((sub, members[:5]))
-
-    logger.info(
-        "Cluster %d split into %d sub-clusters by primary_filter: %s",
-        cluster["id"], len(sub_clusters),
-        [f"{v}({len(m)})" for v, m in groups.items()],
-    )
-    return sub_clusters
-
 
 def load_analyzed_clusters(job_id: int) -> list[dict]:
     """
@@ -545,34 +484,16 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     else:
         logger.info("No LLM extraction needed — using direct column mappings only")
 
-    # Determine if post-clustering split by primary_filter is needed
-    primary_filter_source = knowledge_mapping.get("primary_filter")
-    primary_filter_col_index = None
-    if primary_filter_source and primary_filter_source not in ("_llm", "_none") and primary_filter_source.isdigit():
-        primary_filter_col_index = int(primary_filter_source)
-
-    # Build work items: split clusters by primary_filter when a direct column is mapped
-    work_items = []
-    for cluster in clusters:
-        if primary_filter_col_index is not None:
-            sub_items = split_cluster_by_primary_filter(cluster, primary_filter_col_index, column_names)
-            work_items.extend(sub_items)
-        else:
-            reps = load_representative_metadata(cluster["id"])
-            work_items.append((cluster, reps))
-
-    logger.info(
-        "Processing %d work items from %d clusters (split by primary_filter: %s)",
-        len(work_items), len(clusters), primary_filter_col_index is not None,
-    )
-
-    # Process each work item: extract fields, generate embedding, create KU
+    # Process each cluster: extract fields, generate embedding, create KU
     ku_ids = []
     total_ku_input_tokens = 0
     total_ku_output_tokens = 0
-    for item_index, (cluster, representative_metadata) in enumerate(work_items):
-        progress = 10 + int((item_index / len(work_items)) * 70)
+    for item_index, cluster in enumerate(clusters):
+        progress = 10 + int((item_index / len(clusters)) * 70)
         update_job_status(job_id, status="knowledge_unit_generation", progress=progress)
+
+        # Load full metadata for representative rows
+        representative_metadata = load_representative_metadata(cluster["id"])
 
         # Extract knowledge fields (LLM + column mapping)
         knowledge_fields = {}
@@ -588,13 +509,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             total_ku_input_tokens += knowledge_fields.pop("_input_tokens", 0)
             total_ku_output_tokens += knowledge_fields.pop("_output_tokens", 0)
 
-            # Apply primary_filter override from post-clustering split
-            if "_primary_filter_override" in cluster:
-                knowledge_fields["primary_filter"] = cluster["_primary_filter_override"]
-
             logger.info(
-                "Item %d/%d (cluster %d): question=%s, symptoms=%s, primary_filter=%s",
-                item_index + 1, len(work_items), cluster["id"],
+                "Cluster %d/%d (id %d): question=%s, symptoms=%s, primary_filter=%s",
+                item_index + 1, len(clusters), cluster["id"],
                 "yes" if knowledge_fields.get("question") else "no",
                 "yes" if knowledge_fields.get("symptoms") else "no",
                 knowledge_fields.get("primary_filter", "N/A"),

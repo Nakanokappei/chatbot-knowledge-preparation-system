@@ -223,26 +223,83 @@ class EmbeddingController extends Controller
     }
 
     /**
-     * Export approved KUs for an embedding as JSON.
+     * Export approved KUs for an embedding as CSV or JSON.
+     * Format is determined by the ?format= query parameter (default: json).
      */
-    public function export(int $embeddingId)
+    public function export(Request $request, int $embeddingId)
     {
         $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
             ->findOrFail($embeddingId);
 
+        $columns = [
+            'id', 'topic', 'intent', 'summary', 'keywords_json',
+            'question', 'symptoms', 'root_cause', 'resolution_summary',
+            'primary_filter', 'category', 'language', 'row_count', 'review_status',
+        ];
         $kus = KnowledgeUnit::where('embedding_id', $embeddingId)
             ->where('review_status', 'approved')
             ->orderBy('topic')
-            ->get(['id', 'topic', 'intent', 'summary', 'keywords_json', 'row_count', 'review_status']);
+            ->get($columns);
 
-        $filename = Str::slug($embedding->name) . '_approved_kus.json';
+        $format = $request->query('format', 'json');
+        $baseFilename = Str::slug($embedding->name) . '_clusters';
 
+        if ($format === 'csv') {
+            return $this->exportAsCsv($kus, $columns, $baseFilename);
+        }
+
+        return $this->exportAsJson($kus, $embedding->name, $baseFilename);
+    }
+
+    /**
+     * Build a CSV download response from the given KU collection.
+     * Outputs UTF-8 with BOM so Excel opens it correctly.
+     */
+    private function exportAsCsv($kus, array $columns, string $baseFilename)
+    {
+        $csvHeader = $columns;
+        $rows = [];
+        foreach ($kus as $ku) {
+            $row = [];
+            foreach ($columns as $col) {
+                $value = $ku->{$col};
+                // Flatten JSON array fields to semicolon-separated string
+                if ($col === 'keywords_json' && is_array($value)) {
+                    $value = implode('; ', $value);
+                }
+                $row[] = $value ?? '';
+            }
+            $rows[] = $row;
+        }
+
+        $handle = fopen('php://temp', 'r+');
+        // UTF-8 BOM for Excel compatibility
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, $csvHeader);
+        foreach ($rows as $row) {
+            fputcsv($handle, $row);
+        }
+        rewind($handle);
+        $csvContent = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($csvContent, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$baseFilename}.csv\"",
+        ]);
+    }
+
+    /**
+     * Build a JSON download response from the given KU collection.
+     */
+    private function exportAsJson($kus, string $embeddingName, string $baseFilename)
+    {
         return response()->json([
-            'embedding' => $embedding->name,
+            'embedding' => $embeddingName,
             'exported_at' => now()->toIso8601String(),
             'total' => $kus->count(),
             'knowledge_units' => $kus,
-        ])->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+        ])->header('Content-Disposition', "attachment; filename=\"{$baseFilename}.json\"");
     }
 
     /**

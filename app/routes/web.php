@@ -11,6 +11,9 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CostController;
+use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\TenantController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetWizardController;
 use App\Http\Controllers\EmbeddingController;
@@ -32,6 +35,16 @@ Route::get('/locale/{locale}', function (string $locale) {
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Password reset (public)
+Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])->name('password.update');
+
+// Invitation registration (public — accessed via emailed link)
+Route::get('/invitation/{token}', [InvitationController::class, 'showRegisterForm'])->name('invitation.register');
+Route::post('/invitation/{token}', [InvitationController::class, 'register']);
 
 // All application routes require authentication
 Route::middleware('auth')->group(function () {
@@ -88,10 +101,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
     Route::post('/web-api/chat', [\App\Http\Controllers\Api\ChatController::class, 'chat'])->name('web.chat');
 
-    // Profile: user settings, password change
+    // Profile: user settings, password change, invitations
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::post('/profile/invite', [InvitationController::class, 'send'])->name('invitation.send');
+
+    // Tenant settings
+    Route::get('/settings/tenant', [TenantController::class, 'edit'])->name('tenant.edit');
+    Route::put('/settings/tenant', [TenantController::class, 'update'])->name('tenant.update');
 
     // Settings: LLM model management
     Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');

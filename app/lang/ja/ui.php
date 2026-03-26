@@ -361,4 +361,43 @@ return [
     'llm_fallback' => 'LLMフォールバック',
     'llm_fallback_hint' => 'マッピング列が空または低品質の場合、LLMで値を生成',
     'preview_select_columns' => '上で列を選択するとプレビューが表示されます…',
+
+    // パスワードリセット
+    'forgot_password' => 'パスワードを忘れた場合',
+    'forgot_password_link' => 'パスワードをお忘れですか？',
+    'forgot_password_description' => 'メールアドレスを入力してください。パスワード再設定用のリンクを送信します。',
+    'send_reset_link' => '再設定リンクを送信',
+    'back_to_login' => 'ログイン画面に戻る',
+    'reset_password' => 'パスワード再設定',
+    'password_reset_link_sent' => '登録済みのメールアドレスであれば、再設定リンクを送信しました。',
+    'password_reset_invalid_token' => '無効または期限切れのリンクです。再度リクエストしてください。',
+    'password_reset_expired' => 'このリンクは期限切れです。再度リクエストしてください。',
+    'password_reset_success' => 'パスワードを再設定しました。ログインしてください。',
+    'password_reset_subject' => 'パスワード再設定',
+    'password_reset_email_body' => ":app のパスワード再設定がリクエストされました。\n\n以下のリンクからパスワードを再設定してください：\n:url\n\nこのリンクは60分間有効です。\n\n心当たりがない場合は、このメールを無視してください。",
+
+    // 招待
+    'invite_colleague' => 'メンバー招待',
+    'invite_description' => 'ワークスペースにメンバーを招待します。登録用リンクがメールで送信されます。',
+    'send_invitation' => '招待を送信',
+    'invite_sent' => '招待を送信しました。',
+    'invite_already_registered' => 'このメールアドレスは登録済みです。',
+    'invite_already_sent' => 'このメールアドレスには招待を送信済みです。',
+    'invite_expired' => 'この招待は期限切れです。',
+    'accept_invitation' => '招待を受ける',
+    'invite_register_description' => 'アカウントを作成して始めましょう。',
+    'invited_by' => ':name（:tenant）からの招待',
+    'create_account' => 'アカウント作成',
+    'invite_email_subject' => ':name さんからKPSへの招待',
+    'invite_email_body' => ":name さんが :app の :tenant にあなたを招待しました。\n\n以下のリンクからアカウントを作成してください：\n:url\n\nこの招待は7日間有効です。",
+
+    // テナント設定
+    'tenant_settings' => 'ワークスペース設定',
+    'tenant_name' => 'ワークスペース名',
+    'tenant_updated' => 'ワークスペース設定を更新しました。',
+    'members' => 'メンバー',
+    'pending_invitations' => '保留中の招待',
+    'invited_by_short' => ':name が招待',
+    'pending' => '保留中',
+    'expired' => '期限切れ',
 ];

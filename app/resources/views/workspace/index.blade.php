@@ -419,9 +419,27 @@
 
                     <!-- Action buttons -->
                     <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
-                        <a href="{{ route('workspace.export', $current->id) }}" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;">
-                            ⬇️ {{ __('ui.export') }}
-                        </a>
+                        <!-- Export dropdown: CSV or JSON -->
+                        <div style="position: relative; display: inline-block;">
+                            <button type="button" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;"
+                                    onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                {{ __('ui.export') }}
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <div data-export-dropdown style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 100; min-width: 180px; overflow: hidden;">
+                                <a href="{{ route('workspace.export', ['embeddingId' => $current->id, 'format' => 'csv']) }}"
+                                   style="display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px;"
+                                   onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
+                                    {{ __('ui.cluster') }} CSV (UTF-8)
+                                </a>
+                                <a href="{{ route('workspace.export', ['embeddingId' => $current->id, 'format' => 'json']) }}"
+                                   style="display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px;"
+                                   onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
+                                    {{ __('ui.cluster') }} JSON
+                                </a>
+                            </div>
+                        </div>
                         <form method="POST" action="{{ route('workspace.destroy', $current->id) }}"
                               onsubmit="return confirm('Delete &quot;{{ $current->name }}&quot; and all its KUs? This cannot be undone.')">
                             @csrf @method('DELETE')
@@ -502,6 +520,7 @@
                                     <td colspan="3"></td>
                                 </tr>
                             </thead>
+                            @php $totalKuRows = $knowledgeUnits->sum('row_count'); @endphp
                             <tbody>
                                 @foreach($knowledgeUnits as $ku)
                                     <tr style="cursor: pointer;"
@@ -529,7 +548,11 @@
                                         </td>
                                         <td style="text-align: right; vertical-align: top; padding-top: 10px; white-space: nowrap;">
                                             <div style="font-size: 13px; color: #5f6368;">{{ $ku->row_count }} {{ __('ui.rows') }}</div>
-                                            <div style="height: 18px;"></div>
+                                            @if($totalKuRows > 0)
+                                                <div style="font-size: 12px; color: #aaa; margin-top: 4px;">{{ number_format($ku->row_count / $totalKuRows * 100, 1) }}%</div>
+                                            @else
+                                                <div style="height: 18px;"></div>
+                                            @endif
                                             <div title="{{ $ku->review_status }}" style="font-size: 14px; text-align: right;">
                                                 @switch($ku->review_status)
                                                     @case('draft')    ✏️ @break
@@ -651,6 +674,15 @@
 @endsection
 
 @section('scripts')
+        // Close export dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            document.querySelectorAll('[data-export-dropdown]').forEach(function(dd) {
+                if (!dd.parentElement.contains(e.target)) {
+                    dd.style.display = 'none';
+                }
+            });
+        });
+
         // Tree view toggle (open/close dataset nodes)
         function toggleTree(header) {
             const toggle = header.querySelector('.tree-toggle');

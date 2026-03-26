@@ -361,4 +361,43 @@ return [
     'llm_fallback' => 'LLM Fallback',
     'llm_fallback_hint' => 'When a mapped column has empty or low-quality data, use LLM to generate the value',
     'preview_select_columns' => 'Select columns above to see preview...',
+
+    // Password reset
+    'forgot_password' => 'Forgot Password',
+    'forgot_password_link' => 'Forgot password?',
+    'forgot_password_description' => 'Enter your email address and we will send you a link to reset your password.',
+    'send_reset_link' => 'Send Reset Link',
+    'back_to_login' => 'Back to login',
+    'reset_password' => 'Reset Password',
+    'password_reset_link_sent' => 'If your email is registered, a password reset link has been sent.',
+    'password_reset_invalid_token' => 'Invalid or expired reset link. Please request a new one.',
+    'password_reset_expired' => 'This reset link has expired. Please request a new one.',
+    'password_reset_success' => 'Your password has been reset. You can now log in.',
+    'password_reset_subject' => 'Password Reset',
+    'password_reset_email_body' => "You requested a password reset for :app.\n\nClick here to reset your password:\n:url\n\nThis link expires in 60 minutes.\n\nIf you did not request this, please ignore this email.",
+
+    // Invitations
+    'invite_colleague' => 'Invite Colleague',
+    'invite_description' => 'Invite a colleague to join your workspace. They will receive an email with a registration link.',
+    'send_invitation' => 'Send Invitation',
+    'invite_sent' => 'Invitation sent successfully.',
+    'invite_already_registered' => 'This email is already registered.',
+    'invite_already_sent' => 'A pending invitation has already been sent to this email.',
+    'invite_expired' => 'This invitation has expired.',
+    'accept_invitation' => 'Accept Invitation',
+    'invite_register_description' => 'Create your account to get started.',
+    'invited_by' => 'Invited by :name (:tenant)',
+    'create_account' => 'Create Account',
+    'invite_email_subject' => ':name invited you to KPS',
+    'invite_email_body' => ":name has invited you to join :tenant on :app.\n\nClick here to create your account:\n:url\n\nThis invitation expires in 7 days.",
+
+    // Tenant settings
+    'tenant_settings' => 'Workspace Settings',
+    'tenant_name' => 'Workspace Name',
+    'tenant_updated' => 'Workspace settings updated.',
+    'members' => 'Members',
+    'pending_invitations' => 'Pending Invitations',
+    'invited_by_short' => 'by :name',
+    'pending' => 'Pending',
+    'expired' => 'Expired',
 ];

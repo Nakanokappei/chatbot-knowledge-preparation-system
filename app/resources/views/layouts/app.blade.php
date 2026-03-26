@@ -96,6 +96,9 @@
         <div class="topbar-right">
             <div class="user-menu" id="user-menu">
                 <button class="user-btn" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
+                    @if(auth()->user()->tenant)
+                        <a href="{{ route('tenant.edit') }}" style="color: #5f6368; font-size: 13px; text-decoration: none; margin-right: 12px;" onmouseover="this.style.color='#0071e3'" onmouseout="this.style.color='#5f6368'">{{ auth()->user()->tenant->name }}</a>
+                    @endif
                     <span class="user-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
                     {{ auth()->user()->name }}
                 </button>

@@ -44,13 +44,31 @@
                 <h2>{{ __('ui.change_password') }}</h2>
                 <form method="POST" action="{{ route('profile.password') }}">
                     @csrf @method('PUT')
-                    <label for="current_password">{{ __('ui.current_password') }}</label>
-                    <input type="password" name="current_password" id="current_password" required>
                     <label for="password">{{ __('ui.new_password') }}</label>
                     <input type="password" name="password" id="password" required>
                     <label for="password_confirmation">{{ __('ui.confirm_new_password') }}</label>
                     <input type="password" name="password_confirmation" id="password_confirmation" required>
                     <button type="submit" class="btn btn-primary">{{ __('ui.change_password') }}</button>
+                </form>
+            </div>
+
+            {{-- Invitation form: invite a colleague to join the same tenant --}}
+            <div class="card">
+                <h2>{{ __('ui.invite_colleague') }}</h2>
+                <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.invite_description') }}</p>
+
+                @if(session('invite_success'))
+                    <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">✓ {{ session('invite_success') }}</div>
+                @endif
+                @if($errors->has('invite_email'))
+                    <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">✗ {{ $errors->first('invite_email') }}</div>
+                @endif
+
+                <form method="POST" action="{{ route('invitation.send') }}">
+                    @csrf
+                    <label for="invite_email">{{ __('ui.email') }}</label>
+                    <input type="email" name="email" id="invite_email" placeholder="colleague@example.com" required>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.send_invitation') }}</button>
                 </form>
             </div>
         </div>

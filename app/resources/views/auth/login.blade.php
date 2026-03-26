@@ -20,6 +20,9 @@
         .btn-primary:hover { background: #0077ed; }
         .remember { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; font-size: 13px; color: #5f6368; }
         .error { background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .success { background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+        .forgot-link { display: block; text-align: right; color: #0071e3; text-decoration: none; font-size: 13px; margin-top: -10px; margin-bottom: 16px; }
+        .forgot-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -28,17 +31,24 @@
         <h1>{{ __('ui.app_name') }}</h1>
         <p class="subtitle">{{ __('ui.sign_in_to_continue') }}</p>
 
+        @if(session('status'))
+            <div class="success">{{ session('status') }}</div>
+        @endif
         @if($errors->any())
             <div class="error">{{ $errors->first() }}</div>
         @endif
 
-        <form method="POST" action="{{ route('login') }}">
+        <form method="POST" action="{{ route('login') }}" id="loginForm">
             @csrf
             <label for="email">{{ __('ui.email') }}</label>
             <input type="email" id="email" name="email" value="{{ old('email') }}" autofocus required>
 
             <label for="password">{{ __('ui.password') }}</label>
             <input type="password" id="password" name="password" required>
+
+            {{-- Forgot password link: carries the email field value to the reset page --}}
+            <a href="{{ route('password.request') }}" class="forgot-link"
+               onclick="this.href='{{ route('password.request') }}?email='+encodeURIComponent(document.getElementById('email').value)">{{ __('ui.forgot_password_link') }}</a>
 
             <label class="remember">
                 <input type="checkbox" name="remember"> {{ __('ui.remember_me') }}
