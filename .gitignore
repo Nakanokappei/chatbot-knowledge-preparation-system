@@ -38,3 +38,4 @@ Thumbs.db
 .claude/
 .env.docker
 .github/workflows/
+terraform/.terraform/
