@@ -109,4 +109,31 @@ class CostTrackingService
 
         return 'ok';
     }
+
+    /**
+     * Increment the daily chat_answers counter.
+     */
+    public function recordChatAnswer(int $tenantId): void
+    {
+        DB::statement("
+            INSERT INTO daily_cost_summary (tenant_id, date, chat_answers, created_at, updated_at)
+            VALUES (?, ?, 1, NOW(), NOW())
+            ON CONFLICT (tenant_id, date)
+            DO UPDATE SET chat_answers = daily_cost_summary.chat_answers + 1, updated_at = NOW()
+        ", [$tenantId, now()->toDateString()]);
+    }
+
+    /**
+     * Increment the daily upvote or downvote counter.
+     */
+    public function recordFeedback(int $tenantId, string $vote): void
+    {
+        $column = $vote === 'up' ? 'upvotes' : 'downvotes';
+        DB::statement("
+            INSERT INTO daily_cost_summary (tenant_id, date, {$column}, created_at, updated_at)
+            VALUES (?, ?, 1, NOW(), NOW())
+            ON CONFLICT (tenant_id, date)
+            DO UPDATE SET {$column} = daily_cost_summary.{$column} + 1, updated_at = NOW()
+        ", [$tenantId, now()->toDateString()]);
+    }
 }

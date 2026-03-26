@@ -239,6 +239,12 @@
                         </select>
                         <span id="km-primary_filter-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_primary_filter_hint') }}</span>
                     </div>
+                    <div style="margin-top: 4px; margin-bottom: 8px;">
+                        <input type="text" name="primary_filter_label" placeholder="{{ __('ui.primary_filter_label_placeholder') }}"
+                            value="{{ $dataset->schema_json['primary_filter_label'] ?? '' }}"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                        <span style="font-size: 11px; color: #5f6368; margin-left: 8px;">{{ __('ui.primary_filter_label_hint') }}</span>
+                    </div>
 
                     {{-- Category --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_category') }}</label>

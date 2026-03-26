@@ -59,7 +59,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/workspace/{embeddingId}', [EmbeddingController::class, 'destroy'])->name('workspace.destroy');
     Route::post('/workspace/cleanup-jobs', [EmbeddingController::class, 'cleanupJobs'])->name('workspace.cleanup-jobs');
     Route::get('/workspace/{embeddingId}/export', [EmbeddingController::class, 'export'])->name('workspace.export');
+    Route::get('/workspace/{embeddingId}/export-rows', [EmbeddingController::class, 'exportWithClusters'])->name('workspace.export-rows');
     Route::post('/workspace/{embeddingId}/chat', [\App\Http\Controllers\EmbeddingChatController::class, 'chat'])->name('workspace.chat');
+    Route::post('/workspace/{embeddingId}/chat-feedback', [\App\Http\Controllers\EmbeddingChatController::class, 'feedback'])->name('workspace.chat-feedback');
 
     // Pipeline: redirect legacy URLs to workspace pipeline view
     Route::get('/pipeline', fn () => redirect('/?pipeline=jobs&pf=all'))->name('dashboard');

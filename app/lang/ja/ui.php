@@ -391,6 +391,27 @@ return [
     'invite_email_subject' => ':name さんからKPSへの招待',
     'invite_email_body' => ":name さんが :app の :tenant にあなたを招待しました。\n\n以下のリンクからアカウントを作成してください：\n:url\n\nこの招待は7日間有効です。",
 
+    // 入力ゲート — リジェクト時のジョーク
+    'chat_rejection_jokes' => [
+        'いい質問ですが、私はサポートボットです。占い師ではありません！製品のお困りごとをどうぞ。',
+        'その質問には答えられませんが、製品トラブルなら任せてください！',
+        'サポート以外の質問は苦手です…。何かお困りの製品はありますか？',
+        '私の得意分野はトラブルシューティングです。雑談はちょっと…。製品の問題をお聞かせください！',
+    ],
+
+    // プライマリフィルタ表示名
+    'primary_filter_label_placeholder' => '表示名（例: 製品）',
+    'primary_filter_label_hint' => 'チャットの聞き返しで使う名前',
+
+    // チャットフィードバック
+    'chat_feedback' => 'チャットフィードバック',
+    'chat_answers' => '回答数',
+    'upvotes' => '高評価',
+    'downvotes' => '低評価',
+
+    // エクスポート
+    'export_rows_with_clusters' => '元データ＋クラスター名 CSV',
+
     // テナント設定
     'tenant_settings' => 'ワークスペース設定',
     'tenant_name' => 'ワークスペース名',

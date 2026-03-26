@@ -303,6 +303,71 @@ class EmbeddingController extends Controller
     }
 
     /**
+     * Export original dataset rows with their assigned cluster name appended.
+     *
+     * Joins dataset_rows → cluster_memberships → clusters to produce a CSV
+     * containing all original columns plus a "cluster_topic" column. Rows not
+     * assigned to any cluster get an empty cluster_topic value.
+     */
+    public function exportWithClusters(int $embeddingId)
+    {
+        $tenantId = auth()->user()->tenant_id;
+        $embedding = Embedding::where('tenant_id', $tenantId)
+            ->findOrFail($embeddingId);
+
+        // Fetch all original rows with their cluster topic name via raw SQL
+        // (bypasses RLS by using the app-level tenant filter)
+        $rows = \DB::select("
+            SELECT dr.row_no, dr.metadata_json, c.topic_name AS cluster_topic
+            FROM dataset_rows dr
+            LEFT JOIN cluster_memberships cm ON cm.dataset_row_id = dr.id
+            LEFT JOIN clusters c ON c.id = cm.cluster_id
+                AND c.pipeline_job_id = (
+                    SELECT pj.id FROM pipeline_jobs pj
+                    WHERE pj.embedding_id = ?
+                    ORDER BY pj.created_at DESC LIMIT 1
+                )
+            WHERE dr.dataset_id = ? AND dr.tenant_id = ?
+            ORDER BY dr.row_no
+        ", [$embeddingId, $embedding->dataset_id, $tenantId]);
+
+        if (empty($rows)) {
+            return back()->with('error', 'No data rows found.');
+        }
+
+        // Determine CSV columns from the first row's metadata keys
+        $firstMeta = json_decode($rows[0]->metadata_json, true) ?? [];
+        $originalColumns = array_keys($firstMeta);
+        $csvHeader = array_merge($originalColumns, ['cluster_topic']);
+
+        // Build CSV output
+        $handle = fopen('php://temp', 'r+');
+        fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM
+        fputcsv($handle, $csvHeader);
+
+        foreach ($rows as $row) {
+            $meta = json_decode($row->metadata_json, true) ?? [];
+            $csvRow = [];
+            foreach ($originalColumns as $col) {
+                $csvRow[] = $meta[$col] ?? '';
+            }
+            $csvRow[] = $row->cluster_topic ?? '';
+            fputcsv($handle, $csvRow);
+        }
+
+        rewind($handle);
+        $csvContent = stream_get_contents($handle);
+        fclose($handle);
+
+        $filename = Str::slug($embedding->name) . '_rows_with_clusters.csv';
+
+        return response($csvContent, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
      * Delete an embedding and all its related data (KUs, clusters, etc.).
      */
     public function destroy(int $embeddingId)

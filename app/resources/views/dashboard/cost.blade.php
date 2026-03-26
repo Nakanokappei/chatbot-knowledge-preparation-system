@@ -42,6 +42,19 @@
                 </div>
             </div>
 
+            {{-- Chat feedback chart: answers, upvotes, downvotes --}}
+            <div style="margin-bottom: 20px;">
+                <div class="card">
+                    <h2>{{ __('ui.chat_feedback') }}</h2>
+                    <div class="chart-container" style="height: 220px;"><canvas id="feedbackChart"></canvas></div>
+                    <div class="chart-legend">
+                        <span style="--c: #5f6368;">─ {{ __('ui.chat_answers') }}</span>
+                        <span style="--c: #34a853;">{{ __('ui.upvotes') }}</span>
+                        <span style="--c: #ea4335;">{{ __('ui.downvotes') }}</span>
+                    </div>
+                </div>
+            </div>
+
             {{-- Breakdown tables: cost aggregated by API endpoint and by model --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div class="card">
@@ -218,4 +231,85 @@
     // Render the combined chart
     const days = buildDateRange(dailyData);
     drawCombinedChart('combinedChart', days);
+
+    // Draw feedback chart: answers as line, upvotes/downvotes as stacked bars
+    function drawFeedbackChart(canvasId, days) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        const W = rect.width, H = rect.height;
+        const pad = { top: 20, right: 50, bottom: 30, left: 50 };
+        const chartW = W - pad.left - pad.right;
+        const chartH = H - pad.top - pad.bottom;
+
+        // Find max values for scale
+        const maxAnswers = Math.max(1, ...days.map(d => Number(d.chat_answers) || 0));
+        const maxVotes = Math.max(1, ...days.map(d => (Number(d.upvotes) || 0) + (Number(d.downvotes) || 0)));
+        const niceMax = (v) => { const p = Math.pow(10, Math.floor(Math.log10(v))); return Math.ceil(v / p) * p; };
+        const maxA = niceMax(maxAnswers);
+        const maxV = niceMax(maxVotes);
+
+        const gap = 2;
+        const barW = Math.max(4, (chartW - gap * days.length) / days.length);
+
+        // Draw Y-axis labels (left: answers, right: votes)
+        ctx.fillStyle = '#5f6368';
+        ctx.font = '10px -apple-system, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(maxA, pad.left - 6, pad.top + 8);
+        ctx.fillText('0', pad.left - 6, pad.top + chartH);
+        ctx.textAlign = 'left';
+        ctx.fillText(maxV, W - pad.right + 6, pad.top + 8);
+
+        // Draw bars: upvotes (green) + downvotes (red) stacked
+        days.forEach((day, i) => {
+            const up = Number(day.upvotes) || 0;
+            const down = Number(day.downvotes) || 0;
+            const x = pad.left + i * (barW + gap) + gap / 2;
+
+            // Downvotes bar (bottom)
+            if (down > 0) {
+                const h = (down / maxV) * chartH;
+                ctx.fillStyle = '#ea4335';
+                ctx.fillRect(x, pad.top + chartH - h, barW, h);
+            }
+            // Upvotes bar (stacked on top)
+            if (up > 0) {
+                const hDown = (down / maxV) * chartH;
+                const hUp = (up / maxV) * chartH;
+                ctx.fillStyle = '#34a853';
+                ctx.fillRect(x, pad.top + chartH - hDown - hUp, barW, hUp);
+            }
+        });
+
+        // Draw answers line
+        ctx.beginPath();
+        ctx.strokeStyle = '#5f6368';
+        ctx.lineWidth = 2;
+        days.forEach((day, i) => {
+            const answers = Number(day.chat_answers) || 0;
+            const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+            const y = pad.top + chartH - (answers / maxA) * chartH;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Draw X-axis date labels (show every 5th)
+        ctx.fillStyle = '#aaa';
+        ctx.textAlign = 'center';
+        ctx.font = '9px -apple-system, sans-serif';
+        days.forEach((day, i) => {
+            if (i % 5 === 0 || i === days.length - 1) {
+                const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                ctx.fillText(day.date.slice(5), x, H - 6);
+            }
+        });
+    }
+
+    drawFeedbackChart('feedbackChart', days);
 @endsection

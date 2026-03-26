@@ -391,6 +391,27 @@ return [
     'invite_email_subject' => ':name invited you to KPS',
     'invite_email_body' => ":name has invited you to join :tenant on :app.\n\nClick here to create your account:\n:url\n\nThis invitation expires in 7 days.",
 
+    // Input gate rejection jokes
+    'chat_rejection_jokes' => [
+        "Nice try! But I'm a support bot, not a fortune teller. Ask me about a product issue!",
+        "I appreciate your curiosity, but I only know about product support. Try me with a real question!",
+        "Hmm, that doesn't look like a support question. I'm good at fixing things, not small talk!",
+        "My specialty is troubleshooting, not trivia. What product can I help you with?",
+    ],
+
+    // Primary filter label
+    'primary_filter_label_placeholder' => 'Display name (e.g. Product)',
+    'primary_filter_label_hint' => 'Name shown in chat when asking user',
+
+    // Chat feedback
+    'chat_feedback' => 'Chat Feedback',
+    'chat_answers' => 'Answers',
+    'upvotes' => 'Upvotes',
+    'downvotes' => 'Downvotes',
+
+    // Export
+    'export_rows_with_clusters' => 'Original data + Cluster CSV',
+
     // Tenant settings
     'tenant_settings' => 'Workspace Settings',
     'tenant_name' => 'Workspace Name',

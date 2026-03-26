@@ -514,6 +514,7 @@ class DatasetWizardController extends Controller
                     'delimiter' => $delimiter,
                     'dataset_description' => $datasetDescription,
                     'column_descriptions' => $columnDescriptions,
+                    'primary_filter_label' => $request->input('primary_filter_label', ''),
                 ],
             ]);
 

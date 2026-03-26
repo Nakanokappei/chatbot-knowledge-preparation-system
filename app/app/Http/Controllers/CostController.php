@@ -27,7 +27,7 @@ class CostController extends Controller
             ->where('tenant_id', $tenantId)
             ->where('date', '>=', now()->subDays(30)->toDateString())
             ->orderBy('date')
-            ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count']);
+            ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count', 'chat_answers', 'upvotes', 'downvotes']);
 
         $thirtyDaysAgo = now()->subDays(30);
 

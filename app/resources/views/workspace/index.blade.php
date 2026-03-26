@@ -438,6 +438,12 @@
                                    onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
                                     {{ __('ui.cluster') }} JSON
                                 </a>
+                                <div style="border-top: 1px solid #e0e0e0;"></div>
+                                <a href="{{ route('workspace.export-rows', ['embeddingId' => $current->id]) }}"
+                                   style="display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px;"
+                                   onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
+                                    {{ __('ui.export_rows_with_clusters') }}
+                                </a>
                             </div>
                         </div>
                         <form method="POST" action="{{ route('workspace.destroy', $current->id) }}"
@@ -831,6 +837,12 @@
             chatContext = { primary_filter: null, question: null };
             const container = document.getElementById('chat-messages');
             container.innerHTML = '<div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">{{ __("ui.chat_placeholder") }}</div>';
+            // Clear the context indicator bar
+            const indicator = document.getElementById('context-indicator');
+            if (indicator) {
+                indicator.textContent = '';
+                indicator.style.display = 'none';
+            }
         }
 
         function appendChatMessage(role, content, meta) {
@@ -840,15 +852,44 @@
             const placeholder = container.querySelector('[style*="text-align: center"]');
             if (placeholder && role === 'user') placeholder.remove();
 
-            const bubble = document.createElement('div');
             const isUser = role === 'user';
 
+            // Wrapper: holds bubble + copy button in a row
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = `
+                display: flex; align-items: flex-start; gap: 4px;
+                align-self: ${isUser ? 'flex-end' : 'flex-start'};
+                max-width: 85%; position: relative;
+            `;
+            wrapper.addEventListener('mouseenter', () => copyBtn.style.opacity = '1');
+            wrapper.addEventListener('mouseleave', () => copyBtn.style.opacity = '0');
+
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+            copyBtn.style.cssText = `
+                background: none; border: none; cursor: pointer; padding: 4px;
+                color: #aaa; opacity: 0; transition: opacity 0.15s;
+                flex-shrink: 0; margin-top: 6px;
+            `;
+            copyBtn.title = 'Copy';
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(content).then(() => {
+                    copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+                    }, 1500);
+                });
+            });
+
+            // Bubble
+            const bubble = document.createElement('div');
             bubble.style.cssText = `
-                max-width: 85%; align-self: ${isUser ? 'flex-end' : 'flex-start'};
                 background: ${isUser ? '#0071e3' : '#F6F6F6'};
                 color: ${isUser ? '#fff' : '#1d1d1f'};
                 padding: 10px 14px; border-radius: ${isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px'};
-                font-size: 14px; line-height: 1.5; word-wrap: break-word;
+                font-size: 14px; line-height: 1.5; word-wrap: break-word; flex: 1; min-width: 0;
             `;
             if (isUser) {
                 bubble.textContent = content;
@@ -856,7 +897,17 @@
                 bubble.innerHTML = renderMarkdown(content);
             }
 
-            container.appendChild(bubble);
+            // User: copy button on left, bubble on right
+            // Assistant: bubble on left, copy button on right
+            if (isUser) {
+                wrapper.appendChild(copyBtn);
+                wrapper.appendChild(bubble);
+            } else {
+                wrapper.appendChild(bubble);
+                wrapper.appendChild(copyBtn);
+            }
+
+            container.appendChild(wrapper);
 
             // Show sources and meta for assistant messages
             if (!isUser && meta) {
@@ -867,16 +918,58 @@
                     sourcesDiv.textContent = 'Sources: ' + topicList;
                     container.appendChild(sourcesDiv);
                 }
+                // Feedback row: meta info + upvote/downvote buttons
+                const feedbackRow = document.createElement('div');
+                feedbackRow.style.cssText = 'align-self: flex-start; font-size: 10px; color: #aaa; padding: 0 4px 4px; display: flex; align-items: center; gap: 8px;';
+
                 if (meta.latency_ms || meta.usage) {
-                    const metaDiv = document.createElement('div');
-                    metaDiv.style.cssText = 'align-self: flex-start; font-size: 10px; color: #aaa; padding: 0 4px 4px;';
                     const parts = [];
                     if (meta.latency_ms) parts.push(meta.latency_ms + 'ms');
                     if (meta.usage) parts.push((meta.usage.input_tokens + meta.usage.output_tokens) + ' tokens');
                     if (meta.model) parts.push(meta.model.split('.').pop().split(':')[0]);
-                    metaDiv.textContent = parts.join(' · ');
-                    container.appendChild(metaDiv);
+                    const metaSpan = document.createElement('span');
+                    metaSpan.textContent = parts.join(' · ');
+                    feedbackRow.appendChild(metaSpan);
                 }
+
+                // Upvote/downvote buttons
+                const voteContainer = document.createElement('span');
+                voteContainer.style.cssText = 'display: inline-flex; gap: 2px; margin-left: 4px;';
+
+                const makeVoteBtn = (type) => {
+                    const btn = document.createElement('button');
+                    btn.innerHTML = type === 'up'
+                        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-6 0v4H5l7-7 7 7h-5z"/><path d="M5 9v10a2 2 0 002 2h10a2 2 0 002-2V9"/></svg>'
+                        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 006 0v-4h3l-7 7-7-7h5z"/><path d="M19 15V5a2 2 0 00-2-2H7a2 2 0 00-2 2v10"/></svg>';
+                    btn.style.cssText = 'background: none; border: none; cursor: pointer; padding: 2px; color: #ccc; transition: color 0.15s;';
+                    btn.title = type === 'up' ? 'Helpful' : 'Not helpful';
+                    btn.addEventListener('mouseenter', () => btn.style.color = type === 'up' ? '#34a853' : '#ea4335');
+                    btn.addEventListener('mouseleave', () => { if (!btn.dataset.voted) btn.style.color = '#ccc'; });
+                    btn.addEventListener('click', () => {
+                        if (btn.dataset.voted) return;
+                        btn.dataset.voted = '1';
+                        btn.style.color = type === 'up' ? '#34a853' : '#ea4335';
+                        // Disable the other button
+                        const sibling = type === 'up' ? btn.nextElementSibling : btn.previousElementSibling;
+                        if (sibling) { sibling.style.opacity = '0.3'; sibling.style.pointerEvents = 'none'; }
+                        // Send feedback to server
+                        fetch('{{ url("/workspace") }}/' + {{ $current ? $current->id : 0 }} + '/chat-feedback', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                            body: JSON.stringify({
+                                vote: type,
+                                question: chatContext.question,
+                                answer: content,
+                                source_ku_ids: meta.source_ku_ids || [],
+                            }),
+                        });
+                    });
+                    return btn;
+                };
+                voteContainer.appendChild(makeVoteBtn('up'));
+                voteContainer.appendChild(makeVoteBtn('down'));
+                feedbackRow.appendChild(voteContainer);
+                container.appendChild(feedbackRow);
             }
 
             container.scrollTop = container.scrollHeight;
@@ -937,6 +1030,11 @@
 
                 if (data.error) {
                     appendChatMessage('assistant', 'Error: ' + data.error);
+                } else if (data.action === 'rejected') {
+                    // Input gate triggered: show joke with warning icon, clear context
+                    chatContext = { primary_filter: null, question: null };
+                    updateContextIndicator();
+                    appendChatMessage('assistant', '⚠️ ' + data.message);
                 } else {
                     // Add note for broad/reference results
                     let responseMessage = data.message;
@@ -945,6 +1043,7 @@
                     }
                     appendChatMessage('assistant', responseMessage, {
                         sources: data.sources,
+                        source_ku_ids: data.source_ku_ids,
                         latency_ms: data.latency_ms,
                         usage: data.usage,
                         model: data.model,
