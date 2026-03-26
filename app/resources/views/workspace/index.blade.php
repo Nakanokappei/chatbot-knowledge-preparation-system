@@ -578,7 +578,7 @@
         <div style="padding: 20px; overflow-y: auto; flex: 1;">
             <!-- Upload Dataset -->
             <div style="margin-bottom: 20px;">
-                <div style="font-size: 13px; font-weight: 600; color: #5f6368; margin-bottom: 8px;">UPLOAD DATASET</div>
+                <div style="font-size: 13px; font-weight: 600; color: #5f6368; margin-bottom: 8px;">{{ strtoupper(__('ui.upload_csv')) }}</div>
                 <form method="POST" action="{{ route('dataset.upload') }}" enctype="multipart/form-data"
                     style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;"
                     onsubmit="showUploadOverlay()">

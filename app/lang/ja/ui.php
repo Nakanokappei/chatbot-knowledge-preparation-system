@@ -142,6 +142,18 @@ return [
     'remove' => '削除',
     'reencode_failed' => '再エンコードに失敗しました',
 
+    // ── Knowledge mapping hints (Configure screen JS) ────
+    'km_hint_question_llm' => 'LLMが代表行からFAQ形式の質問を生成',
+    'km_hint_symptoms_llm' => 'ユーザー報告のエラーメッセージや表面的な症状',
+    'km_hint_root_cause_llm' => '解決データから根本原因を抽出',
+    'km_hint_resolution_llm' => 'LLMが代表データから解決手順を生成',
+    'km_hint_primary_filter_llm' => 'LLMが代表データからフィルタ値を抽出',
+    'km_hint_category_llm' => 'LLMがクラスタ内容からカテゴリを生成',
+    'km_hint_col_direct' => 'この列の値をそのまま使用',
+    'km_hint_col_direct_question' => 'この列の値を質問として使用',
+    'km_hint_col_direct_resolution' => 'この列の値を解決策として使用',
+    'km_hint_field_empty' => 'この項目は空になります',
+
     // ── Settings: Models ────────────────────────────────
     'llm_models' => 'LLM モデル',
     'llm_models_desc' => 'クラスター分析に使用するモデルを管理します。',

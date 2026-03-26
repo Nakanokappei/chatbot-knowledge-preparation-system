@@ -63,7 +63,7 @@
     <div class="configure-overlay" onclick="if(event.target===this) window.location='{{ route('workspace.index') }}'">
         <div class="configure-panel">
             <div class="configure-titlebar">
-                <h1>{{ __('ui.new_dataset') ?? 'New Dataset' }}: {{ $dataset->name }}</h1>
+                <h1>{{ __('ui.new_dataset') }}: {{ $dataset->name }}</h1>
                 <a href="{{ route('workspace.index') }}" class="close-btn" title="{{ __('ui.close') }}">&times;</a>
             </div>
             <div class="configure-body">
@@ -641,12 +641,12 @@
 
         // Update the hint text when a knowledge mapping source dropdown changes
         const kmHints = {
-            question: { _llm: 'LLM generates a FAQ-style question from representative rows', _none: '', _col: 'Uses this column directly as the question text' },
-            symptoms: { _llm: 'Error messages, surface-level phenomena from user reports', _none: '', _col: 'Uses this column directly' },
-            root_cause: { _llm: 'Underlying technical cause extracted from resolution data', _none: '', _col: 'Uses this column directly' },
-            resolution: { _llm: 'LLM generates resolution steps from representative data', _none: '', _col: 'Uses this column directly as resolution' },
-            primary_filter: { _llm: 'LLM extracts filter values from representative data', _none: 'This field will be empty', _col: 'Uses this column directly' },
-            category: { _llm: 'LLM generates a category from cluster content', _none: 'This field will be empty', _col: 'Uses this column directly' },
+            question: { _llm: '{{ __("ui.km_hint_question_llm") }}', _none: '', _col: '{{ __("ui.km_hint_col_direct_question") }}' },
+            symptoms: { _llm: '{{ __("ui.km_hint_symptoms_llm") }}', _none: '', _col: '{{ __("ui.km_hint_col_direct") }}' },
+            root_cause: { _llm: '{{ __("ui.km_hint_root_cause_llm") }}', _none: '', _col: '{{ __("ui.km_hint_col_direct") }}' },
+            resolution: { _llm: '{{ __("ui.km_hint_resolution_llm") }}', _none: '', _col: '{{ __("ui.km_hint_col_direct_resolution") }}' },
+            primary_filter: { _llm: '{{ __("ui.km_hint_primary_filter_llm") }}', _none: '{{ __("ui.km_hint_field_empty") }}', _col: '{{ __("ui.km_hint_col_direct") }}' },
+            category: { _llm: '{{ __("ui.km_hint_category_llm") }}', _none: '{{ __("ui.km_hint_field_empty") }}', _col: '{{ __("ui.km_hint_col_direct") }}' },
         };
         function toggleKmLlm(field) {
             const select = document.getElementById('km-' + field + '-source');

@@ -142,6 +142,18 @@ return [
     'remove' => 'Remove',
     'reencode_failed' => 'Re-encoding failed',
 
+    // ── Knowledge mapping hints (Configure screen JS) ────
+    'km_hint_question_llm' => 'LLM generates a FAQ-style question from representative rows',
+    'km_hint_symptoms_llm' => 'Error messages and surface-level phenomena from user reports',
+    'km_hint_root_cause_llm' => 'Underlying technical cause extracted from resolution data',
+    'km_hint_resolution_llm' => 'LLM generates resolution steps from representative data',
+    'km_hint_primary_filter_llm' => 'LLM extracts filter values from representative data',
+    'km_hint_category_llm' => 'LLM generates a category from cluster content',
+    'km_hint_col_direct' => 'Uses this column directly',
+    'km_hint_col_direct_question' => 'Uses this column directly as the question',
+    'km_hint_col_direct_resolution' => 'Uses this column directly as resolution',
+    'km_hint_field_empty' => 'This field will be empty',
+
     // ── Settings: Models ────────────────────────────────
     'llm_models' => 'LLM Models',
     'llm_models_desc' => 'Manage available models for cluster analysis.',
