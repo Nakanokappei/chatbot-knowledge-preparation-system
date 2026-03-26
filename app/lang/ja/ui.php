@@ -108,8 +108,10 @@ return [
     // ── Upload / Configure dataset ──────────────────────
     'upload_and_configure' => 'アップロードして設定',
     'after_upload_hint' => 'アップロード後、列の選択、クラスタリング手法、パイプライン設定を行います。',
+    'csv_processing' => 'CSVファイルを解析しています...',
     'configure_dataset' => 'データセット設定',
     'new_dataset' => '新規データセット',
+    'data_rows' => '行',
     'basic_settings' => '基本設定',
     'dataset_name' => 'データセット名',
     'first_row_is' => '1行目の扱い',
@@ -131,7 +133,14 @@ return [
     'test_pipeline' => '🧪 テスト処理（最大500件）',
     'embedding_model' => '埋め込みモデル',
     'select_one_column' => '列を1つ以上選択してください',
-    'columns_selected' => ':count 列を選択中',
+    'columns_selected' => '列を選択中',
+    'drag_columns_here' => '列をドラッグするか + で追加',
+    'drop_to_add' => 'ここにドロップして追加',
+    'add_to_embedding' => '埋め込みに追加',
+    'drag_to_reorder' => 'ドラッグで並び替え',
+    'label' => 'ラベル',
+    'remove' => '削除',
+    'reencode_failed' => '再エンコードに失敗しました',
 
     // ── Settings: Models ────────────────────────────────
     'llm_models' => 'LLM モデル',

@@ -64,10 +64,10 @@
         <div class="configure-panel">
             <div class="configure-titlebar">
                 <h1>{{ __('ui.new_dataset') ?? 'New Dataset' }}: {{ $dataset->name }}</h1>
-                <a href="{{ route('workspace.index') }}" class="close-btn" title="Close">&times;</a>
+                <a href="{{ route('workspace.index') }}" class="close-btn" title="{{ __('ui.close') }}">&times;</a>
             </div>
             <div class="configure-body">
-                <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ $dataset->original_filename }} — {{ $totalLines }} data rows — Encoding: {{ $detectedEncoding }}</p>
+                <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ $dataset->original_filename }} — {{ number_format($totalLines) }} {{ __('ui.data_rows') }} — {{ __('ui.encoding') }}: {{ $detectedEncoding }}</p>
 
                 @if(session('error'))
                     <div style="color: #ff3b30; font-size: 13px; margin-bottom: 12px;">✗ {{ session('error') }}</div>
@@ -147,7 +147,7 @@
                                 <span style="font-size: 11px; color: #5f6368; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                     {{ isset($previewRows[0][$columnIndex]) ? Str::limit($previewRows[0][$columnIndex], 40) : '' }}
                                 </span>
-                                <button type="button" class="add-btn" onclick="addColumn({{ $columnIndex }}, '{{ addslashes($columnName) }}')" title="Add to embedding">+</button>
+                                <button type="button" class="add-btn" onclick="addColumn({{ $columnIndex }}, '{{ addslashes($columnName) }}')" title="{{ __('ui.add_to_embedding') }}">+</button>
                             </div>
                             @endforeach
                         </div>
@@ -274,7 +274,7 @@
                 <h2>{{ __('ui.pipeline_settings') }}</h2>
                 <div class="pipeline-options">
                     <div>
-                        <label>{{ __('ui.embedding_model') ?? 'Embedding Model' }}</label>
+                        <label>{{ __('ui.embedding_model') }}</label>
                         <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                             @foreach($embeddingModels as $em)
                                 <option value="{{ $em->model_id }}" @if($em->is_default) selected @endif>
@@ -342,7 +342,7 @@
                     </button>
                     <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
                         style="padding: 10px 24px; font-size: 14px; background: #ff9500; color: #fff; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;">
-                        🧪 {{ __('ui.test_pipeline') ?? 'Test (max 500 rows)' }}
+                        🧪 {{ __('ui.test_pipeline') }}
                     </button>
                     <span id="col-count-msg" style="font-size: 13px; color: #5f6368; white-space: nowrap;">{{ __('ui.select_one_column') }}</span>
                 </div>
@@ -404,7 +404,7 @@
                 if (descGrid) {
                     descGrid.innerHTML = data.columns.map(col =>
                         `<label style="font-size:12px;color:#1d1d1f;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${col}">${col}</label>`
-                        + `<input type="text" name="column_descriptions[${col}]" value="" style="padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" placeholder="Description...">`
+                        + `<input type="text" name="column_descriptions[${col}]" value="" style="padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" placeholder="{{ __('ui.column_description_placeholder') }}">`
                     ).join('');
                 }
 
@@ -423,7 +423,7 @@
                 });
 
             } catch (err) {
-                alert('Re-encode failed: ' + err.message);
+                alert('{{ __("ui.reencode_failed") }}: ' + err.message);
             }
         }
 
@@ -517,12 +517,12 @@
                 div.draggable = true;
                 div.dataset.pos = pos;
                 div.innerHTML = `
-                    <span class="handle" title="Drag to reorder">⠿</span>
+                    <span class="handle" title="{{ __('ui.drag_to_reorder') }}">⠿</span>
                     <span class="col-index">#${col.index + 1}</span>
                     <span class="col-name">${allColumns[col.index]}</span>
                     <input type="text" class="col-label-input" value="${col.label}"
-                        onchange="updateLabel(${col.index}, this.value)" placeholder="Label">
-                    <button type="button" class="remove-btn" onclick="removeColumn(${col.index})" title="Remove">×</button>
+                        onchange="updateLabel(${col.index}, this.value)" placeholder="{{ __('ui.label') }}">
+                    <button type="button" class="remove-btn" onclick="removeColumn(${col.index})" title="{{ __('ui.remove') }}">×</button>
                 `;
 
                 // Drag from selected (reorder)
@@ -571,8 +571,8 @@
             // Always show drop zone — change text based on state
             dropZone.style.display = 'block';
             dropZone.textContent = selectedColumns.length === 0
-                ? 'Drag columns here or click + to add'
-                : 'Drop here to add to end';
+                ? '{{ __("ui.drag_columns_here") }}'
+                : '{{ __("ui.drop_to_add") }}';
             dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('over'); };
             dropZone.ondragleave = () => dropZone.classList.remove('over');
             dropZone.ondrop = (e) => {
@@ -600,8 +600,8 @@
             const testBtn = document.getElementById('test-btn');
             if (testBtn) testBtn.disabled = selectedColumns.length === 0;
             colCountMsg.textContent = selectedColumns.length === 0
-                ? 'Select at least one column'
-                : `${selectedColumns.length} column(s) selected`;
+                ? '{{ __("ui.select_one_column") }}'
+                : `${selectedColumns.length} {{ __("ui.columns_selected") }}`;
 
             document.querySelectorAll('#available-list .col-item').forEach(item => {
                 const idx = parseInt(item.dataset.index);
@@ -615,14 +615,14 @@
         function refreshPreview() {
             const box = document.getElementById('preview-box');
             if (selectedColumns.length === 0) {
-                box.innerHTML = '<span style="color: #5f6368;">Select columns above to see preview...</span>';
+                box.innerHTML = '<span style="color: #5f6368;">{{ __("ui.preview_select_columns") }}</span>';
                 return;
             }
             const hasHeader = document.getElementById('has-header').value === '1';
             let headers = hasHeader ? allColumns : allColumns.map((_, i) => `Column ${i + 1}`);
             let html = '';
             previewRows.forEach((row, ri) => {
-                html += `<div class="preview-row"><span style="color: #5f6368; font-size: 11px;">Row ${ri + 1}</span>\n`;
+                html += `<div class="preview-row"><span style="color: #5f6368; font-size: 11px;">${ri + 1}</span>\n`;
                 selectedColumns.forEach(col => {
                     const value = row[col.index] || '';
                     const label = col.label || headers[col.index] || `col${col.index}`;

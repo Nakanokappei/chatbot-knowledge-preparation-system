@@ -580,7 +580,8 @@
             <div style="margin-bottom: 20px;">
                 <div style="font-size: 13px; font-weight: 600; color: #5f6368; margin-bottom: 8px;">UPLOAD DATASET</div>
                 <form method="POST" action="{{ route('dataset.upload') }}" enctype="multipart/form-data"
-                    style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;"
+                    onsubmit="showUploadOverlay()">
                     @csrf
                     <input type="file" name="csv_file" accept=".csv,.txt" required style="font-size: 13px; flex: 1;">
                     <button type="submit" class="btn btn-primary" style="font-size: 13px;">{{ __('ui.upload_and_configure') }}</button>
@@ -592,6 +593,20 @@
             </p>
         </div>
     </div>
+
+    {{-- Upload processing overlay: full-screen indicator shown while CSV is being uploaded --}}
+    <div id="upload-overlay" style="display: none; position: fixed; inset: 0; z-index: 9999;
+        background: rgba(255,255,255,0.85); align-items: center; justify-content: center; flex-direction: column;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;">
+            <svg width="40" height="40" viewBox="0 0 40 40" style="animation: spin 1.2s linear infinite;">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="#dadce0" stroke-width="3"/>
+                <circle cx="20" cy="20" r="16" fill="none" stroke="#1a73e8" stroke-width="3"
+                    stroke-dasharray="80" stroke-dashoffset="60" stroke-linecap="round"/>
+            </svg>
+            <span style="font-size: 15px; color: #3c4043;">{{ __('ui.csv_processing') }}</span>
+        </div>
+    </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 
     {{-- Chat overlay: bottom-right floating RAG chat window for querying approved KUs --}}
     @if($current)
@@ -934,6 +949,10 @@
         }
 
         // Dispatch modal open/close
+        function showUploadOverlay() {
+            document.getElementById('upload-overlay').style.display = 'flex';
+        }
+
         function openDispatchModal() {
             document.getElementById('dispatch-modal').style.display = 'flex';
         }

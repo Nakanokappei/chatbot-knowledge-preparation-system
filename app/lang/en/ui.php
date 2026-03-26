@@ -108,8 +108,10 @@ return [
     // ── Upload / Configure dataset ──────────────────────
     'upload_and_configure' => 'Upload & Configure',
     'after_upload_hint' => 'After uploading, you\'ll configure columns, clustering method, and pipeline settings.',
+    'csv_processing' => 'Analyzing CSV file...',
     'configure_dataset' => 'Configure Dataset',
     'new_dataset' => 'New Dataset',
+    'data_rows' => 'data rows',
     'basic_settings' => 'Basic Settings',
     'dataset_name' => 'Dataset name',
     'first_row_is' => 'First row is',
@@ -131,7 +133,14 @@ return [
     'test_pipeline' => '🧪 Test (max 500 rows)',
     'embedding_model' => 'Embedding Model',
     'select_one_column' => 'Select at least one column',
-    'columns_selected' => ':count column(s) selected',
+    'columns_selected' => 'column(s) selected',
+    'drag_columns_here' => 'Drag columns here or click + to add',
+    'drop_to_add' => 'Drop here to add',
+    'add_to_embedding' => 'Add to embedding',
+    'drag_to_reorder' => 'Drag to reorder',
+    'label' => 'Label',
+    'remove' => 'Remove',
+    'reencode_failed' => 'Re-encoding failed',
 
     // ── Settings: Models ────────────────────────────────
     'llm_models' => 'LLM Models',
