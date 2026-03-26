@@ -233,7 +233,7 @@ class EmbeddingController extends Controller
         $kus = KnowledgeUnit::where('embedding_id', $embeddingId)
             ->where('review_status', 'approved')
             ->orderBy('topic')
-            ->get(['id', 'topic', 'intent', 'summary', 'keywords', 'language', 'row_count', 'review_status']);
+            ->get(['id', 'topic', 'intent', 'summary', 'keywords_json', 'row_count', 'review_status']);
 
         $filename = Str::slug($embedding->name) . '_approved_kus.json';
 
