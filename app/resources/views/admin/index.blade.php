@@ -6,7 +6,7 @@
 @section('extra-styles')
         /* Layout: sidebar + main */
         .layout { display: flex; flex: 1; overflow: hidden; }
-        .sidebar { width: 280px; background: #F6F6F6; border-right: none; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
+        .sidebar { width: 280px; background: #F0E6FA; border-right: none; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
         .sidebar.collapsed { width: 52px; }
         .sidebar.collapsed .ws-name, .sidebar.collapsed .ws-count,
         .sidebar.collapsed .pipeline-header,
@@ -15,8 +15,8 @@
 
         /* Workspace list items */
         .ws-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 0 100px 100px 0; cursor: pointer; text-decoration: none; color: #1d1d1f; margin-right: 8px; margin-bottom: 1px; transition: background 0.15s; font-size: 14px; }
-        .ws-item:hover { background: #E9E9E9; }
-        .ws-item.active { background: #DBDBDB; }
+        .ws-item:hover { background: #DDD0F5; }
+        .ws-item.active { background: #CCBAF0; }
         .ws-item-icon { flex-shrink: 0; color: #5f6368; }
         .ws-item.active .ws-item-icon { color: #1d1d1f; }
         .ws-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
