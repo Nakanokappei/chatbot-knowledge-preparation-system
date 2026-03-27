@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -12,10 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DatasetRow extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'dataset_id', 'tenant_id', 'row_no', 'raw_text',
+        'dataset_id', 'workspace_id', 'row_no', 'raw_text',
         'normalized_text', 'metadata_json', 'embedding_hash',
     ];
 

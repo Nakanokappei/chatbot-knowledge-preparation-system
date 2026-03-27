@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,10 +19,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class PipelineJob extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'tenant_id', 'dataset_id', 'pipeline_config_id', 'status',
+        'workspace_id', 'dataset_id', 'pipeline_config_id', 'status',
         'progress', 'pipeline_config_snapshot_json', 'step_outputs_json',
         'error_detail', 'started_at', 'completed_at',
     ];

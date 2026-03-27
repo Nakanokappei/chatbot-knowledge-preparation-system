@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
 class PipelineJobController extends Controller
 {
     /**
-     * List all pipeline jobs for the current tenant.
+     * List all pipeline jobs for the current workspace.
      */
     public function index(): JsonResponse
     {
@@ -55,7 +55,7 @@ class PipelineJobController extends Controller
 
         // Create the pipeline job record
         $job = PipelineJob::create([
-            'tenant_id' => auth()->user()->tenant_id,
+            'workspace_id' => auth()->user()->workspace_id,
             'dataset_id' => $dataset->id,
             'status' => 'submitted',
             'progress' => 0,
@@ -84,7 +84,7 @@ class PipelineJobController extends Controller
     {
         $message = [
             'job_id' => $job->id,
-            'tenant_id' => $job->tenant_id,
+            'workspace_id' => $job->workspace_id,
             'dataset_id' => $job->dataset_id,
             'step' => 'ping', // Phase 0: ping step only
             'input_s3_path' => null,

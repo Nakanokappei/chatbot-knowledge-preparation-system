@@ -15,7 +15,7 @@ use Illuminate\View\View;
 /**
  * Settings controller for managing LLM models.
  *
- * Provides a CRUD interface for the tenant's LLM model registry.
+ * Provides a CRUD interface for the workspace's LLM model registry.
  * Models managed here appear in the pipeline dispatch dropdown.
  */
 class SettingsController extends Controller
@@ -24,18 +24,18 @@ class SettingsController extends Controller
      * Display the LLM model management page.
      *
      * Fetches available models from AWS Bedrock API (cached 1 hour)
-     * and shows the tenant's registered models alongside.
+     * and shows the workspace's registered models alongside.
      */
     public function index(): View
     {
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
-        $models = LlmModel::where('tenant_id', $tenantId)
+        $models = LlmModel::where('workspace_id', $workspaceId)
             ->orderBy('sort_order')
             ->get();
 
         // Embedding models
-        $embeddingModels = EmbeddingModel::where('tenant_id', $tenantId)
+        $embeddingModels = EmbeddingModel::where('workspace_id', $workspaceId)
             ->orderBy('sort_order')
             ->get();
 
@@ -325,7 +325,7 @@ class SettingsController extends Controller
             'display_name' => 'nullable|string|max:100',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
         $modelId = $request->input('model_id');
 
         // Bedrock on-demand inference for newer models requires an inference
@@ -333,8 +333,8 @@ class SettingsController extends Controller
         // model ID. The model_id from the Bedrock dropdown already includes
         // the correct prefix, so we use it as-is.
 
-        // Check for duplicate model_id within the tenant
-        $exists = LlmModel::where('tenant_id', $tenantId)
+        // Check for duplicate model_id within the workspace
+        $exists = LlmModel::where('workspace_id', $workspaceId)
             ->where('model_id', $modelId)
             ->exists();
 
@@ -358,13 +358,13 @@ class SettingsController extends Controller
             $displayName = $modelId;
         }
 
-        $maxSort = LlmModel::where('tenant_id', $tenantId)->max('sort_order') ?? -1;
+        $maxSort = LlmModel::where('workspace_id', $workspaceId)->max('sort_order') ?? -1;
 
         // First model registered becomes the default automatically
-        $isFirst = LlmModel::where('tenant_id', $tenantId)->count() === 0;
+        $isFirst = LlmModel::where('workspace_id', $workspaceId)->count() === 0;
 
         LlmModel::create([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'display_name' => $displayName,
             'model_id' => $modelId,
             'is_default' => $isFirst,
@@ -395,8 +395,8 @@ class SettingsController extends Controller
 
         // Set this model as the default (exclusive — clears all others)
         if ($action === 'set_default') {
-            $tenantId = auth()->user()->tenant_id;
-            LlmModel::where('tenant_id', $tenantId)->update(['is_default' => false]);
+            $workspaceId = auth()->user()->workspace_id;
+            LlmModel::where('workspace_id', $workspaceId)->update(['is_default' => false]);
             $llmModel->update(['is_default' => true]);
 
             return redirect()->route('settings.index')
@@ -457,10 +457,10 @@ class SettingsController extends Controller
             'dimension' => 'nullable|integer|min:1|max:8192',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
         $modelId = $request->input('model_id');
 
-        $exists = EmbeddingModel::where('tenant_id', $tenantId)
+        $exists = EmbeddingModel::where('workspace_id', $workspaceId)
             ->where('model_id', $modelId)
             ->exists();
 
@@ -483,11 +483,11 @@ class SettingsController extends Controller
             $displayName = $modelId;
         }
 
-        $maxSort = EmbeddingModel::where('tenant_id', $tenantId)->max('sort_order') ?? -1;
-        $isFirst = EmbeddingModel::where('tenant_id', $tenantId)->count() === 0;
+        $maxSort = EmbeddingModel::where('workspace_id', $workspaceId)->max('sort_order') ?? -1;
+        $isFirst = EmbeddingModel::where('workspace_id', $workspaceId)->count() === 0;
 
         EmbeddingModel::create([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'display_name' => $displayName,
             'model_id' => $modelId,
             'dimension' => $request->input('dimension', 1024),
@@ -516,8 +516,8 @@ class SettingsController extends Controller
         }
 
         if ($action === 'set_default') {
-            $tenantId = auth()->user()->tenant_id;
-            EmbeddingModel::where('tenant_id', $tenantId)->update(['is_default' => false]);
+            $workspaceId = auth()->user()->workspace_id;
+            EmbeddingModel::where('workspace_id', $workspaceId)->update(['is_default' => false]);
             $embeddingModel->update(['is_default' => true]);
             return redirect()->route('settings.index')
                 ->with('success', "{$embeddingModel->display_name} is now the default embedding model.");

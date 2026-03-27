@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,10 +15,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class Cluster extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'pipeline_job_id', 'tenant_id', 'cluster_label', 'topic_name',
+        'pipeline_job_id', 'workspace_id', 'cluster_label', 'topic_name',
         'intent', 'summary', 'row_count', 'quality_score',
         'representative_row_ids_json',
     ];

@@ -20,13 +20,13 @@ use Illuminate\Support\Facades\DB;
 class KnowledgeDatasetController extends Controller
 {
     /**
-     * List all datasets for the current tenant.
+     * List all datasets for the current workspace.
      */
     public function index()
     {
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
-        $datasets = KnowledgeDataset::where('tenant_id', $tenantId)
+        $datasets = KnowledgeDataset::where('workspace_id', $workspaceId)
             ->orderByDesc('updated_at')
             ->get();
 
@@ -38,10 +38,10 @@ class KnowledgeDatasetController extends Controller
      */
     public function create(Request $request)
     {
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
         // Load approved KUs grouped by pipeline job for selection
-        $approvedKUs = KnowledgeUnit::where('tenant_id', $tenantId)
+        $approvedKUs = KnowledgeUnit::where('workspace_id', $workspaceId)
             ->where('review_status', 'approved')
             ->orderBy('pipeline_job_id')
             ->orderBy('topic')
@@ -62,23 +62,23 @@ class KnowledgeDatasetController extends Controller
             'knowledge_unit_ids.*' => 'exists:knowledge_units,id',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
-        // Verify all selected KUs are approved and belong to this tenant
-        $selectedKUs = KnowledgeUnit::where('tenant_id', $tenantId)
+        // Verify all selected KUs are approved and belong to this workspace
+        $selectedKUs = KnowledgeUnit::where('workspace_id', $workspaceId)
             ->where('review_status', 'approved')
             ->whereIn('id', $request->knowledge_unit_ids)
             ->get();
 
-        // Ensure the count matches — some IDs may have been non-approved or wrong tenant
+        // Ensure the count matches — some IDs may have been non-approved or wrong workspace
         if ($selectedKUs->count() !== count($request->knowledge_unit_ids)) {
             return back()->withErrors(['knowledge_unit_ids' => 'All selected units must be approved.']);
         }
 
-        $dataset = DB::transaction(function () use ($request, $tenantId, $selectedKUs) {
+        $dataset = DB::transaction(function () use ($request, $workspaceId, $selectedKUs) {
             // Create the dataset
             $dataset = KnowledgeDataset::create([
-                'tenant_id' => $tenantId,
+                'workspace_id' => $workspaceId,
                 'name' => $request->name,
                 'description' => $request->description,
                 'version' => 1,
@@ -125,7 +125,7 @@ class KnowledgeDatasetController extends Controller
         }
 
         // Demote any existing published dataset with the same name to archived
-        KnowledgeDataset::where('tenant_id', $dataset->tenant_id)
+        KnowledgeDataset::where('workspace_id', $dataset->workspace_id)
             ->where('name', $dataset->name)
             ->where('status', 'published')
             ->update(['status' => 'archived']);
@@ -148,7 +148,7 @@ class KnowledgeDatasetController extends Controller
         $newDataset = DB::transaction(function () use ($dataset) {
             // Clone the dataset with incremented version
             $newDataset = KnowledgeDataset::create([
-                'tenant_id' => $dataset->tenant_id,
+                'workspace_id' => $dataset->workspace_id,
                 'name' => $dataset->name,
                 'description' => $dataset->description,
                 'version' => $dataset->version + 1,

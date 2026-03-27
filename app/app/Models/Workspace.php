@@ -6,17 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Top-level organizational boundary for multi-tenant isolation.
+ * Top-level organizational boundary for multi-workspace isolation.
  *
  * On creation, automatically provisions default LLM models so that
  * the pipeline can run without manual settings configuration.
  */
-class Tenant extends Model
+class Workspace extends Model
 {
+    protected $table = 'workspaces';
+
     protected $fillable = ['name', 'status', 'retrieve_rate_limit', 'chat_rate_limit', 'monthly_token_budget'];
 
     /**
-     * Default LLM models provisioned for every new tenant.
+     * Default LLM models provisioned for every new workspace.
      * Covers embedding (Titan) and analysis/chat (Claude Haiku).
      */
     private const DEFAULT_MODELS = [
@@ -45,33 +47,33 @@ class Tenant extends Model
      */
     protected static function booted(): void
     {
-        // Provision default LLM models when a new tenant is created
-        static::created(function (Tenant $tenant) {
+        // Provision default LLM models when a new workspace is created
+        static::created(function (Workspace $workspace) {
             foreach (self::DEFAULT_MODELS as $model) {
-                $tenant->llmModels()->create($model);
+                $workspace->llmModels()->create($model);
             }
         });
     }
 
-    /** Users belonging to this tenant. */
+    /** Users belonging to this workspace. */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
-    /** Datasets uploaded by this tenant. */
+    /** Datasets uploaded by this workspace. */
     public function datasets(): HasMany
     {
         return $this->hasMany(Dataset::class);
     }
 
-    /** Pipeline jobs executed under this tenant. */
+    /** Pipeline jobs executed under this workspace. */
     public function pipelineJobs(): HasMany
     {
         return $this->hasMany(PipelineJob::class);
     }
 
-    /** LLM models registered in this tenant's settings. */
+    /** LLM models registered in this workspace's settings. */
     public function llmModels(): HasMany
     {
         return $this->hasMany(LlmModel::class);

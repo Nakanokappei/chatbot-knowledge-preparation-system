@@ -43,7 +43,7 @@ class DatasetWizardController extends Controller
             'dataset_name' => 'nullable|string|max:255',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
         $file = $request->file('csv_file');
 
         // Default name is the original filename without extension
@@ -160,7 +160,7 @@ class DatasetWizardController extends Controller
         }
 
         // Store the converted UTF-8 CSV and the original raw file
-        $storedFilename = 'tenant' . $tenantId . '_' . time() . '_' . $file->getClientOriginalName();
+        $storedFilename = 'workspace' . $workspaceId . '_' . time() . '_' . $file->getClientOriginalName();
         $rawFilename = $storedFilename . '.raw';
         // Always save the original raw file for re-encoding
         $file->storeAs('csv-uploads', $rawFilename, 'csv');
@@ -183,7 +183,7 @@ class DatasetWizardController extends Controller
 
         // Create dataset in configuring status
         $dataset = Dataset::create([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'name' => $datasetName,
             'source_type' => 'csv',
             'original_filename' => $file->getClientOriginalName(),
@@ -236,14 +236,14 @@ class DatasetWizardController extends Controller
         fclose($handle);
         unlink($tempPath);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
-        $llmModels = LlmModel::where('tenant_id', $tenantId)
+        $llmModels = LlmModel::where('workspace_id', $workspaceId)
             ->where('is_active', true)
             ->orderByDesc('is_default')
             ->get();
 
-        $embeddingModels = EmbeddingModel::where('tenant_id', $tenantId)
+        $embeddingModels = EmbeddingModel::where('workspace_id', $workspaceId)
             ->where('is_active', true)
             ->orderByDesc('is_default')
             ->get();
@@ -417,7 +417,7 @@ class DatasetWizardController extends Controller
 
         $delimiter = $schema['delimiter'] ?? ',';
         $allColumns = $schema['columns'] ?? [];
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
         $hasHeader = $request->boolean('has_header');
         $selectedColumns = $request->input('selected_columns');
@@ -476,7 +476,7 @@ class DatasetWizardController extends Controller
 
                 $batch[] = [
                     'dataset_id' => $dataset->id,
-                    'tenant_id' => $tenantId,
+                    'workspace_id' => $workspaceId,
                     'row_no' => $rowNo,
                     'raw_text' => $embeddingText,
                     'metadata_json' => json_encode($metadata),
@@ -532,7 +532,7 @@ class DatasetWizardController extends Controller
 
             // Dispatch pipeline
             $pipelineJob = \App\Models\PipelineJob::create([
-                'tenant_id' => $tenantId,
+                'workspace_id' => $workspaceId,
                 'dataset_id' => $dataset->id,
                 'status' => 'submitted',
                 'progress' => 0,
@@ -585,7 +585,7 @@ class DatasetWizardController extends Controller
                     'QueueUrl' => $sqsUrl,
                     'MessageBody' => json_encode([
                         'job_id' => $pipelineJob->id,
-                        'tenant_id' => $tenantId,
+                        'workspace_id' => $workspaceId,
                         'dataset_id' => $dataset->id,
                         'step' => 'preprocess',
                         'pipeline_config' => $pipelineConfig,
@@ -661,11 +661,11 @@ class DatasetWizardController extends Controller
     }
 
     /**
-     * Authorization guard: ensure the dataset belongs to the current tenant.
+     * Authorization guard: ensure the dataset belongs to the current workspace.
      */
     private function authorizeDataset(Dataset $dataset): void
     {
-        if ($dataset->tenant_id !== auth()->user()->tenant_id) {
+        if ($dataset->workspace_id !== auth()->user()->workspace_id) {
             abort(403);
         }
     }
@@ -697,7 +697,7 @@ class DatasetWizardController extends Controller
         }
 
         $name = $dataset->name;
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
         // Delete the stored CSV and raw files from persistent volume
         foreach (['stored_path', 'raw_path'] as $pathKey) {
@@ -715,9 +715,9 @@ class DatasetWizardController extends Controller
         $dataset->delete();
 
         // Check if all datasets are now gone and orphaned jobs remain
-        $remainingDatasets = Dataset::where('tenant_id', $tenantId)->count();
+        $remainingDatasets = Dataset::where('workspace_id', $workspaceId)->count();
         if ($remainingDatasets === 0) {
-            $orphanedJobs = \App\Models\PipelineJob::where('tenant_id', $tenantId)
+            $orphanedJobs = \App\Models\PipelineJob::where('workspace_id', $workspaceId)
                 ->whereIn('status', ['failed', 'submitted'])
                 ->count();
 

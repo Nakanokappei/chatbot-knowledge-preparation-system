@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,10 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Embedding extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'tenant_id', 'dataset_id', 'name', 'column_config_json',
+        'workspace_id', 'dataset_id', 'name', 'column_config_json',
         'embedding_model', 'status', 'row_count',
     ];
 

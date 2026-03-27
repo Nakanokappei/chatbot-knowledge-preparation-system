@@ -28,7 +28,7 @@
         <p class="subtitle">{{ __('ui.invite_register_description') }}</p>
 
         <div class="invited-by">
-            {{ __('ui.invited_by', ['name' => $invitation->inviter->name, 'tenant' => $invitation->tenant->name ?? 'KPS']) }}
+            {{ __('ui.invited_by', ['name' => $invitation->inviter->name, 'workspace' => $invitation->workspace->name ?? 'KPS']) }}
         </div>
 
         @if($errors->any())

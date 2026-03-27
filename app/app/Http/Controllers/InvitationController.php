@@ -15,7 +15,7 @@ use Illuminate\Validation\Rules\Password;
  *   1. Existing user sends an invitation from their profile page
  *   2. Invitee receives an email with a registration link
  *   3. Invitee clicks the link and creates their account
- *   4. New user is automatically placed in the inviter's tenant
+ *   4. New user is automatically placed in the inviter's workspace
  */
 class InvitationController extends Controller
 {
@@ -34,7 +34,7 @@ class InvitationController extends Controller
 
         // Prevent duplicate pending invitations
         $existingInvitation = Invitation::where('email', $email)
-            ->where('tenant_id', $inviter->tenant_id)
+            ->where('workspace_id', $inviter->workspace_id)
             ->whereNull('accepted_at')
             ->first();
 
@@ -45,7 +45,7 @@ class InvitationController extends Controller
         // Create a new invitation with a unique token
         $token = Str::random(64);
         Invitation::create([
-            'tenant_id' => $inviter->tenant_id,
+            'workspace_id' => $inviter->workspace_id,
             'invited_by' => $inviter->id,
             'email' => $email,
             'token' => $token,
@@ -58,7 +58,7 @@ class InvitationController extends Controller
         // Mail::raw(
         //     __('ui.invite_email_body', [
         //         'name' => $inviter->name,
-        //         'tenant' => $inviter->tenant->name ?? 'KPS',
+        //         'workspace' => $inviter->workspace->name ?? 'KPS',
         //         'url' => $registerUrl,
         //         'app' => __('ui.app_name'),
         //     ]),
@@ -105,12 +105,12 @@ class InvitationController extends Controller
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
-        // Create the user in the inviter's tenant
+        // Create the user in the inviter's workspace
         $user = User::create([
             'name' => $request->name,
             'email' => $invitation->email,
             'password' => Hash::make($request->password),
-            'tenant_id' => $invitation->tenant_id,
+            'workspace_id' => $invitation->workspace_id,
         ]);
 
         // Mark the invitation as accepted
@@ -126,8 +126,8 @@ class InvitationController extends Controller
     /** Cancel a pending invitation by deleting it. */
     public function cancel(Invitation $invitation)
     {
-        // Ensure the invitation belongs to the current user's tenant
-        if ($invitation->tenant_id !== auth()->user()->tenant_id) {
+        // Ensure the invitation belongs to the current user's workspace
+        if ($invitation->workspace_id !== auth()->user()->workspace_id) {
             abort(403);
         }
 

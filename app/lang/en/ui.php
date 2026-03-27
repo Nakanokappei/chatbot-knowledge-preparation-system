@@ -397,10 +397,10 @@ return [
     'invite_expired' => 'This invitation has expired.',
     'accept_invitation' => 'Accept Invitation',
     'invite_register_description' => 'Create your account to get started.',
-    'invited_by' => 'Invited by :name (:tenant)',
+    'invited_by' => 'Invited by :name (:workspace)',
     'create_account' => 'Create Account',
     'invite_email_subject' => ':name invited you to KPS',
-    'invite_email_body' => ":name has invited you to join :tenant on :app.\n\nClick here to create your account:\n:url\n\nPlease note that this invitation may become invalid after 72 hours.",
+    'invite_email_body' => ":name has invited you to join :workspace on :app.\n\nClick here to create your account:\n:url\n\nPlease note that this invitation may become invalid after 72 hours.",
     'invitation_cancelled' => 'Invitation cancelled.',
 
     // Input gate rejection jokes
@@ -424,10 +424,10 @@ return [
     // Export
     'export_rows_with_clusters' => 'Original data + Cluster CSV',
 
-    // Tenant settings
-    'tenant_settings' => 'Workspace Settings',
-    'tenant_name' => 'Workspace Name',
-    'tenant_updated' => 'Workspace settings updated.',
+    // Workspace settings
+    'workspace_settings' => 'Workspace Settings',
+    'workspace_name' => 'Workspace Name',
+    'workspace_updated' => 'Workspace settings updated.',
     'role_updated' => 'Role updated.',
     'cannot_change_own_role' => 'You cannot change your own role.',
     'members' => 'Members',

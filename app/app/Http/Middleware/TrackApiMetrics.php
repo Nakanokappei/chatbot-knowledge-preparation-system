@@ -30,7 +30,7 @@ class TrackApiMetrics
         try {
             $latencyMs = (microtime(true) - $startTime) * 1000;
             $metrics = new MetricsService();
-            $tenantId = $request->user()?->tenant_id ?? 0;
+            $workspaceId = $request->user()?->workspace_id ?? 0;
             $isError = $response->getStatusCode() >= 400;
 
             $path = $request->path();
@@ -41,14 +41,14 @@ class TrackApiMetrics
                 $topSimilarity = $resultCount > 0 ? ($data['results'][0]['similarity'] ?? 0) : 0;
                 $datasetId = $request->input('dataset_id', 0);
 
-                $metrics->recordRetrieval($tenantId, $datasetId, $latencyMs, $resultCount, $topSimilarity);
+                $metrics->recordRetrieval($workspaceId, $datasetId, $latencyMs, $resultCount, $topSimilarity);
             } elseif (str_contains($path, 'chat')) {
                 $data = json_decode($response->getContent(), true) ?? [];
                 $modelId = $data['model'] ?? 'unknown';
                 $inputTokens = $data['usage']['input_tokens'] ?? 0;
                 $outputTokens = $data['usage']['output_tokens'] ?? 0;
 
-                $metrics->recordChat($tenantId, $modelId, $latencyMs, $inputTokens, $outputTokens, $isError);
+                $metrics->recordChat($workspaceId, $modelId, $latencyMs, $inputTokens, $outputTokens, $isError);
             }
         } catch (\Exception $e) {
             Log::warning('TrackApiMetrics failed: ' . $e->getMessage());

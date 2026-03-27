@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,10 +15,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class KnowledgeDataset extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'tenant_id', 'name', 'description', 'version', 'status',
+        'workspace_id', 'name', 'description', 'version', 'status',
         'source_job_ids', 'ku_count', 'created_by',
     ];
 

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -12,10 +12,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Dataset extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'tenant_id', 'name', 'source_type', 'original_filename',
+        'workspace_id', 'name', 'source_type', 'original_filename',
         's3_raw_path', 'row_count', 'schema_json', 'knowledge_mapping_json',
     ];
 

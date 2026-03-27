@@ -29,14 +29,14 @@ class RetrievalController extends Controller
             'min_similarity' => 'numeric|min:0|max:1',
         ]);
 
-        $tenantId = $request->user()->tenant_id;
+        $workspaceId = $request->user()->workspace_id;
         $topK = $request->input('top_k', 5);
         $minSimilarity = $request->input('min_similarity', 0.0);
         $startTime = microtime(true);
 
-        // Verify dataset is published and belongs to this tenant
+        // Verify dataset is published and belongs to this workspace
         $dataset = KnowledgeDataset::where('id', $request->dataset_id)
-            ->where('tenant_id', $tenantId)
+            ->where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->first();
 

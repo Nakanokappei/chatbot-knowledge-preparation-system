@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Storage;
 class DatasetController extends Controller
 {
     /**
-     * List all datasets for the current tenant.
+     * List all datasets for the current workspace.
      */
     public function index(): JsonResponse
     {
@@ -39,7 +39,7 @@ class DatasetController extends Controller
      * Upload a CSV file and parse it into dataset_rows.
      *
      * The raw file is stored in S3 following the standard path structure:
-     * s3://bucket/{tenant_id}/datasets/{dataset_id}/raw/
+     * s3://bucket/{workspace_id}/datasets/{dataset_id}/raw/
      *
      * Phase 0 constraint: maximum 1000 rows per upload.
      */
@@ -52,7 +52,7 @@ class DatasetController extends Controller
         ]);
 
         $file = $request->file('file');
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
         $textColumn = $request->input('text_column', 'text');
 
         // Parse the CSV to extract rows
@@ -66,10 +66,10 @@ class DatasetController extends Controller
             ], 422);
         }
 
-        return DB::transaction(function () use ($request, $file, $tenantId, $rows) {
+        return DB::transaction(function () use ($request, $file, $workspaceId, $rows) {
             // Create the dataset record
             $dataset = Dataset::create([
-                'tenant_id' => $tenantId,
+                'workspace_id' => $workspaceId,
                 'name' => $request->input('name'),
                 'source_type' => 'csv',
                 'original_filename' => $file->getClientOriginalName(),
@@ -77,7 +77,7 @@ class DatasetController extends Controller
             ]);
 
             // Upload raw file to S3 (Design Principle 3: Intermediate Data on S3)
-            $s3Path = "{$tenantId}/datasets/{$dataset->id}/raw/{$file->getClientOriginalName()}";
+            $s3Path = "{$workspaceId}/datasets/{$dataset->id}/raw/{$file->getClientOriginalName()}";
             Storage::disk('s3')->put($s3Path, file_get_contents($file->getRealPath()));
             $dataset->update(['s3_raw_path' => $s3Path]);
 
@@ -86,7 +86,7 @@ class DatasetController extends Controller
             foreach ($rows as $index => $text) {
                 $rowRecords[] = [
                     'dataset_id' => $dataset->id,
-                    'tenant_id' => $tenantId,
+                    'workspace_id' => $workspaceId,
                     'row_no' => $index + 1,
                     'raw_text' => $text,
                     'created_at' => now(),

@@ -30,12 +30,12 @@ class DashboardController extends Controller
      */
     public function index(): View
     {
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
         $filter = request('filter', 'all');
 
         // Fetch all jobs for stats calculation
         $allJobs = PipelineJob::with('dataset:id,name')
-            ->where('tenant_id', $tenantId)
+            ->where('workspace_id', $workspaceId)
             ->orderByDesc('created_at')
             ->limit(200)
             ->get();
@@ -55,11 +55,11 @@ class DashboardController extends Controller
             default => $allJobs,
         };
 
-        $datasets = Dataset::where('tenant_id', $tenantId)
+        $datasets = Dataset::where('workspace_id', $workspaceId)
             ->where('row_count', '>', 0)
             ->get();
 
-        $llmModels = LlmModel::where('tenant_id', $tenantId)
+        $llmModels = LlmModel::where('workspace_id', $workspaceId)
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
@@ -118,7 +118,7 @@ class DashboardController extends Controller
             'max_rows' => 'nullable|integer|min:1|max:100000',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
         $file = $request->file('csv_file');
         $textColumn = $request->input('text_column');
         $maxRows = $request->input('max_rows');
@@ -183,7 +183,7 @@ class DashboardController extends Controller
         DB::beginTransaction();
         try {
             $dataset = Dataset::create([
-                'tenant_id' => $tenantId,
+                'workspace_id' => $workspaceId,
                 'name' => $request->input('dataset_name'),
                 'source_type' => 'csv',
                 'original_filename' => $file->getClientOriginalName(),
@@ -198,7 +198,7 @@ class DashboardController extends Controller
                 foreach ($chunk as $rowData) {
                     $inserts[] = [
                         'dataset_id' => $dataset->id,
-                        'tenant_id' => $tenantId,
+                        'workspace_id' => $workspaceId,
                         'row_no' => $rowData['row_no'],
                         'raw_text' => $rowData['raw_text'],
                         'metadata_json' => $rowData['metadata_json'],
@@ -232,10 +232,10 @@ class DashboardController extends Controller
             'clustering_method' => 'nullable|in:hdbscan,kmeans,agglomerative,leiden',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
         // Resolve the default LLM model from the database registry
-        $defaultModel = LlmModel::where('tenant_id', $tenantId)
+        $defaultModel = LlmModel::where('workspace_id', $workspaceId)
             ->where('is_default', true)
             ->first();
         $defaultLlmModel = $defaultModel?->model_id ?? 'jp.anthropic.claude-haiku-4-5-20251001-v1:0';
@@ -269,7 +269,7 @@ class DashboardController extends Controller
 
         // Create the job record for a full pipeline run
         $job = PipelineJob::create([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'dataset_id' => $request->input('dataset_id'),
             'status' => 'submitted',
             'progress' => 0,
@@ -298,7 +298,7 @@ class DashboardController extends Controller
                 'QueueUrl' => $queueUrl,
                 'MessageBody' => json_encode([
                     'job_id' => $job->id,
-                    'tenant_id' => $job->tenant_id,
+                    'workspace_id' => $job->workspace_id,
                     'dataset_id' => $job->dataset_id,
                     'step' => 'preprocess',
                     'input_s3_path' => null,
@@ -340,11 +340,11 @@ class DashboardController extends Controller
             'dataset_id' => 'required|exists:datasets,id',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
         // Create the job record
         $job = PipelineJob::create([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'dataset_id' => $request->input('dataset_id'),
             'status' => 'submitted',
             'progress' => 0,
@@ -368,7 +368,7 @@ class DashboardController extends Controller
                 'QueueUrl' => $queueUrl,
                 'MessageBody' => json_encode([
                     'job_id' => $job->id,
-                    'tenant_id' => $job->tenant_id,
+                    'workspace_id' => $job->workspace_id,
                     'dataset_id' => $job->dataset_id,
                     'step' => 'ping',
                     'input_s3_path' => null,

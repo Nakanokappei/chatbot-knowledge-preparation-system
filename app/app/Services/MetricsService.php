@@ -30,13 +30,13 @@ class MetricsService
     /**
      * Record retrieval API metrics.
      */
-    public function recordRetrieval(int $tenantId, int $datasetId, float $latencyMs, int $resultCount, float $topSimilarity): void
+    public function recordRetrieval(int $workspaceId, int $datasetId, float $latencyMs, int $resultCount, float $topSimilarity): void
     {
         $this->putMetrics([
             ['Name' => 'RetrievalLatency', 'Value' => $latencyMs, 'Unit' => 'Milliseconds',
-             'Dimensions' => [['Name' => 'tenant_id', 'Value' => (string) $tenantId]]],
+             'Dimensions' => [['Name' => 'workspace_id', 'Value' => (string) $workspaceId]]],
             ['Name' => 'RetrievalResultCount', 'Value' => $resultCount, 'Unit' => 'Count',
-             'Dimensions' => [['Name' => 'tenant_id', 'Value' => (string) $tenantId]]],
+             'Dimensions' => [['Name' => 'workspace_id', 'Value' => (string) $workspaceId]]],
             ['Name' => 'RetrievalHitRate', 'Value' => $topSimilarity, 'Unit' => 'None',
              'Dimensions' => [['Name' => 'dataset_id', 'Value' => (string) $datasetId]]],
         ]);
@@ -45,19 +45,19 @@ class MetricsService
     /**
      * Record chat API metrics.
      */
-    public function recordChat(int $tenantId, string $modelId, float $latencyMs, int $inputTokens, int $outputTokens, bool $isError = false): void
+    public function recordChat(int $workspaceId, string $modelId, float $latencyMs, int $inputTokens, int $outputTokens, bool $isError = false): void
     {
         $metrics = [
             ['Name' => 'ChatLatency', 'Value' => $latencyMs, 'Unit' => 'Milliseconds',
-             'Dimensions' => [['Name' => 'tenant_id', 'Value' => (string) $tenantId]]],
+             'Dimensions' => [['Name' => 'workspace_id', 'Value' => (string) $workspaceId]]],
             ['Name' => 'ChatTokensUsed', 'Value' => $inputTokens + $outputTokens, 'Unit' => 'Count',
-             'Dimensions' => [['Name' => 'tenant_id', 'Value' => (string) $tenantId],
+             'Dimensions' => [['Name' => 'workspace_id', 'Value' => (string) $workspaceId],
                               ['Name' => 'model_id', 'Value' => $modelId]]],
         ];
 
         if ($isError) {
             $metrics[] = ['Name' => 'ChatErrorRate', 'Value' => 1, 'Unit' => 'Count',
-                          'Dimensions' => [['Name' => 'tenant_id', 'Value' => (string) $tenantId]]];
+                          'Dimensions' => [['Name' => 'workspace_id', 'Value' => (string) $workspaceId]]];
         }
 
         $this->putMetrics($metrics);
@@ -88,11 +88,11 @@ class MetricsService
     /**
      * Record embedding generation latency.
      */
-    public function recordEmbeddingLatency(int $tenantId, float $latencyMs): void
+    public function recordEmbeddingLatency(int $workspaceId, float $latencyMs): void
     {
         $this->putMetrics([
             ['Name' => 'EmbeddingLatency', 'Value' => $latencyMs, 'Unit' => 'Milliseconds',
-             'Dimensions' => [['Name' => 'tenant_id', 'Value' => (string) $tenantId]]],
+             'Dimensions' => [['Name' => 'workspace_id', 'Value' => (string) $workspaceId]]],
         ]);
     }
 

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -12,12 +12,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Export extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     public $timestamps = false;
 
     protected $fillable = [
-        'tenant_id', 'pipeline_job_id', 'export_type',
+        'workspace_id', 'pipeline_job_id', 'export_type',
         'format', 's3_path', 'schema_version', 'created_at',
     ];
 

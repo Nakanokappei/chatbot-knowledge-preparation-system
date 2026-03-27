@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,10 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class ChatConversation extends Model
 {
-    use BelongsToTenant, HasUuids;
+    use BelongsToWorkspace, HasUuids;
 
     protected $fillable = [
-        'tenant_id', 'knowledge_dataset_id', 'user_id',
+        'workspace_id', 'knowledge_dataset_id', 'user_id',
     ];
 
     /** Get all messages in this conversation, ordered chronologically. */

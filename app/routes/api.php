@@ -12,14 +12,14 @@ use Illuminate\Support\Facades\Route;
 | API Routes
 |--------------------------------------------------------------------------
 |
-| All routes require Sanctum authentication and tenant association.
+| All routes require Sanctum authentication and workspace association.
 | Routes are prefixed with /api automatically by Laravel.
 |
 */
 
 // Authenticated user info
 Route::get('/user', function (Request $request) {
-    return $request->user()->load('tenant');
+    return $request->user()->load('workspace');
 })->middleware('auth:sanctum');
 
 // Protected API routes requiring authentication
@@ -35,11 +35,11 @@ Route::middleware('auth:sanctum')->group(function () {
         'index', 'show', 'store',
     ]);
 
-    // Retrieval API — rate limited per tenant + budget enforced
+    // Retrieval API — rate limited per workspace + budget enforced
     Route::post('/retrieve', [RetrievalController::class, 'retrieve'])
         ->middleware(['throttle:api-retrieve', 'budget']);
 
-    // Chat API — rate limited per tenant + budget enforced
+    // Chat API — rate limited per workspace + budget enforced
     Route::post('/chat', [ChatController::class, 'chat'])
         ->middleware(['throttle:api-chat', 'budget']);
 });

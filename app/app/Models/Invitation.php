@@ -7,13 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Invitation model — represents a pending invite for a new user to join
- * a tenant. Created by existing users and consumed when the invitee
+ * a workspace. Created by existing users and consumed when the invitee
  * registers via the invitation link.
  */
 class Invitation extends Model
 {
     protected $fillable = [
-        'tenant_id',
+        'workspace_id',
         'invited_by',
         'email',
         'token',
@@ -24,10 +24,10 @@ class Invitation extends Model
         'accepted_at' => 'datetime',
     ];
 
-    /** The tenant this invitation belongs to. */
-    public function tenant(): BelongsTo
+    /** The workspace this invitation belongs to. */
+    public function workspace(): BelongsTo
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->belongsTo(Workspace::class);
     }
 
     /** The user who sent this invitation. */

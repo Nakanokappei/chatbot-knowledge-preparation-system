@@ -1,6 +1,6 @@
-{{-- Tenant settings page: manage tenant name, view members and pending invitations. --}}
+{{-- Workspace settings page: manage workspace name, view members and pending invitations. --}}
 @extends('layouts.app')
-@section('title', __('ui.tenant_settings') . ' — KPS')
+@section('title', __('ui.workspace_settings') . ' — KPS')
 
 @section('extra-styles')
         label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; color: #5f6368; }
@@ -23,19 +23,19 @@
 @section('body')
     <div class="page-content">
         <div class="page-container" style="max-width: 600px;">
-            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px;">{{ __('ui.tenant_settings') }}</h1>
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 24px;">{{ __('ui.workspace_settings') }}</h1>
 
             @if(session('success'))
                 <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✓ {{ session('success') }}</div>
             @endif
 
-            {{-- Tenant name --}}
+            {{-- Workspace name --}}
             <div class="card">
-                <h2>{{ __('ui.tenant_name') }}</h2>
+                <h2>{{ __('ui.workspace_name') }}</h2>
                 <form method="POST" action="{{ route('workspace.update') }}">
                     @csrf @method('PUT')
                     <label for="name">{{ __('ui.name') }}</label>
-                    <input type="text" name="name" id="name" value="{{ old('name', $tenant->name) }}" required>
+                    <input type="text" name="name" id="name" value="{{ old('name', $workspace->name) }}" required>
                     <button type="submit" class="btn btn-primary">{{ __('ui.save') }}</button>
                 </form>
             </div>

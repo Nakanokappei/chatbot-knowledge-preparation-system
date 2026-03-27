@@ -223,15 +223,15 @@ PROMPT;
     }
 
     /**
-     * Resolve the active LLM model ID for the given tenant.
+     * Resolve the active LLM model ID for the given workspace.
      */
-    public function resolveModelId(int $tenantId): ?string
+    public function resolveModelId(int $workspaceId): ?string
     {
-        return LlmModel::where('tenant_id', $tenantId)
+        return LlmModel::where('workspace_id', $workspaceId)
             ->where('is_active', true)
             ->where('is_default', true)
             ->value('model_id')
-            ?? LlmModel::where('tenant_id', $tenantId)
+            ?? LlmModel::where('workspace_id', $workspaceId)
                 ->where('is_active', true)
                 ->orderBy('sort_order')
                 ->value('model_id');
@@ -256,11 +256,11 @@ PROMPT;
     public function processChat(
         string $userMessage,
         int $embeddingId,
-        int $tenantId,
+        int $workspaceId,
         array $existingContext = [],
         array $history = [],
     ): array {
-        $modelId = $this->resolveModelId($tenantId);
+        $modelId = $this->resolveModelId($workspaceId);
 
         // Step 1: Extract primary filter value and question from user input
         $extracted = $this->extractPrimaryFilterAndQuestion($userMessage, $existingContext, $modelId);

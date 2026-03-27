@@ -38,8 +38,8 @@ class EmbeddingChatController extends Controller
             'context.question' => 'nullable|string',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
-        $embedding = Embedding::where('tenant_id', $tenantId)->findOrFail($embeddingId);
+        $workspaceId = auth()->user()->workspace_id;
+        $embedding = Embedding::where('workspace_id', $workspaceId)->findOrFail($embeddingId);
 
         try {
             $rag = new RagService();
@@ -48,7 +48,7 @@ class EmbeddingChatController extends Controller
             $chatResult = $rag->processChat(
                 $request->message,
                 $embeddingId,
-                $tenantId,
+                $workspaceId,
                 $request->input('context', []),
             );
 
@@ -116,7 +116,7 @@ class EmbeddingChatController extends Controller
             // Record token usage
             $costTracker = new CostTrackingService();
             $costTracker->recordUsage(
-                $tenantId, auth()->id(), 'chat',
+                $workspaceId, auth()->id(), 'chat',
                 $llmResult['model_id'],
                 $llmResult['input_tokens'], $llmResult['output_tokens'],
             );
@@ -126,7 +126,7 @@ class EmbeddingChatController extends Controller
             if (!empty($sourceKuIds)) {
                 KnowledgeUnit::whereIn('id', $sourceKuIds)->increment('usage_count');
             }
-            $costTracker->recordChatAnswer($tenantId);
+            $costTracker->recordChatAnswer($workspaceId);
 
             return response()->json([
                 'message' => $llmResult['content'],
@@ -287,10 +287,10 @@ PROMPT;
             'source_ku_ids' => 'nullable|array',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
         AnswerFeedback::create([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'user_id' => auth()->id(),
             'embedding_id' => $embeddingId,
             'vote' => $request->vote,
@@ -301,7 +301,7 @@ PROMPT;
 
         // Update daily summary
         $costTracker = new CostTrackingService();
-        $costTracker->recordFeedback($tenantId, $request->vote);
+        $costTracker->recordFeedback($workspaceId, $request->vote);
 
         return response()->json(['status' => 'ok']);
     }

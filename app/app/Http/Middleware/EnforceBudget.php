@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
 class EnforceBudget
 {
     /**
-     * Check the tenant's token budget and block or warn as appropriate.
+     * Check the workspace's token budget and block or warn as appropriate.
      * Unauthenticated requests pass through without budget checks.
      */
     public function handle(Request $request, Closure $next): Response
@@ -29,10 +29,10 @@ class EnforceBudget
             return $next($request);
         }
 
-        $tenant = $user->tenant;
-        $budget = $tenant->monthly_token_budget ?? 1_000_000;
+        $workspace = $user->workspace;
+        $budget = $workspace->monthly_token_budget ?? 1_000_000;
         $costService = new CostTrackingService();
-        $status = $costService->checkBudgetStatus($user->tenant_id, $budget);
+        $status = $costService->checkBudgetStatus($user->workspace_id, $budget);
 
         $path = $request->path();
         $isExport = str_contains($path, 'export');

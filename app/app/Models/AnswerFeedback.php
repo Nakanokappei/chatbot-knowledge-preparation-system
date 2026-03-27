@@ -13,7 +13,7 @@ class AnswerFeedback extends Model
     protected $table = 'answer_feedback';
 
     protected $fillable = [
-        'tenant_id', 'user_id', 'embedding_id',
+        'workspace_id', 'user_id', 'embedding_id',
         'vote', 'question', 'answer', 'source_ku_ids',
     ];
 

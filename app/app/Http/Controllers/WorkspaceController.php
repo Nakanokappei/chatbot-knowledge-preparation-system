@@ -7,50 +7,50 @@ use App\Models\User;
 use Illuminate\Http\Request;
 
 /**
- * Tenant settings controller — manage tenant name and view members/invitations.
+ * Workspace settings controller — manage workspace name and view members/invitations.
  */
-class TenantController extends Controller
+class WorkspaceController extends Controller
 {
-    /** Show the tenant settings page with members and pending invitations. */
+    /** Show the workspace settings page with members and pending invitations. */
     public function edit()
     {
-        $tenant = auth()->user()->tenant;
-        $members = $tenant->users()->orderBy('name')->get();
+        $workspace = auth()->user()->workspace;
+        $members = $workspace->users()->orderBy('name')->get();
 
         // Auto-delete expired invitations (168 hours / 7 days)
-        Invitation::where('tenant_id', $tenant->id)
+        Invitation::where('workspace_id', $workspace->id)
             ->whereNull('accepted_at')
             ->where('created_at', '<', now()->subDays(7))
             ->delete();
 
-        $pendingInvitations = Invitation::where('tenant_id', $tenant->id)
+        $pendingInvitations = Invitation::where('workspace_id', $workspace->id)
             ->whereNull('accepted_at')
             ->orderByDesc('created_at')
             ->get();
 
-        return view('settings.tenant', compact('tenant', 'members', 'pendingInvitations'));
+        return view('settings.workspace', compact('workspace', 'members', 'pendingInvitations'));
     }
 
-    /** Update the tenant name. */
+    /** Update the workspace name. */
     public function update(Request $request)
     {
         $request->validate(['name' => 'required|string|max:255']);
 
-        $tenant = auth()->user()->tenant;
-        $tenant->update(['name' => $request->name]);
+        $workspace = auth()->user()->workspace;
+        $workspace->update(['name' => $request->name]);
 
-        return back()->with('success', __('ui.tenant_updated'));
+        return back()->with('success', __('ui.workspace_updated'));
     }
 
-    /** Update a member's role within the tenant. */
+    /** Update a member's role within the workspace. */
     public function updateRole(Request $request, User $user)
     {
         $request->validate(['role' => 'required|in:owner,member']);
 
-        $tenant = auth()->user()->tenant;
+        $workspace = auth()->user()->workspace;
 
-        // Ensure the target user belongs to the same tenant
-        if ($user->tenant_id !== $tenant->id) {
+        // Ensure the target user belongs to the same workspace
+        if ($user->workspace_id !== $workspace->id) {
             abort(403);
         }
 

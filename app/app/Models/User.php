@@ -13,12 +13,12 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * Authenticated user within a tenant.
+ * Authenticated user within a workspace.
  *
  * Uses Sanctum for API token authentication and belongs to exactly
- * one Tenant for multi-tenant isolation.
+ * one Workspace for multi-workspace isolation.
  */
-#[Fillable(['name', 'email', 'password', 'tenant_id', 'role'])]
+#[Fillable(['name', 'email', 'password', 'workspace_id', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -26,15 +26,15 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * The tenant this user belongs to.
+     * The workspace this user belongs to.
      */
-    public function tenant(): BelongsTo
+    public function workspace(): BelongsTo
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->belongsTo(Workspace::class);
     }
 
     /**
-     * Check if the user has the owner role within their tenant.
+     * Check if the user has the owner role within their workspace.
      */
     public function isOwner(): bool
     {
@@ -42,7 +42,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if the user has the member role within their tenant.
+     * Check if the user has the member role within their workspace.
      */
     public function isMember(): bool
     {

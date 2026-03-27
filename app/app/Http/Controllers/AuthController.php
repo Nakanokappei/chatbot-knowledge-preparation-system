@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 /**
- * Authentication controller for Phase 3 multi-tenant support.
+ * Authentication controller for Phase 3 multi-workspace support.
  *
  * Simple session-based login/logout. No registration UI — users are
  * created via tinker or seeder (invite-only model).

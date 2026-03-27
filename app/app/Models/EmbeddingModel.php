@@ -2,21 +2,21 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Embedding model registry entry for a tenant.
+ * Embedding model registry entry for a workspace.
  *
  * Tracks which Bedrock embedding models are available for use
  * in the pipeline's embedding step.
  */
 class EmbeddingModel extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'tenant_id', 'display_name', 'model_id', 'dimension',
+        'workspace_id', 'display_name', 'model_id', 'dimension',
         'is_default', 'is_active', 'sort_order', 'input_price_per_1m',
     ];
 

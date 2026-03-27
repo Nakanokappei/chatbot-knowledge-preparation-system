@@ -18,8 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Set locale from session before anything else
         $middleware->appendToGroup('web', \App\Http\Middleware\SetLocale::class);
 
-        // Set PostgreSQL RLS tenant scope after authentication
-        $middleware->appendToGroup('web', \App\Http\Middleware\SetTenantScope::class);
+        // Set PostgreSQL RLS workspace scope after authentication
+        $middleware->appendToGroup('web', \App\Http\Middleware\SetWorkspaceScope::class);
 
         // API metrics tracking
         $middleware->appendToGroup('api', \App\Http\Middleware\TrackApiMetrics::class);

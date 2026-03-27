@@ -13,7 +13,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UsageController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\PasswordResetController;
-use App\Http\Controllers\TenantController;
+use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetWizardController;
 use App\Http\Controllers\EmbeddingController;
@@ -110,12 +110,12 @@ Route::middleware('auth')->group(function () {
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
-    // Owner-only routes: tenant settings, model management, invitations
+    // Owner-only routes: workspace settings, model management, invitations
     Route::middleware('owner')->group(function () {
-        // Tenant settings
-        Route::get('/settings/workspace', [TenantController::class, 'edit'])->name('workspace.settings');
-        Route::put('/settings/workspace', [TenantController::class, 'update'])->name('workspace.update');
-        Route::put('/settings/workspace/users/{user}/role', [TenantController::class, 'updateRole'])->name('workspace.update-role');
+        // Workspace settings
+        Route::get('/settings/workspace', [WorkspaceController::class, 'edit'])->name('workspace.settings');
+        Route::put('/settings/workspace', [WorkspaceController::class, 'update'])->name('workspace.update');
+        Route::put('/settings/workspace/users/{user}/role', [WorkspaceController::class, 'updateRole'])->name('workspace.update-role');
 
         // Member invitation
         Route::post('/profile/invite', [InvitationController::class, 'send'])->name('invitation.send');

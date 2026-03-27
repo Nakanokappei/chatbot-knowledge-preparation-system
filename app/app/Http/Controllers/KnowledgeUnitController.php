@@ -203,9 +203,9 @@ class KnowledgeUnitController extends Controller
      */
     public function bulkApprove(PipelineJob $pipelineJob)
     {
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
-        $kus = KnowledgeUnit::where('tenant_id', $tenantId)
+        $kus = KnowledgeUnit::where('workspace_id', $workspaceId)
             ->where('pipeline_job_id', $pipelineJob->id)
             ->whereIn('review_status', ['draft', 'reviewed'])
             ->get();

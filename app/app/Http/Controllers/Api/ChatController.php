@@ -37,12 +37,12 @@ class ChatController extends Controller
             'top_k' => 'integer|min:1|max:10',
         ]);
 
-        $tenantId = $request->user()->tenant_id;
+        $workspaceId = $request->user()->workspace_id;
         $topK = $request->input('top_k', 5);
 
         // Verify dataset is published
         $dataset = KnowledgeDataset::where('id', $request->dataset_id)
-            ->where('tenant_id', $tenantId)
+            ->where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->first();
 
@@ -69,7 +69,7 @@ class ChatController extends Controller
 
         // Step 3: Get or create conversation
         $conversation = $this->getOrCreateConversation(
-            $request->conversation_id, $tenantId, $dataset->id, $request->user()->id
+            $request->conversation_id, $workspaceId, $dataset->id, $request->user()->id
         );
 
         // Save user message
@@ -84,7 +84,7 @@ class ChatController extends Controller
 
         // Step 5: Invoke LLM with unified system prompt
         $systemPrompt = $rag->buildSystemPrompt($knowledgeContext);
-        $modelId = $rag->resolveModelId($tenantId) ?? $this->getActiveModelId($tenantId);
+        $modelId = $rag->resolveModelId($workspaceId) ?? $this->getActiveModelId($workspaceId);
 
         $llmResult = $bedrock->invokeChat($modelId, $systemPrompt, $messages);
 
@@ -110,7 +110,7 @@ class ChatController extends Controller
 
         // Record token usage for cost tracking
         (new CostTrackingService())->recordUsage(
-            $tenantId, $request->user()->id, 'chat',
+            $workspaceId, $request->user()->id, 'chat',
             $llmResult['model_id'],
             $llmResult['input_tokens'], $llmResult['output_tokens'],
         );
@@ -131,12 +131,12 @@ class ChatController extends Controller
     /**
      * Get existing conversation or create a new one.
      */
-    private function getOrCreateConversation(?string $conversationId, int $tenantId, int $datasetId, int $userId): ChatConversation
+    private function getOrCreateConversation(?string $conversationId, int $workspaceId, int $datasetId, int $userId): ChatConversation
     {
         // Attempt to resume an existing conversation if an ID was provided
         if ($conversationId) {
             $existing = ChatConversation::where('id', $conversationId)
-                ->where('tenant_id', $tenantId)
+                ->where('workspace_id', $workspaceId)
                 ->first();
 
             if ($existing) {
@@ -145,7 +145,7 @@ class ChatController extends Controller
         }
 
         return ChatConversation::create([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'knowledge_dataset_id' => $datasetId,
             'user_id' => $userId,
         ]);
@@ -184,11 +184,11 @@ class ChatController extends Controller
     }
 
     /**
-     * Get the active LLM model ID for this tenant.
+     * Get the active LLM model ID for this workspace.
      */
-    private function getActiveModelId(int $tenantId): string
+    private function getActiveModelId(int $workspaceId): string
     {
-        $model = LlmModel::where('tenant_id', $tenantId)
+        $model = LlmModel::where('workspace_id', $workspaceId)
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->first();

@@ -19,7 +19,7 @@ class CostTrackingService
      * Record token usage and calculate cost.
      */
     public function recordUsage(
-        int $tenantId,
+        int $workspaceId,
         ?int $userId,
         string $endpoint,
         string $modelId,
@@ -36,7 +36,7 @@ class CostTrackingService
 
         // Record per-request usage
         DB::table('token_usage')->insert([
-            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
             'user_id' => $userId,
             'endpoint' => $endpoint,
             'model_id' => $modelId,
@@ -55,27 +55,27 @@ class CostTrackingService
         };
 
         DB::statement("
-            INSERT INTO daily_cost_summary (tenant_id, date, {$costColumn}, total_cost, total_tokens, request_count, created_at, updated_at)
+            INSERT INTO daily_cost_summary (workspace_id, date, {$costColumn}, total_cost, total_tokens, request_count, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())
-            ON CONFLICT (tenant_id, date)
+            ON CONFLICT (workspace_id, date)
             DO UPDATE SET
                 {$costColumn} = daily_cost_summary.{$costColumn} + EXCLUDED.{$costColumn},
                 total_cost = daily_cost_summary.total_cost + EXCLUDED.total_cost,
                 total_tokens = daily_cost_summary.total_tokens + EXCLUDED.total_tokens,
                 request_count = daily_cost_summary.request_count + 1,
                 updated_at = NOW()
-        ", [$tenantId, now()->toDateString(), $cost, $cost, $inputTokens + $outputTokens]);
+        ", [$workspaceId, now()->toDateString(), $cost, $cost, $inputTokens + $outputTokens]);
 
         return $cost;
     }
 
     /**
-     * Get current month token usage for a tenant.
+     * Get current month token usage for a workspace.
      */
-    public function getMonthlyUsage(int $tenantId): array
+    public function getMonthlyUsage(int $workspaceId): array
     {
         $usage = DB::table('daily_cost_summary')
-            ->where('tenant_id', $tenantId)
+            ->where('workspace_id', $workspaceId)
             ->where('date', '>=', now()->subDays(30)->toDateString())
             ->selectRaw('SUM(total_tokens) as tokens, SUM(total_cost) as cost, SUM(request_count) as requests')
             ->first();
@@ -88,13 +88,13 @@ class CostTrackingService
     }
 
     /**
-     * Check budget status for a tenant.
+     * Check budget status for a workspace.
      *
      * Returns: ok, warning (80%), exceeded (100%), hard_limit (120%)
      */
-    public function checkBudgetStatus(int $tenantId, int $monthlyBudget): string
+    public function checkBudgetStatus(int $workspaceId, int $monthlyBudget): string
     {
-        $usage = $this->getMonthlyUsage($tenantId);
+        $usage = $this->getMonthlyUsage($workspaceId);
         $percentage = $monthlyBudget > 0 ? ($usage['tokens'] / $monthlyBudget) * 100 : 0;
 
         if ($percentage >= 120) {
@@ -113,27 +113,27 @@ class CostTrackingService
     /**
      * Increment the daily chat_answers counter.
      */
-    public function recordChatAnswer(int $tenantId): void
+    public function recordChatAnswer(int $workspaceId): void
     {
         DB::statement("
-            INSERT INTO daily_cost_summary (tenant_id, date, chat_answers, created_at, updated_at)
+            INSERT INTO daily_cost_summary (workspace_id, date, chat_answers, created_at, updated_at)
             VALUES (?, ?, 1, NOW(), NOW())
-            ON CONFLICT (tenant_id, date)
+            ON CONFLICT (workspace_id, date)
             DO UPDATE SET chat_answers = daily_cost_summary.chat_answers + 1, updated_at = NOW()
-        ", [$tenantId, now()->toDateString()]);
+        ", [$workspaceId, now()->toDateString()]);
     }
 
     /**
      * Increment the daily upvote or downvote counter.
      */
-    public function recordFeedback(int $tenantId, string $vote): void
+    public function recordFeedback(int $workspaceId, string $vote): void
     {
         $column = $vote === 'up' ? 'upvotes' : 'downvotes';
         DB::statement("
-            INSERT INTO daily_cost_summary (tenant_id, date, {$column}, created_at, updated_at)
+            INSERT INTO daily_cost_summary (workspace_id, date, {$column}, created_at, updated_at)
             VALUES (?, ?, 1, NOW(), NOW())
-            ON CONFLICT (tenant_id, date)
+            ON CONFLICT (workspace_id, date)
             DO UPDATE SET {$column} = daily_cost_summary.{$column} + 1, updated_at = NOW()
-        ", [$tenantId, now()->toDateString()]);
+        ", [$workspaceId, now()->toDateString()]);
     }
 }

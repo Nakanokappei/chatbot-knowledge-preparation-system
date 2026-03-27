@@ -397,10 +397,10 @@ return [
     'invite_expired' => 'この招待は期限切れです。',
     'accept_invitation' => '招待を受ける',
     'invite_register_description' => 'アカウントを作成して始めましょう。',
-    'invited_by' => ':name（:tenant）からの招待',
+    'invited_by' => ':name（:workspace）からの招待',
     'create_account' => 'アカウント作成',
     'invite_email_subject' => ':name さんからKPSへの招待',
-    'invite_email_body' => ":name さんが :app の :tenant にあなたを招待しました。\n\n以下のリンクからアカウントを作成してください：\n:url\n\n※ 72時間経過すると招待が無効になることがあります。お早めにご登録ください。",
+    'invite_email_body' => ":name さんが :app の :workspace にあなたを招待しました。\n\n以下のリンクからアカウントを作成してください：\n:url\n\n※ 72時間経過すると招待が無効になることがあります。お早めにご登録ください。",
     'invitation_cancelled' => '招待をキャンセルしました。',
 
     // 入力ゲート — リジェクト時のジョーク
@@ -424,10 +424,10 @@ return [
     // エクスポート
     'export_rows_with_clusters' => '元データ＋クラスター名 CSV',
 
-    // テナント設定
-    'tenant_settings' => 'ワークスペース設定',
-    'tenant_name' => 'ワークスペース名',
-    'tenant_updated' => 'ワークスペース設定を更新しました。',
+    // ワークスペース設定
+    'workspace_settings' => 'ワークスペース設定',
+    'workspace_name' => 'ワークスペース名',
+    'workspace_updated' => 'ワークスペース設定を更新しました。',
     'role_updated' => 'ロールを更新しました。',
     'cannot_change_own_role' => '自分のロールは変更できません。',
     'members' => 'メンバー',

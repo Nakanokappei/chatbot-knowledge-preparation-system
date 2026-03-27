@@ -10,8 +10,8 @@ use Illuminate\Support\ServiceProvider;
 /**
  * Application-wide service registration and bootstrapping.
  *
- * Configures tenant-based rate limiters for the Retrieval and Chat
- * APIs, using per-tenant limits stored in the tenants table.
+ * Configures workspace-based rate limiters for the Retrieval and Chat
+ * APIs, using per-workspace limits stored in the workspaces table.
  */
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,18 +28,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Tenant-based rate limiting for Retrieval API
+        // Workspace-based rate limiting for Retrieval API
         RateLimiter::for('api-retrieve', function (Request $request) {
-            $tenant = $request->user()?->tenant;
-            $limit = $tenant?->retrieve_rate_limit ?? 60;
-            return Limit::perMinute($limit)->by($request->user()?->tenant_id ?? $request->ip());
+            $workspace = $request->user()?->workspace;
+            $limit = $workspace?->retrieve_rate_limit ?? 60;
+            return Limit::perMinute($limit)->by($request->user()?->workspace_id ?? $request->ip());
         });
 
-        // Tenant-based rate limiting for Chat API
+        // Workspace-based rate limiting for Chat API
         RateLimiter::for('api-chat', function (Request $request) {
-            $tenant = $request->user()?->tenant;
-            $limit = $tenant?->chat_rate_limit ?? 20;
-            return Limit::perMinute($limit)->by($request->user()?->tenant_id ?? $request->ip());
+            $workspace = $request->user()?->workspace;
+            $limit = $workspace?->chat_rate_limit ?? 20;
+            return Limit::perMinute($limit)->by($request->user()?->workspace_id ?? $request->ip());
         });
     }
 }

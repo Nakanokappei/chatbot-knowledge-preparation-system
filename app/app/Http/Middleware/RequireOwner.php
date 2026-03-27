@@ -7,11 +7,11 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Restrict access to tenant owner users only.
+ * Restrict access to workspace owner users only.
  *
  * Returns 403 for non-owner users attempting to access
  * administrative routes like settings, model management,
- * and tenant configuration.
+ * and workspace configuration.
  */
 class RequireOwner
 {

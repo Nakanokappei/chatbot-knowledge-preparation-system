@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\BelongsToWorkspace;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -12,10 +12,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PipelineConfig extends Model
 {
-    use BelongsToTenant;
+    use BelongsToWorkspace;
 
     protected $fillable = [
-        'tenant_id', 'name', 'version', 'config_json',
+        'workspace_id', 'name', 'version', 'config_json',
     ];
 
     protected $casts = [

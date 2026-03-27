@@ -26,14 +26,14 @@ class EmbeddingController extends Controller
      */
     public function index(Request $request, ?int $embeddingId = null): View
     {
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
         // Datasets with their embeddings for tree view
-        $datasets = Dataset::where('tenant_id', $tenantId)
+        $datasets = Dataset::where('workspace_id', $workspaceId)
             ->where('row_count', '>', 0)
-            ->with(['embeddings' => function ($embeddingQuery) use ($tenantId) {
+            ->with(['embeddings' => function ($embeddingQuery) use ($workspaceId) {
                 // Exclude embeddings whose pipeline is still in progress
-                $embeddingQuery->where('tenant_id', $tenantId)
+                $embeddingQuery->where('workspace_id', $workspaceId)
                   ->whereDoesntHave('pipelineJobs', function ($jobQuery) {
                       $jobQuery->whereNotIn('status', ['completed', 'failed']);
                   })
@@ -49,7 +49,7 @@ class EmbeddingController extends Controller
 
         // Try to load the explicitly requested embedding
         if ($embeddingId) {
-            $current = Embedding::where('tenant_id', $tenantId)->find($embeddingId);
+            $current = Embedding::where('workspace_id', $workspaceId)->find($embeddingId);
         }
         if (!$current) {
             // Auto-select: first embedding of the first dataset
@@ -88,7 +88,7 @@ class EmbeddingController extends Controller
         $pipelineFilter = $request->query('pf', 'all');
 
         $allJobs = PipelineJob::with('dataset:id,name')
-            ->where('tenant_id', $tenantId)
+            ->where('workspace_id', $workspaceId)
             ->orderByDesc('created_at')
             ->limit(200)
             ->get();
@@ -108,7 +108,7 @@ class EmbeddingController extends Controller
             default => $allJobs,
         };
 
-        $llmModels = LlmModel::where('tenant_id', $tenantId)
+        $llmModels = LlmModel::where('workspace_id', $workspaceId)
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
@@ -131,13 +131,13 @@ class EmbeddingController extends Controller
      */
     public function showKnowledgeUnit(int $embeddingId, int $kuId): View
     {
-        $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
+        $embedding = Embedding::where('workspace_id', auth()->user()->workspace_id)
             ->findOrFail($embeddingId);
 
         $knowledgeUnit = KnowledgeUnit::where('embedding_id', $embeddingId)
             ->findOrFail($kuId);
 
-        $embeddings = Embedding::where('tenant_id', auth()->user()->tenant_id)
+        $embeddings = Embedding::where('workspace_id', auth()->user()->workspace_id)
             ->with('dataset:id,name')
             ->orderByDesc('created_at')
             ->get();
@@ -154,7 +154,7 @@ class EmbeddingController extends Controller
      */
     public function bulkApprove(int $embeddingId)
     {
-        $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
+        $embedding = Embedding::where('workspace_id', auth()->user()->workspace_id)
             ->findOrFail($embeddingId);
 
         $updated = KnowledgeUnit::where('embedding_id', $embeddingId)
@@ -183,7 +183,7 @@ class EmbeddingController extends Controller
             'new_status' => 'required|in:draft,reviewed,approved,rejected',
         ]);
 
-        $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
+        $embedding = Embedding::where('workspace_id', auth()->user()->workspace_id)
             ->findOrFail($embeddingId);
 
         $updated = KnowledgeUnit::where('embedding_id', $embeddingId)
@@ -212,7 +212,7 @@ class EmbeddingController extends Controller
     {
         $request->validate(['name' => 'required|string|max:255']);
 
-        $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
+        $embedding = Embedding::where('workspace_id', auth()->user()->workspace_id)
             ->findOrFail($embeddingId);
 
         $old = $embedding->name;
@@ -228,7 +228,7 @@ class EmbeddingController extends Controller
      */
     public function export(Request $request, int $embeddingId)
     {
-        $embedding = Embedding::where('tenant_id', auth()->user()->tenant_id)
+        $embedding = Embedding::where('workspace_id', auth()->user()->workspace_id)
             ->findOrFail($embeddingId);
 
         $columns = [
@@ -311,12 +311,12 @@ class EmbeddingController extends Controller
      */
     public function exportWithClusters(int $embeddingId)
     {
-        $tenantId = auth()->user()->tenant_id;
-        $embedding = Embedding::where('tenant_id', $tenantId)
+        $workspaceId = auth()->user()->workspace_id;
+        $embedding = Embedding::where('workspace_id', $workspaceId)
             ->findOrFail($embeddingId);
 
         // Fetch all original rows with their cluster topic name via raw SQL
-        // (bypasses RLS by using the app-level tenant filter)
+        // (bypasses RLS by using the app-level workspace filter)
         $rows = \DB::select("
             SELECT dr.row_no, dr.metadata_json, c.topic_name AS cluster_topic
             FROM dataset_rows dr
@@ -327,9 +327,9 @@ class EmbeddingController extends Controller
                     WHERE pj.embedding_id = ?
                     ORDER BY pj.created_at DESC LIMIT 1
                 )
-            WHERE dr.dataset_id = ? AND dr.tenant_id = ?
+            WHERE dr.dataset_id = ? AND dr.workspace_id = ?
             ORDER BY dr.row_no
-        ", [$embeddingId, $embedding->dataset_id, $tenantId]);
+        ", [$embeddingId, $embedding->dataset_id, $workspaceId]);
 
         if (empty($rows)) {
             return back()->with('error', 'No data rows found.');
@@ -372,8 +372,8 @@ class EmbeddingController extends Controller
      */
     public function destroy(int $embeddingId)
     {
-        $tenantId = auth()->user()->tenant_id;
-        $embedding = Embedding::where('tenant_id', $tenantId)
+        $workspaceId = auth()->user()->workspace_id;
+        $embedding = Embedding::where('workspace_id', $workspaceId)
             ->findOrFail($embeddingId);
 
         $name = $embedding->name;
@@ -381,7 +381,7 @@ class EmbeddingController extends Controller
 
         // Find the next embedding to select after deletion
         // Get all embeddings for the same dataset, ordered
-        $siblings = Embedding::where('tenant_id', $tenantId)
+        $siblings = Embedding::where('workspace_id', $workspaceId)
             ->where('dataset_id', $datasetId)
             ->orderBy('created_at', 'desc')
             ->pluck('id')
@@ -419,9 +419,9 @@ class EmbeddingController extends Controller
      */
     public function cleanupJobs(): \Illuminate\Http\RedirectResponse
     {
-        $tenantId = auth()->user()->tenant_id;
+        $workspaceId = auth()->user()->workspace_id;
 
-        $deleted = PipelineJob::where('tenant_id', $tenantId)
+        $deleted = PipelineJob::where('workspace_id', $workspaceId)
             ->whereIn('status', ['failed', 'submitted'])
             ->delete();
 
