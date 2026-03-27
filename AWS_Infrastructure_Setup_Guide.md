@@ -44,7 +44,9 @@ ALB (Public Subnets)
 | SQS | Pipeline job queue + DLQ |
 | S3 | CSV uploads, embeddings cache |
 | ECR | Container image registry |
-| ALB | Load balancer (HTTP) |
+| ALB | Load balancer (HTTPS + HTTP→HTTPS redirect) |
+| ACM | TLS certificate (wildcard) |
+| Route 53 | DNS (custom domain) |
 | Bedrock | LLM (Claude) + Embeddings (Titan) |
 | Secrets Manager | DB password, APP_KEY |
 | SSM Parameter Store | Configuration values |
@@ -170,7 +172,8 @@ terraform/
     ├── s3/              # CSV uploads bucket
     ├── secrets/         # Secrets Manager entries
     ├── ssm-parameters/  # Configuration parameters
-    ├── iam/             # Task execution + task roles
+    ├── iam/             # Task execution + task roles + GitHub OIDC
+    ├── dns/             # Route 53 + ACM + HTTPS listener
     ├── rds/             # PostgreSQL instance
     ├── alb/             # Application Load Balancer
     ├── ecs/             # ECS Fargate cluster
@@ -228,6 +231,9 @@ terraform apply tfplan
 | `app_desired_count` | 1 | App replica count |
 | `worker_desired_count` | 1 | Worker replica count |
 | `allowed_cidr_blocks` | [] | CIDRs allowed to access ALB (empty = open) |
+| `domain_name` | "" | Custom domain (e.g. `demo02.poc-pxt.com`) |
+| `hosted_zone_name` | "" | Route 53 hosted zone (e.g. `poc-pxt.com`) |
+| `github_repo` | "" | GitHub repo for CI/CD OIDC (e.g. `owner/repo`) |
 
 ---
 
@@ -245,8 +251,8 @@ terraform apply tfplan
 ### 5.2 Security Groups
 
 ```
-Internet → ALB SG (port 80, restricted to allowed_cidr_blocks)
-              ↓
+Internet → ALB SG (port 80 + 443, restricted to allowed_cidr_blocks)
+              ↓  (HTTP 301 → HTTPS)
          App SG (port 80 from ALB SG only)
               ↓
          RDS SG (port 5432 from App SG + Worker SG)
@@ -526,7 +532,24 @@ Permissions:
 | s3:PutObject, GetObject, DeleteObject | CSV bucket/* |
 | bedrock:InvokeModel | All models (wildcard) |
 
-### 11.3 Worker Task Role
+### 11.3 GitHub Actions Deploy Role
+
+**Name:** kps-dev-github-actions-deploy
+
+Created via OIDC (no long-lived access keys). Scoped to a specific GitHub repository.
+
+| Action | Resource |
+|--------|----------|
+| ecr:GetAuthorizationToken | * |
+| ecr:BatchCheckLayerAvailability, PutImage, etc. | App + Worker ECR repos |
+| ecs:UpdateService, DescribeServices | ECS cluster |
+
+**Setup:** Set `AWS_DEPLOY_ROLE_ARN` in GitHub repo secrets:
+```bash
+gh secret set AWS_DEPLOY_ROLE_ARN --body "arn:aws:iam::<ACCOUNT_ID>:role/kps-dev-github-actions-deploy"
+```
+
+### 11.4 Worker Task Role
 
 **Name:** kps-dev-worker-task
 
@@ -594,21 +617,21 @@ The script:
 
 ### 13.2 CI/CD (GitHub Actions)
 
-Triggered on push to `main`:
+Configured in `.github/workflows/deploy.yml`. Triggered on push to `main`:
 
 ```
-Lint (PHPStan + flake8)
+Detect changed directories (app/ or worker/)
     ↓
-Docker build → ECR push (SHA tag + latest)
+Docker build (only changed images)
     ↓
-Deploy to staging
+ECR push (SHA tag + latest)
     ↓
-Smoke test (/up, /login, /api/datasets, /api/chat)
-    ↓
-Deploy to production
+ECS force-new-deployment (only changed services)
 ```
 
-Authentication uses OIDC (`AWS_DEPLOY_ROLE_ARN` in GitHub Secrets).
+Authentication uses OIDC — no long-lived access keys needed. The `AWS_DEPLOY_ROLE_ARN` GitHub secret points to the IAM role created by the `iam` Terraform module.
+
+Manual trigger is also available via `workflow_dispatch` (GitHub UI → Actions → Run workflow).
 
 ### 13.3 Smoke Test
 
@@ -670,7 +693,7 @@ Before going to production, address these items:
 
 | Item | Dev Status | Production Action |
 |------|-----------|-------------------|
-| HTTPS | HTTP only (port 80) | Add ACM certificate + HTTPS listener on ALB |
+| HTTPS | Enabled (wildcard cert, HTTP→HTTPS redirect) | Done for dev |
 | RDS SSL | Disabled (`rds.force_ssl=0`) | Enable SSL enforcement |
 | NAT Gateway | Single (1 AZ) | Add second NAT for HA |
 | Multi-AZ RDS | Disabled | Enable for failover |

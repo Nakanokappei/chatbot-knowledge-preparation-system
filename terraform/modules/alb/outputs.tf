@@ -21,3 +21,8 @@ output "listener_arn" {
   description = "ARN of the HTTP listener, useful for adding extra rules later."
   value       = aws_lb_listener.http.arn
 }
+
+output "alb_zone_id" {
+  description = "Hosted zone ID of the ALB (for Route 53 ALIAS records)."
+  value       = aws_lb.this.zone_id
+}

@@ -34,5 +34,9 @@ allowed_cidr_blocks = [
   "24.239.141.22/31",
 ]
 
+# Custom domain + HTTPS
+domain_name      = "demo02.poc-pxt.com"
+hosted_zone_name = "poc-pxt.com"
+
 # GitHub Actions CI/CD
 github_repo = "Nakanokappei/chatbot-knowledge-preparation-system"

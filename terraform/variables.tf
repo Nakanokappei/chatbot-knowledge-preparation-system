@@ -146,7 +146,13 @@ variable "csv_bucket_name" {
 # ----------------------------------------------------------
 
 variable "domain_name" {
-  description = "Custom domain for the ALB (leave empty to skip ACM/Route53)"
+  description = "Custom domain for the ALB, e.g. 'demo02.poc-pxt.com' (leave empty to skip)"
+  type        = string
+  default     = ""
+}
+
+variable "hosted_zone_name" {
+  description = "Root domain of the Route 53 hosted zone, e.g. 'poc-pxt.com'"
   type        = string
   default     = ""
 }

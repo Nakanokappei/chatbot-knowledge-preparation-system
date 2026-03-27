@@ -197,6 +197,28 @@ module "ecs_service_worker" {
 # Phase 8: Monitoring — Log Groups, Alarms, SNS
 # ------------------------------------------------------------------
 
+# ------------------------------------------------------------------
+# DNS + HTTPS (optional — only when domain_name is set)
+# ------------------------------------------------------------------
+
+module "dns" {
+  source = "./modules/dns"
+  count  = var.domain_name != "" ? 1 : 0
+
+  hosted_zone_name  = var.hosted_zone_name
+  subdomain         = var.domain_name
+  alb_dns_name      = module.alb.alb_dns_name
+  alb_zone_id       = module.alb.alb_zone_id
+  alb_arn           = module.alb.alb_arn
+  target_group_arn  = module.alb.target_group_arn
+  http_listener_arn = module.alb.listener_arn
+  common_tags       = local.common_tags
+}
+
+# ------------------------------------------------------------------
+# Phase 8: Monitoring
+# ------------------------------------------------------------------
+
 module "monitoring" {
   source = "./modules/monitoring"
 

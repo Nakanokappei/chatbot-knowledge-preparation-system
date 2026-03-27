@@ -39,47 +39,42 @@ CSV Upload → Preprocess → Embedding → Clustering → LLM Analysis → Know
 
 ## Chat Features
 
-- **Slot filling**: Extracts product name and question separately; asks back if product is missing
-- **Product matching**: LLM-based fuzzy matching (e.g. "プレステ" → "PlayStation")
+- **Slot filling**: Extracts primary filter (product/region/department) and question; asks back if missing
+- **Fuzzy matching**: LLM-based matching (e.g. "プレステ" → "PlayStation", "LGテレビ" → "LG Smart TV")
 - **Two-stage search**: Precise (question-only embedding) → Broad (enriched embedding) fallback
-- **LLM product filter**: Retrieved KUs filtered by product relevance via LLM, not SQL
+- **LLM filter**: Retrieved KUs filtered by primary filter relevance via LLM, not SQL
+- **Input gate**: Rejects off-topic questions, prompt injection, and adversarial inputs
+- **Feedback**: Upvote/downvote on responses, KU usage tracking
 - **Structured responses**: Cause → Resolution steps → Additional notes in Markdown
 
-## Quick Start
+## Deployment
 
-### Prerequisites
+### AWS (Terraform)
 
-- Docker & Docker Compose
-- AWS credentials with Bedrock access (for LLM and embedding models)
-
-### Setup
+Full infrastructure-as-code deployment to AWS ECS Fargate. See [AWS_Infrastructure_Setup_Guide.md](AWS_Infrastructure_Setup_Guide.md) for details.
 
 ```bash
-# Clone the repository
-git clone https://github.com/Nakanokappei/chatbot-knowledge-preparation-system.git
-cd chatbot-knowledge-preparation-system
-
-# Create environment files
-cp app/.env.example app/.env
-# Edit app/.env: set DB_HOST=db, DB_PORT=5432, DB_DATABASE=knowledge_prep,
-#   DB_USERNAME=ckps_user, DB_PASSWORD=ckps_local_password,
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION,
-#   SQS_QUEUE_URL
-
-# Start all services
-docker compose up -d
-
-# Run migrations
-docker compose exec app php artisan migrate
-
-# Generate app key
-docker compose exec app php artisan key:generate
-
-# Access the app
-open http://localhost:8000
+cd terraform/
+terraform init
+terraform plan -var-file=envs/dev.tfvars
+terraform apply -var-file=envs/dev.tfvars
 ```
 
-### Default Ports
+**CI/CD**: Push to `main` triggers GitHub Actions → Docker build → ECR push → ECS deploy automatically.
+
+### Local Development
+
+```bash
+# Clone and start
+git clone https://github.com/Nakanokappei/chatbot-knowledge-preparation-system.git
+cd chatbot-knowledge-preparation-system
+cp app/.env.example app/.env
+# Edit app/.env: DB_HOST=db, AWS credentials, SQS_QUEUE_URL
+docker compose up -d
+docker compose exec app php artisan migrate
+docker compose exec app php artisan key:generate
+open http://localhost:8000
+```
 
 | Service | Port |
 |---------|------|
@@ -88,12 +83,14 @@ open http://localhost:8000
 
 ## Usage
 
-1. **Register/Login** at `http://localhost:8000`
+1. **Register/Login** — first user becomes workspace owner
 2. **Add LLM models** in Settings → select from AWS Bedrock
-3. **Upload CSV** → Configure columns, clustering method, and pipeline settings
+3. **Upload CSV** → Configure columns, descriptions, clustering method
 4. **Run pipeline** → Monitor progress in sidebar (auto-refreshes)
 5. **Review KUs** → Approve/reject generated knowledge units
 6. **Chat** → Click "Data & Chat" to interact with approved KUs
+7. **Invite members** → Workspace Settings → share invitation link
+8. **Export** → Download clusters as CSV or JSON
 
 ## API
 
@@ -114,6 +111,7 @@ All API endpoints require Sanctum authentication (`Authorization: Bearer <token>
 │   │   ├── Http/Controllers/   # Web & API controllers
 │   │   ├── Models/             # Eloquent models
 │   │   └── Services/           # BedrockService, RagService, CostTrackingService
+│   ├── bootstrap/              # app.php (middleware, trusted proxies)
 │   ├── resources/views/        # Blade templates
 │   ├── routes/                 # web.php, api.php
 │   ├── database/migrations/    # Schema migrations
@@ -125,7 +123,9 @@ All API endpoints require Sanctum authentication (`Authorization: Bearer <token>
 │       ├── bedrock_client.py   # Embedding generation
 │       ├── bedrock_llm_client.py # LLM invocation (Converse API)
 │       └── steps/              # Pipeline step handlers
+├── terraform/              # AWS infrastructure (Terraform modules)
 ├── infra/                  # Database initialization SQL
+├── .github/workflows/      # CI/CD (GitHub Actions)
 ├── docker-compose.yml      # Local development stack
 └── docs/                   # Architecture Decision Records
 ```
@@ -140,7 +140,9 @@ All API endpoints require Sanctum authentication (`Authorization: Bearer <token>
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key |
 | `AWS_DEFAULT_REGION` | AWS region (e.g. `ap-northeast-1`) |
 | `SQS_QUEUE_URL` | SQS queue URL for pipeline messages |
+| `S3_BUCKET` | S3 bucket for CSV uploads |
 | `DB_HOST` / `DB_PORT` / `DB_DATABASE` | PostgreSQL connection |
+| `FILESYSTEM_DISK` | `s3` (AWS) or `local` (Docker) |
 
 ### Supported Clustering Methods
 

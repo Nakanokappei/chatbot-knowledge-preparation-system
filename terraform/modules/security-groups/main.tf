@@ -33,6 +33,15 @@ resource "aws_security_group" "alb" {
     cidr_blocks = length(var.allowed_cidr_blocks) > 0 ? var.allowed_cidr_blocks : ["0.0.0.0/0"]
   }
 
+  # Accept HTTPS from allowed CIDRs
+  ingress {
+    description = "HTTPS from allowed networks"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = length(var.allowed_cidr_blocks) > 0 ? var.allowed_cidr_blocks : ["0.0.0.0/0"]
+  }
+
   # Allow all outbound so the ALB can reach ECS targets
   egress {
     description = "Allow all outbound"
