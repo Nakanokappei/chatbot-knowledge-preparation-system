@@ -121,4 +121,17 @@ class InvitationController extends Controller
 
         return redirect()->route('dashboard');
     }
+
+    /** Cancel a pending invitation by deleting it. */
+    public function cancel(Invitation $invitation)
+    {
+        // Ensure the invitation belongs to the current user's tenant
+        if ($invitation->tenant_id !== auth()->user()->tenant_id) {
+            abort(403);
+        }
+
+        $invitation->delete();
+
+        return back()->with('success', __('ui.invitation_cancelled'));
+    }
 }

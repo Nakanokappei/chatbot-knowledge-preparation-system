@@ -71,10 +71,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/dataset/{dataset}/configure', [DatasetWizardController::class, 'configure'])->name('dataset.configure');
     Route::post('/dataset/{dataset}/preview', [DatasetWizardController::class, 'preview'])->name('dataset.preview');
     Route::post('/dataset/{dataset}/re-encode', [DatasetWizardController::class, 'reEncode'])->name('dataset.re-encode');
+    Route::post('/dataset/{dataset}/generate-descriptions', [DatasetWizardController::class, 'generateDescriptionsApi'])->name('dataset.generate-descriptions');
     Route::post('/dataset/{dataset}/finalize', [DatasetWizardController::class, 'finalize'])->name('dataset.finalize');
     Route::delete('/dataset/{dataset}', [DatasetWizardController::class, 'destroy'])->name('dataset.destroy');
 
     Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
+    Route::post('/jobs/{pipelineJob}/cancel', [DashboardController::class, 'cancelPipeline'])->name('dashboard.cancel-pipeline');
     Route::get('/jobs/{pipelineJob}/knowledge-units', [DashboardController::class, 'knowledgeUnits'])->name('dashboard.knowledge-units');
     Route::get('/jobs/{pipelineJob}/knowledge-units/export', [DashboardController::class, 'exportKnowledgeUnits'])->name('dashboard.knowledge-units.export');
 
@@ -103,24 +105,31 @@ Route::middleware('auth')->group(function () {
     Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
     Route::post('/web-api/chat', [\App\Http\Controllers\Api\ChatController::class, 'chat'])->name('web.chat');
 
-    // Profile: user settings, password change, invitations
+    // Profile: user settings, password change
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
-    Route::post('/profile/invite', [InvitationController::class, 'send'])->name('invitation.send');
 
-    // Tenant settings
-    Route::get('/settings/tenant', [TenantController::class, 'edit'])->name('tenant.edit');
-    Route::put('/settings/tenant', [TenantController::class, 'update'])->name('tenant.update');
+    // Owner-only routes: tenant settings, model management, invitations
+    Route::middleware('owner')->group(function () {
+        // Tenant settings
+        Route::get('/settings/tenant', [TenantController::class, 'edit'])->name('tenant.edit');
+        Route::put('/settings/tenant', [TenantController::class, 'update'])->name('tenant.update');
+        Route::put('/settings/tenant/users/{user}/role', [TenantController::class, 'updateRole'])->name('tenant.update-role');
 
-    // Settings: LLM model management
-    Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');
-    Route::post('/settings/models', [SettingsController::class, 'store'])->name('settings.models.store');
-    Route::put('/settings/models/{llmModel}', [SettingsController::class, 'update'])->name('settings.models.update');
-    Route::delete('/settings/models/{llmModel}', [SettingsController::class, 'destroy'])->name('settings.models.destroy');
+        // Member invitation
+        Route::post('/profile/invite', [InvitationController::class, 'send'])->name('invitation.send');
+        Route::delete('/invitation/{invitation}/cancel', [InvitationController::class, 'cancel'])->name('invitation.cancel');
 
-    // Embedding model management
-    Route::post('/settings/embedding-models', [SettingsController::class, 'storeEmbedding'])->name('settings.embedding.store');
-    Route::put('/settings/embedding-models/{embeddingModel}', [SettingsController::class, 'updateEmbedding'])->name('settings.embedding.update');
-    Route::delete('/settings/embedding-models/{embeddingModel}', [SettingsController::class, 'destroyEmbedding'])->name('settings.embedding.destroy');
+        // Settings: LLM model management
+        Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');
+        Route::post('/settings/models', [SettingsController::class, 'store'])->name('settings.models.store');
+        Route::put('/settings/models/{llmModel}', [SettingsController::class, 'update'])->name('settings.models.update');
+        Route::delete('/settings/models/{llmModel}', [SettingsController::class, 'destroy'])->name('settings.models.destroy');
+
+        // Embedding model management
+        Route::post('/settings/embedding-models', [SettingsController::class, 'storeEmbedding'])->name('settings.embedding.store');
+        Route::put('/settings/embedding-models/{embeddingModel}', [SettingsController::class, 'updateEmbedding'])->name('settings.embedding.update');
+        Route::delete('/settings/embedding-models/{embeddingModel}', [SettingsController::class, 'destroyEmbedding'])->name('settings.embedding.destroy');
+    });
 });

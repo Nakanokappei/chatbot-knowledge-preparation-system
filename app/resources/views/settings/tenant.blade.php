@@ -4,7 +4,7 @@
 
 @section('extra-styles')
         label { display: block; font-weight: 500; margin-bottom: 4px; font-size: 13px; color: #5f6368; }
-        input[type="text"] {
+        input[type="text"], input[type="email"] {
             width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px;
             font-size: 14px; margin-bottom: 12px;
         }
@@ -51,10 +51,43 @@
                                 <div class="member-name">{{ $member->name }}</div>
                                 <div class="member-email">{{ $member->email }}</div>
                             </div>
+                            @if($member->id !== auth()->id())
+                                <form method="POST" action="{{ route('tenant.update-role', $member) }}" style="margin: 0;">
+                                    @csrf @method('PUT')
+                                    <select name="role" onchange="this.form.submit()" style="padding: 3px 8px; border: 1px solid #d2d2d7; border-radius: 4px; font-size: 12px;">
+                                        <option value="owner" @if($member->role === 'owner') selected @endif>Owner</option>
+                                        <option value="member" @if($member->role === 'member') selected @endif>Member</option>
+                                    </select>
+                                </form>
+                            @else
+                                <span class="badge" style="background: #e8f5e9; color: #2e7d32;">Owner</span>
+                            @endif
                             <div style="font-size: 12px; color: #5f6368;">{{ $member->created_at->format('Y-m-d') }}</div>
                         </li>
                     @endforeach
                 </ul>
+            </div>
+
+            {{-- Invite new member --}}
+            <div class="card">
+                <h2>{{ __('ui.invite_colleague') }}</h2>
+                <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.invite_description') }}</p>
+
+                @if(session('invite_success'))
+                    <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">✓ {{ session('invite_success') }}</div>
+                @endif
+                @if($errors->has('invite_email'))
+                    <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">✗ {{ $errors->first('invite_email') }}</div>
+                @endif
+
+                <form method="POST" action="{{ route('invitation.send') }}" style="display: flex; gap: 8px; align-items: end;">
+                    @csrf
+                    <div style="flex: 1;">
+                        <label for="invite_email">{{ __('ui.email') }}</label>
+                        <input type="email" name="email" id="invite_email" placeholder="colleague@example.com" required style="margin-bottom: 0;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="white-space: nowrap;">{{ __('ui.send_invitation') }}</button>
+                </form>
             </div>
 
             {{-- Pending invitations --}}
@@ -74,6 +107,10 @@
                                 @else
                                     <span class="badge badge-pending">{{ __('ui.pending') }}</span>
                                 @endif
+                                <form method="POST" action="{{ route('invitation.cancel', $invitation) }}" style="margin: 0;">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" style="background: none; border: 1px solid #d2d2d7; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #8e8e93; cursor: pointer;">{{ __('ui.cancel') }}</button>
+                                </form>
                             </li>
                         @endforeach
                     </ul>

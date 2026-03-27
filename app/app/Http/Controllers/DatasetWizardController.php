@@ -163,19 +163,20 @@ class DatasetWizardController extends Controller
         $storedFilename = 'tenant' . $tenantId . '_' . time() . '_' . $file->getClientOriginalName();
         $rawFilename = $storedFilename . '.raw';
         // Always save the original raw file for re-encoding
-        $file->storeAs('csv-uploads', $rawFilename, 'local');
+        $file->storeAs('csv-uploads', $rawFilename, 'csv');
         if ($detectedEncoding !== 'UTF-8') {
             // Store the converted UTF-8 version
-            Storage::disk('local')->put(
+            $this->csvDisk()->put(
                 'csv-uploads/' . $storedFilename,
                 file_get_contents($csvPath)
             );
             unlink($csvPath);
         } else {
-            // UTF-8: copy the raw file as the working CSV
-            Storage::disk('local')->copy(
-                'csv-uploads/' . $rawFilename,
+            // UTF-8: duplicate raw file content as the working CSV
+            // (use put+get instead of copy to avoid S3 ACL requirements)
+            $this->csvDisk()->put(
                 'csv-uploads/' . $storedFilename,
+                $this->csvDisk()->get('csv-uploads/' . $rawFilename),
             );
         }
         $storedPath = 'csv-uploads/' . $storedFilename;
@@ -215,7 +216,7 @@ class DatasetWizardController extends Controller
         $schema = $dataset->schema_json;
         $storedPath = $schema['stored_path'] ?? null;
 
-        if (!$storedPath || !Storage::disk('local')->exists($storedPath)) {
+        if (!$storedPath || !$this->csvDisk()->exists($storedPath)) {
             abort(404, 'CSV file not found. Please re-upload.');
         }
 
@@ -223,8 +224,8 @@ class DatasetWizardController extends Controller
         $columns = $schema['columns'] ?? [];
 
         // Read first 5 data rows using fgetcsv for RFC 4180 compliance
-        $fullPath = Storage::disk('local')->path($storedPath);
-        $handle = fopen($fullPath, 'r');
+        $tempPath = $this->downloadToTemp($storedPath);
+        $handle = fopen($tempPath, 'r');
         fgetcsv($handle, 0, $delimiter, '"', '"'); // Skip header row
         $previewRows = [];
         $count = 0;
@@ -233,6 +234,7 @@ class DatasetWizardController extends Controller
             $count++;
         }
         fclose($handle);
+        unlink($tempPath);
 
         $tenantId = auth()->user()->tenant_id;
 
@@ -276,13 +278,12 @@ class DatasetWizardController extends Controller
         $encoding = $request->input('encoding', 'UTF-8');
         $rawPath = $schema['raw_path'] ?? null;
 
-        if (!$rawPath || !Storage::disk('local')->exists($rawPath)) {
+        if (!$rawPath || !$this->csvDisk()->exists($rawPath)) {
             return response()->json(['error' => 'Raw file not found'], 404);
         }
 
         // Read raw file and convert to UTF-8 with the specified encoding
-        $rawFullPath = Storage::disk('local')->path($rawPath);
-        $rawContent = file_get_contents($rawFullPath);
+        $rawContent = $this->csvDisk()->get($rawPath);
         $converted = ($encoding !== 'UTF-8')
             ? mb_convert_encoding($rawContent, 'UTF-8', $encoding)
             : $rawContent;
@@ -295,7 +296,7 @@ class DatasetWizardController extends Controller
         // Write the re-encoded CSV over the working copy
         $storedPath = $schema['stored_path'] ?? null;
         if ($storedPath) {
-            Storage::disk('local')->put($storedPath, $converted);
+            $this->csvDisk()->put($storedPath, $converted);
         }
 
         // Re-read headers and preview rows from the converted content
@@ -338,7 +339,7 @@ class DatasetWizardController extends Controller
         $schema = $dataset->schema_json;
         $storedPath = $schema['stored_path'] ?? null;
 
-        if (!$storedPath || !Storage::disk('local')->exists($storedPath)) {
+        if (!$storedPath || !$this->csvDisk()->exists($storedPath)) {
             return response()->json(['error' => 'CSV not found'], 404);
         }
 
@@ -361,8 +362,8 @@ class DatasetWizardController extends Controller
         }
 
         // Read CSV with fgetcsv for correct RFC 4180 handling
-        $fullPath = Storage::disk('local')->path($storedPath);
-        $handle = fopen($fullPath, 'r');
+        $tempPath = $this->downloadToTemp($storedPath);
+        $handle = fopen($tempPath, 'r');
 
         // If has_header, skip the first row; otherwise treat it as data
         if ($hasHeader) {
@@ -380,6 +381,7 @@ class DatasetWizardController extends Controller
             $rowNo++;
         }
         fclose($handle);
+        unlink($tempPath);
 
         return response()->json(['previews' => $previews]);
     }
@@ -408,7 +410,7 @@ class DatasetWizardController extends Controller
         $schema = $dataset->schema_json;
         $storedPath = $schema['stored_path'] ?? null;
 
-        if (!$storedPath || !Storage::disk('local')->exists($storedPath)) {
+        if (!$storedPath || !$this->csvDisk()->exists($storedPath)) {
             return redirect()->route('dashboard')
                 ->with('error', 'CSV file not found. Please re-upload.');
         }
@@ -435,10 +437,11 @@ class DatasetWizardController extends Controller
             );
         }
 
-        // Open CSV with fgetcsv for RFC 4180 compliance
-        $fullPath = Storage::disk('local')->path($storedPath);
-        $handle = fopen($fullPath, 'r');
+        // Open CSV with fgetcsv for RFC 4180 compliance (download from S3 if needed)
+        $tempPath = $this->downloadToTemp($storedPath);
+        $handle = fopen($tempPath, 'r');
         if (!$handle) {
+            unlink($tempPath);
             return redirect()->route('dataset.configure', $dataset)
                 ->with('error', 'Failed to open stored CSV file.');
         }
@@ -489,6 +492,7 @@ class DatasetWizardController extends Controller
                 }
             }
             fclose($handle);
+            unlink($tempPath);
 
             // Insert remaining rows
             if (!empty($batch)) {
@@ -698,8 +702,8 @@ class DatasetWizardController extends Controller
         // Delete the stored CSV and raw files from persistent volume
         foreach (['stored_path', 'raw_path'] as $pathKey) {
             $path = $dataset->schema_json[$pathKey] ?? null;
-            if ($path && Storage::disk('local')->exists($path)) {
-                Storage::disk('local')->delete($path);
+            if ($path && $this->csvDisk()->exists($path)) {
+                $this->csvDisk()->delete($path);
             }
         }
 
@@ -729,6 +733,99 @@ class DatasetWizardController extends Controller
     }
 
     /**
+     * API endpoint to generate dataset/column descriptions via LLM on demand.
+     */
+    public function generateDescriptionsApi(Request $request, Dataset $dataset)
+    {
+        $this->authorizeDataset($dataset);
+
+        $schema = $dataset->schema_json;
+        $storedPath = $schema['stored_path'] ?? null;
+
+        if (!$storedPath || !$this->csvDisk()->exists($storedPath)) {
+            return response()->json(['error' => 'CSV file not found'], 404);
+        }
+
+        // Read sample rows from the CSV
+        $delimiter = $schema['delimiter'] ?? ',';
+        $headers = $schema['columns'] ?? [];
+        $tempPath = $this->downloadToTemp($storedPath);
+        $handle = fopen($tempPath, 'r');
+        fgetcsv($handle, 0, $delimiter, '"', '"'); // Skip header
+
+        $totalLines = $schema['total_lines'] ?? 100;
+        $samplePositions = [1, (int)($totalLines * 0.25), (int)($totalLines * 0.5), (int)($totalLines * 0.75), $totalLines];
+        $sampleRows = [];
+        $lineNo = 0;
+        while (($row = fgetcsv($handle, 0, $delimiter, '"', '"')) !== false) {
+            $lineNo++;
+            if (in_array($lineNo, $samplePositions)) {
+                $sampleRows[] = $row;
+            }
+            if ($lineNo > max($samplePositions)) break;
+        }
+        fclose($handle);
+        unlink($tempPath);
+
+        // Use specified model or default
+        $modelId = $request->input('model_id');
+        if ($modelId) {
+            // Temporarily override the env for BedrockService
+            $originalModel = env('BEDROCK_LLM_MODEL');
+            putenv("BEDROCK_LLM_MODEL=$modelId");
+        }
+
+        $metadata = $this->generateDatasetMetadata(
+            $dataset->original_filename ?? 'dataset.csv',
+            $headers,
+            $sampleRows,
+            $modelId,
+        );
+
+        if ($modelId && isset($originalModel)) {
+            putenv("BEDROCK_LLM_MODEL=$originalModel");
+        }
+
+        if (empty($metadata)) {
+            return response()->json(['error' => 'LLM failed to generate descriptions. Check model access.'], 500);
+        }
+
+        // Save to schema_json
+        $schema['dataset_description'] = $metadata['dataset_description'] ?? '';
+        $schema['column_descriptions'] = $metadata['column_descriptions'] ?? [];
+        $dataset->update(['schema_json' => $schema]);
+
+        if (!empty($metadata['dataset_name'])) {
+            $dataset->update(['name' => $metadata['dataset_name']]);
+        }
+
+        return response()->json([
+            'dataset_description' => $metadata['dataset_description'] ?? '',
+            'column_descriptions' => $metadata['column_descriptions'] ?? [],
+            'dataset_name' => $metadata['dataset_name'] ?? null,
+        ]);
+    }
+
+    /**
+     * Get the configured CSV storage disk (local or S3).
+     */
+    private function csvDisk(): \Illuminate\Contracts\Filesystem\Filesystem
+    {
+        return Storage::disk('csv');
+    }
+
+    /**
+     * Download a file from the CSV disk to a local temp path for fopen/fgetcsv.
+     * Returns the temp file path. Caller is responsible for unlinking.
+     */
+    private function downloadToTemp(string $diskPath): string
+    {
+        $tempPath = tempnam(sys_get_temp_dir(), 'csv_');
+        file_put_contents($tempPath, $this->csvDisk()->get($diskPath));
+        return $tempPath;
+    }
+
+    /**
      * Generate dataset name, description, and column descriptions using Bedrock LLM.
      *
      * Sends sample rows from the CSV to a language model which infers what the
@@ -736,7 +833,7 @@ class DatasetWizardController extends Controller
      * array with keys: dataset_name, dataset_description, column_descriptions.
      * On failure returns an empty array so the caller can fall back gracefully.
      */
-    private function generateDatasetMetadata(string $filename, array $headers, array $sampleRows): array
+    private function generateDatasetMetadata(string $filename, array $headers, array $sampleRows, ?string $modelId = null): array
     {
         try {
             // Format sample rows for the prompt
@@ -771,7 +868,7 @@ IMPORTANT:
 - Keep descriptions concise but informative
 PROMPT;
 
-            $modelId = env('BEDROCK_LLM_MODEL', 'jp.anthropic.claude-haiku-4-5-20251001-v1:0');
+            $modelId = $modelId ?? env('BEDROCK_LLM_MODEL', 'jp.anthropic.claude-haiku-4-5-20251001-v1:0');
             $bedrock = new \App\Services\BedrockService();
             $parsed = $bedrock->invokeJson($modelId, $prompt);
 

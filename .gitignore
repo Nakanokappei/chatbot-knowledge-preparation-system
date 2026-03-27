@@ -42,3 +42,4 @@ docs/
 .env.docker
 .github/workflows/
 terraform/.terraform/
+terraform/tfplan

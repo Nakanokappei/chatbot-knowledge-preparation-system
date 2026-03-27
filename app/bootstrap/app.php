@@ -21,9 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // API metrics tracking
         $middleware->appendToGroup('api', \App\Http\Middleware\TrackApiMetrics::class);
 
-        // Budget enforcement alias
+        // Role-based access control aliases
         $middleware->alias([
             'budget' => \App\Http\Middleware\EnforceBudget::class,
+            'owner' => \App\Http\Middleware\RequireOwner::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

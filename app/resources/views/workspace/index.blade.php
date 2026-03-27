@@ -239,7 +239,17 @@
                                     <div style="font-size: 14px; margin-top: 4px;">
                                         @if($job->status === 'completed') ✅
                                         @elseif($job->status === 'failed') ❌
-                                        @else ⏳
+                                        @elseif($job->status === 'cancelled')
+                                            <span style="color: #8e8e93;">⊘</span>
+                                        @else
+                                            <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                                ⏳
+                                                <form method="POST" action="{{ route('dashboard.cancel-pipeline', $job) }}"
+                                                      onsubmit="return confirm('{{ __('ui.confirm_cancel_job') }}')" style="display: inline;">
+                                                    @csrf
+                                                    <button type="submit" style="background: #fff; border: 1px solid #ff3b30; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #ff3b30; cursor: pointer;">{{ __('ui.cancel') }}</button>
+                                                </form>
+                                            </span>
                                         @endif
                                     </div>
                                 </td>
@@ -1085,6 +1095,9 @@
         }
 
         function openDispatchModal() {
+            // Reset file input so previous selection doesn't persist
+            const fileInput = document.querySelector('#dispatch-modal input[type="file"]');
+            if (fileInput) fileInput.value = '';
             document.getElementById('dispatch-modal').style.display = 'flex';
         }
         function closeDispatchModal() {

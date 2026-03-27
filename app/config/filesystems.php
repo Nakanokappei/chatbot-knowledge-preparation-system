@@ -60,6 +60,18 @@ return [
             'report' => false,
         ],
 
+        'csv' => env('CSV_DISK_DRIVER', 'local') === 's3' ? [
+            'driver' => 's3',
+            'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
+            'bucket' => env('S3_BUCKET'),
+            'throw' => true,
+            'visibility' => 'private',
+        ] : [
+            'driver' => 'local',
+            'root' => storage_path('app'),
+            'throw' => true,
+        ],
+
     ],
 
     /*

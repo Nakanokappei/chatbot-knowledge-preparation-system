@@ -97,14 +97,14 @@ class EmbeddingController extends Controller
         $jobStats = [
             'total' => $allJobs->count(),
             'completed' => $allJobs->filter(fn($job) => $job->status === 'completed')->count(),
-            'processing' => $allJobs->filter(fn($job) => !in_array($job->status, ['completed', 'failed']))->count(),
-            'failed' => $allJobs->filter(fn($job) => $job->status === 'failed')->count(),
+            'processing' => $allJobs->filter(fn($job) => !in_array($job->status, ['completed', 'failed', 'cancelled']))->count(),
+            'failed' => $allJobs->filter(fn($job) => in_array($job->status, ['failed', 'cancelled']))->count(),
         ];
 
         $filteredJobs = match ($pipelineFilter) {
             'completed' => $allJobs->filter(fn($job) => $job->status === 'completed'),
-            'processing' => $allJobs->filter(fn($job) => !in_array($job->status, ['completed', 'failed'])),
-            'failed' => $allJobs->filter(fn($job) => $job->status === 'failed'),
+            'processing' => $allJobs->filter(fn($job) => !in_array($job->status, ['completed', 'failed', 'cancelled'])),
+            'failed' => $allJobs->filter(fn($job) => in_array($job->status, ['failed', 'cancelled'])),
             default => $allJobs,
         };
 

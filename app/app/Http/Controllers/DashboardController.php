@@ -315,6 +315,23 @@ class DashboardController extends Controller
     }
 
     /**
+     * Cancel a running pipeline job by setting its status to 'failed'.
+     */
+    public function cancelPipeline(PipelineJob $pipelineJob): RedirectResponse
+    {
+        if (in_array($pipelineJob->status, ['completed', 'failed', 'cancelled'])) {
+            return redirect()->back()->with('error', __('ui.job_not_cancellable'));
+        }
+
+        $pipelineJob->update([
+            'status' => 'cancelled',
+            'error_detail' => 'Cancelled by user',
+        ]);
+
+        return redirect()->back()->with('success', __('ui.job_cancelled'));
+    }
+
+    /**
      * Dispatch a ping job to SQS for end-to-end testing.
      */
     public function dispatch(Request $request): RedirectResponse

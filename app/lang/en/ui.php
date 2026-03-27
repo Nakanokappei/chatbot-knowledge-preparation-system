@@ -15,6 +15,9 @@ return [
     'remember_me' => 'Remember me',
     'save' => 'Save',
     'cancel' => 'Cancel',
+    'job_cancelled' => 'Job cancelled',
+    'job_not_cancellable' => 'This job cannot be cancelled',
+    'confirm_cancel_job' => 'Cancel this job?',
     'delete' => 'Delete',
     'add' => 'Add',
     'edit' => 'Edit',
@@ -329,7 +332,10 @@ return [
 
     // Configure screen — Descriptions card
     'descriptions' => 'Descriptions',
-    'descriptions_hint' => 'Auto-generated from sample rows. Edit if needed — these help the LLM understand your data.',
+    'descriptions_hint' => 'Generate with LLM or edit manually — these help the LLM understand your data.',
+    'generate_descriptions_with_llm' => 'Generate descriptions with LLM',
+    'generating' => 'Generating',
+    'generated' => 'Generated',
     'dataset_description' => 'Dataset Description',
     'dataset_description_placeholder' => 'Describe what this dataset contains...',
     'column_descriptions' => 'Column Descriptions',
@@ -389,7 +395,8 @@ return [
     'invited_by' => 'Invited by :name (:tenant)',
     'create_account' => 'Create Account',
     'invite_email_subject' => ':name invited you to KPS',
-    'invite_email_body' => ":name has invited you to join :tenant on :app.\n\nClick here to create your account:\n:url\n\nThis invitation expires in 7 days.",
+    'invite_email_body' => ":name has invited you to join :tenant on :app.\n\nClick here to create your account:\n:url\n\nPlease note that this invitation may become invalid after 72 hours.",
+    'invitation_cancelled' => 'Invitation cancelled.',
 
     // Input gate rejection jokes
     'chat_rejection_jokes' => [
@@ -416,6 +423,8 @@ return [
     'tenant_settings' => 'Workspace Settings',
     'tenant_name' => 'Workspace Name',
     'tenant_updated' => 'Workspace settings updated.',
+    'role_updated' => 'Role updated.',
+    'cannot_change_own_role' => 'You cannot change your own role.',
     'members' => 'Members',
     'pending_invitations' => 'Pending Invitations',
     'invited_by_short' => 'by :name',

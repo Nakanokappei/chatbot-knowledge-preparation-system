@@ -109,6 +109,21 @@
                 <p style="font-size: 12px; color: #5f6368; margin-bottom: 12px;">
                     {{ __('ui.descriptions_hint') }}
                 </p>
+
+                {{-- LLM generate button with model selector --}}
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 8px 12px; background: #f8f9fa; border-radius: 8px;">
+                    <select id="desc-llm-model" style="padding: 5px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 12px; flex: 1; min-width: 0;">
+                        @foreach($llmModels as $model)
+                            <option value="{{ $model->model_id }}" @if($model->is_default) selected @endif>{{ $model->display_name }}</option>
+                        @endforeach
+                    </select>
+                    <button type="button" id="btn-generate-descriptions" onclick="generateDescriptions()"
+                        style="padding: 5px 12px; background: #fff; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;">
+                        {{ __('ui.generate_descriptions_with_llm') }}
+                    </button>
+                    <span id="desc-generate-status" style="font-size: 11px; color: #5f6368;"></span>
+                </div>
+
                 <div style="margin-bottom: 16px;">
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.dataset_description') }}</label>
                     <textarea name="dataset_description" rows="2"
@@ -175,89 +190,91 @@
                     {{ __('ui.knowledge_structure_hint') }}
                 </p>
 
-                <div style="display: grid; grid-template-columns: 160px 1fr; gap: 10px; align-items: center;">
+                <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px 16px; align-items: start;">
                     {{-- Question --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_question') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <select name="km_question_source" id="km-question-source" onchange="toggleKmLlm('question')"
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
                             <option value="_llm">{{ __('ui.generate_with_llm') }}</option>
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-question-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_question_hint') }}</span>
+                        <span id="km-question-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_question_hint') }}</span>
                     </div>
 
                     {{-- Symptoms --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_symptoms') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <select name="km_symptoms_source" id="km-symptoms-source" onchange="toggleKmLlm('symptoms')"
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
                             <option value="_llm">{{ __('ui.extract_with_llm') }}</option>
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-symptoms-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_symptoms_hint') }}</span>
+                        <span id="km-symptoms-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_symptoms_hint') }}</span>
                     </div>
 
                     {{-- Root Cause --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_root_cause') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <select name="km_root_cause_source" id="km-root_cause-source" onchange="toggleKmLlm('root_cause')"
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
                             <option value="_llm">{{ __('ui.extract_with_llm') }}</option>
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-root_cause-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_root_cause_hint') }}</span>
+                        <span id="km-root_cause-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_root_cause_hint') }}</span>
                     </div>
 
                     {{-- Resolution --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_resolution') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <select name="km_resolution_source" id="km-resolution-source" onchange="toggleKmLlm('resolution')"
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
                             <option value="_llm">{{ __('ui.generate_with_llm') }}</option>
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-resolution-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_resolution_hint') }}</span>
+                        <span id="km-resolution-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_resolution_hint') }}</span>
                     </div>
 
                     {{-- Primary Filter (required, column-only — no LLM option) --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_primary_filter') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <select name="km_primary_filter_source" id="km-primary_filter-source" onchange="toggleKmLlm('primary_filter')" required
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-primary_filter-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_primary_filter_hint') }}</span>
+                        <span id="km-primary_filter-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_primary_filter_hint') }}</span>
                     </div>
-                    <div style="margin-top: 4px; margin-bottom: 8px;">
+                    {{-- Primary filter label spans both columns --}}
+                    <div></div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: -4px; margin-bottom: 4px;">
                         <input type="text" name="primary_filter_label" placeholder="{{ __('ui.primary_filter_label_placeholder') }}"
                             value="{{ $dataset->schema_json['primary_filter_label'] ?? '' }}"
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
-                        <span style="font-size: 11px; color: #5f6368; margin-left: 8px;">{{ __('ui.primary_filter_label_hint') }}</span>
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
+                        <span style="font-size: 11px; color: #5f6368;">{{ __('ui.primary_filter_label_hint') }}</span>
                     </div>
 
                     {{-- Category --}}
                     <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_category') }}</label>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <select name="km_category_source" id="km-category-source" onchange="toggleKmLlm('category')"
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px;">
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
                             <option value="_none">{{ __('ui.not_used') }}</option>
                             <option value="_llm">{{ __('ui.generate_with_llm') }}</option>
                             @foreach($columns as $columnIndex => $columnName)
                                 <option value="{{ $columnIndex }}">{{ $columnName }}</option>
                             @endforeach
                         </select>
-                        <span id="km-category-hint" style="font-size: 11px; color: #5f6368;">{{ __('ui.km_category_hint') }}</span>
+                        <span id="km-category-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_category_hint') }}</span>
                     </div>
 
                 </div>
@@ -377,6 +394,54 @@
         let selectedColumns = [];
         let dragSource = null;  // 'available' or 'selected'
         let dragData = null;    // column index (available) or position (selected)
+
+        // Generate dataset and column descriptions using LLM via AJAX
+        async function generateDescriptions() {
+            const btn = document.getElementById('btn-generate-descriptions');
+            const status = document.getElementById('desc-generate-status');
+            const modelId = document.getElementById('desc-llm-model').value;
+            const token = document.querySelector('meta[name="csrf-token"]')?.content
+                       || document.querySelector('input[name="_token"]')?.value;
+
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            status.textContent = '{{ __("ui.generating") }}...';
+
+            try {
+                const resp = await fetch('{{ route("dataset.generate-descriptions", $dataset) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                    body: JSON.stringify({ model_id: modelId }),
+                });
+                const data = await resp.json();
+
+                if (data.error) {
+                    status.textContent = data.error;
+                    return;
+                }
+
+                // Fill dataset description
+                if (data.dataset_description) {
+                    document.querySelector('textarea[name="dataset_description"]').value = data.dataset_description;
+                }
+
+                // Fill column descriptions
+                if (data.column_descriptions) {
+                    for (const [col, desc] of Object.entries(data.column_descriptions)) {
+                        const input = document.querySelector(`input[name="column_descriptions[${col}]"]`);
+                        if (input) input.value = desc;
+                    }
+                }
+
+                status.textContent = '✓ {{ __("ui.generated") }}';
+                setTimeout(() => { status.textContent = ''; }, 3000);
+            } catch (e) {
+                status.textContent = 'Error: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
 
         // Re-encode the CSV file with a different character encoding and rebuild all column-dependent UI
         async function reEncodeDataset(encoding) {

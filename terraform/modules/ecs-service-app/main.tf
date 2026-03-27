@@ -49,6 +49,8 @@ resource "aws_ecs_task_definition" "app" {
       # Plain-text environment variables for the Laravel runtime.
       environment = [
         { name = "APP_ENV",            value = var.environment },
+        { name = "APP_DEBUG",          value = "true" },
+        { name = "LOG_CHANNEL",        value = "stderr" },
         { name = "DB_CONNECTION",      value = "pgsql" },
         { name = "DB_HOST",            value = var.db_host },
         { name = "DB_PORT",            value = "5432" },
@@ -56,6 +58,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "SQS_QUEUE_URL",      value = var.sqs_queue_url },
         { name = "AWS_DEFAULT_REGION", value = var.aws_region },
         { name = "S3_BUCKET",          value = var.s3_bucket },
+        { name = "CSV_DISK_DRIVER",   value = "s3" },
         { name = "APP_URL",            value = "http://${var.alb_dns_name}" },
       ]
 

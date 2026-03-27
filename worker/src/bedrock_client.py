@@ -181,7 +181,7 @@ def generate_embedding(text: str, client=None) -> list[float]:
 
 def generate_embeddings_batch(
     texts: list[str],
-    max_workers: int = 2,
+    max_workers: int = 8,
     progress_callback=None,
 ) -> list[list[float]]:
     """
@@ -193,8 +193,8 @@ def generate_embeddings_batch(
 
     Args:
         texts: List of normalized text strings.
-        max_workers: Number of parallel threads (default: 2, conservative
-                     to stay within Bedrock rate limits).
+        max_workers: Number of parallel threads (default: 8, Bedrock
+                     rate limits are typically hundreds of req/sec).
         progress_callback: Optional callable(completed, total) for progress updates.
 
     Returns:

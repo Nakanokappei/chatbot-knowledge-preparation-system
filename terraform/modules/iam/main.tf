@@ -121,17 +121,24 @@ resource "aws_iam_role_policy" "app_task_permissions" {
         Action = [
           "s3:PutObject",
           "s3:GetObject",
-          "s3:DeleteObject"
+          "s3:DeleteObject",
+          "s3:ListBucket"
         ]
-        Resource = "${var.s3_bucket_arn}/*"
+        Resource = [var.s3_bucket_arn, "${var.s3_bucket_arn}/*"]
       },
       # The App calls Bedrock for the interactive chat feature. The resource
       # is set to wildcard because the specific model may vary by tenant
       # configuration.
       {
-        Sid      = "BedrockInvoke"
-        Effect   = "Allow"
-        Action   = ["bedrock:InvokeModel"]
+        Sid    = "BedrockInvoke"
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:ListFoundationModels",
+          "bedrock:ListInferenceProfiles",
+          "bedrock:GetFoundationModel"
+        ]
         Resource = "*"
       }
     ]
@@ -165,12 +172,13 @@ resource "aws_iam_role_policy" "worker_task_permissions" {
       # them upon completion. ChangeMessageVisibility is needed to extend
       # the processing deadline for long-running jobs.
       {
-        Sid    = "SQSConsume"
+        Sid    = "SQSConsumeAndDispatch"
         Effect = "Allow"
         Action = [
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
-          "sqs:ChangeMessageVisibility"
+          "sqs:ChangeMessageVisibility",
+          "sqs:SendMessage"
         ]
         Resource = var.sqs_queue_arn
       },
@@ -187,9 +195,15 @@ resource "aws_iam_role_policy" "worker_task_permissions" {
       # The Worker invokes Bedrock for two purposes: generating text
       # embeddings and running LLM-based keyword/cluster processing.
       {
-        Sid      = "BedrockInvoke"
-        Effect   = "Allow"
-        Action   = ["bedrock:InvokeModel"]
+        Sid    = "BedrockInvoke"
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:ListFoundationModels",
+          "bedrock:ListInferenceProfiles",
+          "bedrock:GetFoundationModel"
+        ]
         Resource = "*"
       },
       # The Worker publishes custom pipeline metrics (e.g. job duration,

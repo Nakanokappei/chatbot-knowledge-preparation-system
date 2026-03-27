@@ -15,6 +15,9 @@ return [
     'remember_me' => 'ログイン状態を保持',
     'save' => '保存',
     'cancel' => 'キャンセル',
+    'job_cancelled' => 'ジョブをキャンセルしました',
+    'job_not_cancellable' => 'このジョブはキャンセルできません',
+    'confirm_cancel_job' => 'このジョブをキャンセルしますか？',
     'delete' => '削除',
     'add' => '追加',
     'edit' => '編集',
@@ -45,7 +48,7 @@ return [
     'all_jobs' => 'すべてのジョブ',
     'completed' => '完了',
     'processing' => '処理中',
-    'failed' => '失敗',
+    'failed' => '失敗/中止',
     'run_pipeline' => 'パイプライン実行',
 
     // ── Workspace: Cluster header ───────────────────────
@@ -329,7 +332,10 @@ return [
 
     // Configure画面 — 説明カード
     'descriptions' => '説明',
-    'descriptions_hint' => 'サンプル行から自動生成。編集可 — LLMがデータを理解する際の参考になります。',
+    'descriptions_hint' => 'LLMで自動生成できます。編集可 — LLMがデータを理解する際の参考になります。',
+    'generate_descriptions_with_llm' => 'LLMで説明を生成',
+    'generating' => '生成中',
+    'generated' => '生成完了',
     'dataset_description' => 'データセットの説明',
     'dataset_description_placeholder' => 'このデータセットの内容を記述…',
     'column_descriptions' => '列の説明',
@@ -389,7 +395,8 @@ return [
     'invited_by' => ':name（:tenant）からの招待',
     'create_account' => 'アカウント作成',
     'invite_email_subject' => ':name さんからKPSへの招待',
-    'invite_email_body' => ":name さんが :app の :tenant にあなたを招待しました。\n\n以下のリンクからアカウントを作成してください：\n:url\n\nこの招待は7日間有効です。",
+    'invite_email_body' => ":name さんが :app の :tenant にあなたを招待しました。\n\n以下のリンクからアカウントを作成してください：\n:url\n\n※ 72時間経過すると招待が無効になることがあります。お早めにご登録ください。",
+    'invitation_cancelled' => '招待をキャンセルしました。',
 
     // 入力ゲート — リジェクト時のジョーク
     'chat_rejection_jokes' => [
@@ -416,6 +423,8 @@ return [
     'tenant_settings' => 'ワークスペース設定',
     'tenant_name' => 'ワークスペース名',
     'tenant_updated' => 'ワークスペース設定を更新しました。',
+    'role_updated' => 'ロールを更新しました。',
+    'cannot_change_own_role' => '自分のロールは変更できません。',
     'members' => 'メンバー',
     'pending_invitations' => '保留中の招待',
     'invited_by_short' => ':name が招待',

@@ -18,7 +18,7 @@ use Laravel\Sanctum\HasApiTokens;
  * Uses Sanctum for API token authentication and belongs to exactly
  * one Tenant for multi-tenant isolation.
  */
-#[Fillable(['name', 'email', 'password', 'tenant_id'])]
+#[Fillable(['name', 'email', 'password', 'tenant_id', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -31,6 +31,22 @@ class User extends Authenticatable
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /**
+     * Check if the user has the owner role within their tenant.
+     */
+    public function isOwner(): bool
+    {
+        return $this->role === 'owner';
+    }
+
+    /**
+     * Check if the user has the member role within their tenant.
+     */
+    public function isMember(): bool
+    {
+        return $this->role === 'member';
     }
 
     /**
