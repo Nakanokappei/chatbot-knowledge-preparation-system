@@ -32,7 +32,7 @@
             {{-- Tenant name --}}
             <div class="card">
                 <h2>{{ __('ui.tenant_name') }}</h2>
-                <form method="POST" action="{{ route('tenant.update') }}">
+                <form method="POST" action="{{ route('workspace.update') }}">
                     @csrf @method('PUT')
                     <label for="name">{{ __('ui.name') }}</label>
                     <input type="text" name="name" id="name" value="{{ old('name', $tenant->name) }}" required>
@@ -52,7 +52,7 @@
                                 <div class="member-email">{{ $member->email }}</div>
                             </div>
                             @if($member->id !== auth()->id())
-                                <form method="POST" action="{{ route('tenant.update-role', $member) }}" style="margin: 0;">
+                                <form method="POST" action="{{ route('workspace.update-role', $member) }}" style="margin: 0;">
                                     @csrf @method('PUT')
                                     <select name="role" onchange="this.form.submit()" style="padding: 3px 8px; border: 1px solid #d2d2d7; border-radius: 4px; font-size: 12px;">
                                         <option value="owner" @if($member->role === 'owner') selected @endif>Owner</option>
@@ -74,7 +74,15 @@
                 <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.invite_description') }}</p>
 
                 @if(session('invite_success'))
-                    <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">✓ {{ session('invite_success') }}</div>
+                    <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
+                        ✓ {{ __('ui.invite_created') }}
+                        @if(session('invite_url'))
+                            <div style="margin-top: 8px; padding: 8px 12px; background: #fff; border: 1px solid #c3e6cb; border-radius: 4px; word-break: break-all; font-family: monospace; font-size: 12px; display: flex; align-items: center; gap: 8px;">
+                                <span style="flex: 1;">{{ session('invite_url') }}</span>
+                                <button type="button" onclick="navigator.clipboard.writeText('{{ session('invite_url') }}'); this.textContent='✓'" style="background: none; border: 1px solid #28a745; color: #28a745; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap;">{{ __('ui.copy') }}</button>
+                            </div>
+                        @endif
+                    </div>
                 @endif
                 @if($errors->has('invite_email'))
                     <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">✗ {{ $errors->first('invite_email') }}</div>

@@ -113,9 +113,9 @@ Route::middleware('auth')->group(function () {
     // Owner-only routes: tenant settings, model management, invitations
     Route::middleware('owner')->group(function () {
         // Tenant settings
-        Route::get('/settings/tenant', [TenantController::class, 'edit'])->name('tenant.edit');
-        Route::put('/settings/tenant', [TenantController::class, 'update'])->name('tenant.update');
-        Route::put('/settings/tenant/users/{user}/role', [TenantController::class, 'updateRole'])->name('tenant.update-role');
+        Route::get('/settings/workspace', [TenantController::class, 'edit'])->name('workspace.settings');
+        Route::put('/settings/workspace', [TenantController::class, 'update'])->name('workspace.update');
+        Route::put('/settings/workspace/users/{user}/role', [TenantController::class, 'updateRole'])->name('workspace.update-role');
 
         // Member invitation
         Route::post('/profile/invite', [InvitationController::class, 'send'])->name('invitation.send');

@@ -54,21 +54,22 @@ class InvitationController extends Controller
         // Build the registration URL
         $registerUrl = route('invitation.register', ['token' => $token]);
 
-        // Send the invitation email
-        Mail::raw(
-            __('ui.invite_email_body', [
-                'name' => $inviter->name,
-                'tenant' => $inviter->tenant->name ?? 'KPS',
-                'url' => $registerUrl,
-                'app' => __('ui.app_name'),
-            ]),
-            function ($message) use ($email, $inviter) {
-                $message->to($email)
-                        ->subject(__('ui.invite_email_subject', ['name' => $inviter->name]));
-            }
-        );
+        // TODO: Send invitation email via SES when configured
+        // Mail::raw(
+        //     __('ui.invite_email_body', [
+        //         'name' => $inviter->name,
+        //         'tenant' => $inviter->tenant->name ?? 'KPS',
+        //         'url' => $registerUrl,
+        //         'app' => __('ui.app_name'),
+        //     ]),
+        //     function ($message) use ($email, $inviter) {
+        //         $message->to($email)
+        //                 ->subject(__('ui.invite_email_subject', ['name' => $inviter->name]));
+        //     }
+        // );
 
-        return back()->with('invite_success', __('ui.invite_sent'));
+        // Show the registration URL directly until email is configured
+        return back()->with('invite_success', true)->with('invite_url', $registerUrl);
     }
 
     /** Show the registration form for an invited user. */
