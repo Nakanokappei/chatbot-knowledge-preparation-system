@@ -98,7 +98,9 @@
         <div class="topbar-right">
             <div class="user-menu" id="user-menu">
                 <button class="user-btn" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
-                    @if(auth()->user()->workspace)
+                    @if(auth()->user()->isSystemAdmin())
+                        <span style="color: #5f6368; font-size: 13px; margin-right: 12px;">{{ __('ui.system_admin') }}</span>
+                    @elseif(auth()->user()->workspace)
                         @if(auth()->user()->isOwner())
                             <a href="{{ route('workspace.settings') }}" style="color: #5f6368; font-size: 13px; text-decoration: none; margin-right: 12px;" onmouseover="this.style.color='#0071e3'" onmouseout="this.style.color='#5f6368'">{{ auth()->user()->workspace->name }}</a>
                         @else
