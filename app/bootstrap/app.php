@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust ALB proxy headers so Laravel generates HTTPS URLs
+        $middleware->trustProxies(at: '*');
+
         // Set locale from session before anything else
         $middleware->appendToGroup('web', \App\Http\Middleware\SetLocale::class);
 
