@@ -227,6 +227,7 @@ terraform apply tfplan
 | `worker_memory` | 2048 | Worker container memory (MiB) |
 | `app_desired_count` | 1 | App replica count |
 | `worker_desired_count` | 1 | Worker replica count |
+| `allowed_cidr_blocks` | [] | CIDRs allowed to access ALB (empty = open) |
 
 ---
 
@@ -244,7 +245,7 @@ terraform apply tfplan
 ### 5.2 Security Groups
 
 ```
-Internet → ALB SG (port 80 from 0.0.0.0/0)
+Internet → ALB SG (port 80, restricted to allowed_cidr_blocks)
               ↓
          App SG (port 80 from ALB SG only)
               ↓
@@ -252,6 +253,8 @@ Internet → ALB SG (port 80 from 0.0.0.0/0)
 
 Worker SG: No inbound rules (outbound only: SQS, S3, Bedrock, RDS)
 ```
+
+**IP Restriction:** ALB access is restricted to allowed CIDRs via `allowed_cidr_blocks` in `dev.tfvars`. Set to `[]` for open access.
 
 ---
 
@@ -271,20 +274,81 @@ Worker SG: No inbound rules (outbound only: SQS, S3, Bedrock, RDS)
 
 ### 6.2 Post-Provisioning: Enable pgvector
 
-After Terraform apply, connect to RDS and enable the pgvector extension:
+After Terraform apply, enable pgvector via a one-off ECS task (RDS is in private subnets, not directly accessible):
 
 ```bash
-# Get RDS endpoint from Terraform output
-terraform output rds_endpoint
+# Create override file
+cat > /tmp/pgvector-setup.json << 'EOF'
+{
+  "containerOverrides": [{
+    "name": "app",
+    "command": ["sh", "-c", "apk add --no-cache postgresql-client && PGPASSWORD='<DB_PASSWORD>' psql -h <RDS_ENDPOINT> -U ckps_admin -d knowledge_prep -c 'CREATE EXTENSION IF NOT EXISTS vector;'"]
+  }]
+}
+EOF
 
-# Connect via bastion or local tunnel
-psql -h <RDS_ENDPOINT> -U ckps_admin -d knowledge_prep
-
-# Enable pgvector
-CREATE EXTENSION IF NOT EXISTS vector;
+# Run one-off ECS task
+aws ecs run-task \
+  --cluster kps-dev-cluster \
+  --task-definition kps-dev-app \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[<PRIVATE_SUBNET_ID>],securityGroups=[<APP_SG_ID>],assignPublicIp=DISABLED}" \
+  --overrides file:///tmp/pgvector-setup.json \
+  --region ap-northeast-1 --profile kps-company
 ```
 
-### 6.3 Application DB User (RLS)
+Get DB password from Secrets Manager:
+```bash
+aws secretsmanager get-secret-value --secret-id kps-dev/database \
+  --region ap-northeast-1 --profile kps-company \
+  --query 'SecretString' --output text
+```
+
+### 6.3 Run Laravel Migrations
+
+Run migrations via one-off ECS task:
+
+```bash
+cat > /tmp/migrate.json << 'EOF'
+{
+  "containerOverrides": [{
+    "name": "app",
+    "command": ["sh", "-c", "cd /var/www/html && php artisan migrate --force"]
+  }]
+}
+EOF
+
+aws ecs run-task \
+  --cluster kps-dev-cluster \
+  --task-definition kps-dev-app \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[<PRIVATE_SUBNET_ID>],securityGroups=[<APP_SG_ID>],assignPublicIp=DISABLED}" \
+  --overrides file:///tmp/migrate.json \
+  --region ap-northeast-1 --profile kps-company
+```
+
+### 6.4 Create Initial User
+
+```bash
+cat > /tmp/create-user.json << 'EOF'
+{
+  "containerOverrides": [{
+    "name": "app",
+    "command": ["sh", "-c", "cd /var/www/html && php artisan tinker --execute=\"\\App\\Models\\Tenant::firstOrCreate(['name' => 'Default'], ['slug' => 'default']); \\$t = \\App\\Models\\Tenant::first(); \\App\\Models\\User::firstOrCreate(['email' => 'admin@kps.dev'], ['name' => 'Admin', 'password' => bcrypt('changeme'), 'tenant_id' => \\$t->id]); echo 'Done';\""]
+  }]
+}
+EOF
+
+aws ecs run-task \
+  --cluster kps-dev-cluster \
+  --task-definition kps-dev-app \
+  --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[<PRIVATE_SUBNET_ID>],securityGroups=[<APP_SG_ID>],assignPublicIp=DISABLED}" \
+  --overrides file:///tmp/create-user.json \
+  --region ap-northeast-1 --profile kps-company
+```
+
+### 6.5 Application DB User (RLS)
 
 Create a non-owner user for the application (required for Row Level Security):
 
@@ -312,19 +376,18 @@ aws ecr get-login-password --region ap-northeast-1 --profile kps-company \
   | docker login --username AWS --password-stdin \
     <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com
 
-# Build app image
-docker build -t kps-app ./app/
-docker tag kps-app:latest \
-  <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/kps-dev-app:latest
-docker push \
-  <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/kps-dev-app:latest
+# IMPORTANT: ECS Fargate requires linux/amd64 images.
+# If building on Apple Silicon (M1/M2/M3), use --platform flag.
 
-# Build worker image
-docker build -t kps-worker ./worker/
-docker tag kps-worker:latest \
-  <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/kps-dev-worker:latest
-docker push \
-  <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/kps-dev-worker:latest
+# Build and push app image (cross-platform)
+docker buildx build --platform linux/amd64 \
+  -t <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/kps-dev-app:latest \
+  --push ./app/
+
+# Build and push worker image (cross-platform)
+docker buildx build --platform linux/amd64 \
+  -t <ACCOUNT_ID>.dkr.ecr.ap-northeast-1.amazonaws.com/kps-dev-worker:latest \
+  --push ./worker/
 ```
 
 ### 7.2 Image Details
@@ -372,7 +435,7 @@ Both repositories are configured to retain the last 10 images. Older images are 
 | DB_DATABASE | knowledge_prep |
 | DB_USERNAME | Secrets Manager |
 | DB_PASSWORD | Secrets Manager |
-| APP_KEY | Secrets Manager |
+| APP_KEY | Secrets Manager (must have `base64:` prefix) |
 | SQS_QUEUE_URL | SSM Parameter |
 | S3_BUCKET | SSM Parameter |
 | AWS_DEFAULT_REGION | ap-northeast-1 |

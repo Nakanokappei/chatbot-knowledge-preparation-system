@@ -24,9 +24,10 @@ module "vpc" {
 module "security_groups" {
   source = "./modules/security-groups"
 
-  vpc_id      = module.vpc.vpc_id
-  name_prefix = local.name_prefix
-  common_tags = local.common_tags
+  vpc_id              = module.vpc.vpc_id
+  name_prefix         = local.name_prefix
+  common_tags         = local.common_tags
+  allowed_cidr_blocks = var.allowed_cidr_blocks
 }
 
 # ------------------------------------------------------------------

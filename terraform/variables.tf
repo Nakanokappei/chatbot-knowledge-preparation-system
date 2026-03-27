@@ -122,6 +122,16 @@ variable "worker_image" {
 }
 
 # ----------------------------------------------------------
+# Network Access Control
+# ----------------------------------------------------------
+
+variable "allowed_cidr_blocks" {
+  description = "CIDR blocks allowed to access the ALB. Empty list means open to all."
+  type        = list(string)
+  default     = []
+}
+
+# ----------------------------------------------------------
 # Storage
 # ----------------------------------------------------------
 

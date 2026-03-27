@@ -17,3 +17,9 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "allowed_cidr_blocks" {
+  description = "CIDR blocks allowed to access the ALB. Empty list means open to all (0.0.0.0/0)."
+  type        = list(string)
+  default     = []
+}

@@ -24,13 +24,13 @@ resource "aws_security_group" "alb" {
   description = "Allow inbound HTTP to the Application Load Balancer"
   vpc_id      = var.vpc_id
 
-  # Accept HTTP from anywhere
+  # Accept HTTP from allowed CIDRs only (or all if not restricted)
   ingress {
-    description = "HTTP from internet"
+    description = "HTTP from allowed networks"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = length(var.allowed_cidr_blocks) > 0 ? var.allowed_cidr_blocks : ["0.0.0.0/0"]
   }
 
   # Allow all outbound so the ALB can reach ECS targets

@@ -22,3 +22,14 @@ worker_memory        = 2048
 # Single replica is sufficient in development
 app_desired_count    = 1
 worker_desired_count = 1
+
+# Restrict ALB access to office networks only
+allowed_cidr_blocks = [
+  "162.120.184.20/30",
+  "203.114.29.108/30",
+  "124.35.118.208/29",
+  "124.35.235.160/29",
+  "220.216.68.148/30",
+  "24.239.132.20/31",
+  "24.239.141.22/31",
+]
