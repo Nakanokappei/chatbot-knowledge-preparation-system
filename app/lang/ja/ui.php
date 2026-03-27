@@ -383,12 +383,12 @@ return [
     'password_reset_email_body' => ":app のパスワード再設定がリクエストされました。\n\n以下のリンクからパスワードを再設定してください：\n:url\n\nこのリンクは60分間有効です。\n\n心当たりがない場合は、このメールを無視してください。",
 
     // 招待
-    'invite_colleague' => 'メンバー招待',
-    'invite_description' => 'ワークスペースにメンバーを招待します。登録用リンクがメールで送信されます。',
-    'send_invitation' => '招待を送信',
+    'invite_colleague' => '招待リンク発行',
+    'invite_description' => 'ワークスペースに招待するための登録リンクを発行します。',
+    'send_invitation' => 'リンクを発行',
     'invite_sent' => '招待を送信しました。',
     'invite_sent_with_url' => '招待を作成しました。以下のURLを共有してください： :url',
-    'invite_created' => '招待を作成しました。以下のURLを共有してください。',
+    'invite_created' => '招待リンクを発行しました。以下のURLを共有してください。',
     'copy' => 'コピー',
     'invite_already_registered' => 'このメールアドレスは登録済みです。',
     'invite_already_sent' => 'このメールアドレスには招待を送信済みです。',

@@ -68,24 +68,13 @@
                 </ul>
             </div>
 
-            {{-- Invite new member --}}
+            {{-- Generate invite link --}}
             <div class="card">
                 <h2>{{ __('ui.invite_colleague') }}</h2>
                 <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.invite_description') }}</p>
 
-                @if(session('invite_success'))
-                    <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">
-                        ✓ {{ __('ui.invite_created') }}
-                        @if(session('invite_url'))
-                            <div style="margin-top: 8px; padding: 8px 12px; background: #fff; border: 1px solid #c3e6cb; border-radius: 4px; word-break: break-all; font-family: monospace; font-size: 12px; display: flex; align-items: center; gap: 8px;">
-                                <span style="flex: 1;">{{ session('invite_url') }}</span>
-                                <button type="button" onclick="navigator.clipboard.writeText('{{ session('invite_url') }}'); this.textContent='✓'" style="background: none; border: 1px solid #28a745; color: #28a745; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap;">{{ __('ui.copy') }}</button>
-                            </div>
-                        @endif
-                    </div>
-                @endif
                 @if($errors->has('invite_email'))
-                    <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">✗ {{ $errors->first('invite_email') }}</div>
+                    <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">{{ $errors->first('invite_email') }}</div>
                 @endif
 
                 <form method="POST" action="{{ route('invitation.send') }}" style="display: flex; gap: 8px; align-items: end;">
@@ -96,6 +85,16 @@
                     </div>
                     <button type="submit" class="btn btn-primary" style="white-space: nowrap;">{{ __('ui.send_invitation') }}</button>
                 </form>
+
+                @if(session('invite_url'))
+                    <div style="margin-top: 16px; padding: 16px; background: #f0f7ff; border: 1px solid #b3d4fc; border-radius: 8px;">
+                        <div style="font-size: 13px; font-weight: 600; color: #1a73e8; margin-bottom: 8px;">{{ __('ui.invite_created') }}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fff; border: 1px solid #d2d2d7; border-radius: 6px;">
+                            <input type="text" id="invite_url_field" value="{{ session('invite_url') }}" readonly style="flex: 1; border: none; background: none; font-family: monospace; font-size: 13px; color: #1d1d1f; padding: 0; margin: 0; outline: none;">
+                            <button type="button" id="copy_invite_url" onclick="navigator.clipboard.writeText(document.getElementById('invite_url_field').value); this.textContent='Copied!'; setTimeout(() => this.textContent='{{ __('ui.copy') }}', 2000)" style="background: #0071e3; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; white-space: nowrap;">{{ __('ui.copy') }}</button>
+                        </div>
+                    </div>
+                @endif
             </div>
 
             {{-- Pending invitations --}}

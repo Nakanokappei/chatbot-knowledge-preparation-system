@@ -383,12 +383,12 @@ return [
     'password_reset_email_body' => "You requested a password reset for :app.\n\nClick here to reset your password:\n:url\n\nThis link expires in 60 minutes.\n\nIf you did not request this, please ignore this email.",
 
     // Invitations
-    'invite_colleague' => 'Invite Colleague',
-    'invite_description' => 'Invite a colleague to join your workspace. They will receive an email with a registration link.',
-    'send_invitation' => 'Send Invitation',
+    'invite_colleague' => 'Generate Invite Link',
+    'invite_description' => 'Generate a registration link to invite a new member to your workspace.',
+    'send_invitation' => 'Generate Link',
     'invite_sent' => 'Invitation sent successfully.',
     'invite_sent_with_url' => 'Invitation created. Share this URL: :url',
-    'invite_created' => 'Invitation created. Share the URL below.',
+    'invite_created' => 'Invite link generated. Share the URL below.',
     'copy' => 'Copy',
     'invite_already_registered' => 'This email is already registered.',
     'invite_already_sent' => 'A pending invitation has already been sent to this email.',
