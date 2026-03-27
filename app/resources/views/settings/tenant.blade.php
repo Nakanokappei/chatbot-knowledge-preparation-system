@@ -46,7 +46,7 @@
                 <ul class="member-list">
                     @foreach($members as $member)
                         <li class="member-item">
-                            <div class="member-avatar">{{ strtoupper(substr($member->name, 0, 1)) }}</div>
+                            <div class="member-avatar">{{ mb_strtoupper(mb_substr($member->name, 0, 1)) }}</div>
                             <div class="member-info">
                                 <div class="member-name">{{ $member->name }}</div>
                                 <div class="member-email">{{ $member->email }}</div>

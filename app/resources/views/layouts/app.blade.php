@@ -101,7 +101,7 @@
                     @if(auth()->user()->tenant)
                         <a href="{{ route('workspace.settings') }}" style="color: #5f6368; font-size: 13px; text-decoration: none; margin-right: 12px;" onmouseover="this.style.color='#0071e3'" onmouseout="this.style.color='#5f6368'">{{ auth()->user()->tenant->name }}</a>
                     @endif
-                    <span class="user-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                    <span class="user-avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
                     {{ auth()->user()->name }}
                 </button>
                 <div class="user-dropdown" id="user-dropdown">
