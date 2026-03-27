@@ -208,6 +208,8 @@ return [
     // ── Profile ─────────────────────────────────────────
     'profile' => 'プロフィール',
     'profile_settings' => 'プロフィール設定',
+    'profile_workspace' => 'ワークスペース',
+    'profile_joined' => 'アカウント作成日',
     'change_password' => 'パスワード変更',
     'current_password' => '現在のパスワード',
     'new_password' => '新しいパスワード',

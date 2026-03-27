@@ -16,7 +16,7 @@
         <div class="page-container" style="max-width: 600px;">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.profile_settings') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">
-                Tenant: {{ $user->tenant->name ?? 'N/A' }} · Joined: {{ $user->created_at->format('Y-m-d') }}
+                {{ __('ui.profile_workspace') }}: {{ $user->tenant->name ?? 'N/A' }} · {{ __('ui.profile_joined') }}: {{ $user->created_at->format('Y-m-d') }}
             </p>
 
             @if(session('success'))
