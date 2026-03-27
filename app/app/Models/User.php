@@ -50,6 +50,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if the user is a system administrator (cross-workspace).
+     */
+    public function isSystemAdmin(): bool
+    {
+        return $this->role === 'system_admin';
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

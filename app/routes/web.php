@@ -9,6 +9,9 @@
  * profile, and settings routes.
  */
 
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminSettingsController;
+use App\Http\Controllers\AdminUsageController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UsageController;
 use App\Http\Controllers\InvitationController;
@@ -109,6 +112,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+
+    // System admin routes: cross-workspace management
+    Route::middleware('system_admin')->prefix('admin')->group(function () {
+        Route::get('/', [AdminController::class, 'index'])->name('admin.index');
+        Route::get('/workspaces/create', [AdminController::class, 'createWorkspace'])->name('admin.workspaces.create');
+        Route::post('/workspaces', [AdminController::class, 'storeWorkspace'])->name('admin.workspaces.store');
+
+        // Admin usage: aggregate and per-workspace
+        Route::get('/usage', [AdminUsageController::class, 'index'])->name('admin.usage');
+        Route::get('/usage/{workspace}', [AdminUsageController::class, 'show'])->name('admin.usage.workspace');
+
+        // Admin settings: system-level model templates
+        Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings.index');
+        Route::post('/settings', [AdminSettingsController::class, 'store'])->name('admin.settings.store');
+        Route::put('/settings/{llmModel}', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
+        Route::delete('/settings/{llmModel}', [AdminSettingsController::class, 'destroy'])->name('admin.settings.destroy');
+        Route::post('/settings/embedding-models', [AdminSettingsController::class, 'storeEmbedding'])->name('admin.settings.embedding.store');
+        Route::put('/settings/embedding-models/{embeddingModel}', [AdminSettingsController::class, 'updateEmbedding'])->name('admin.settings.embedding.update');
+        Route::delete('/settings/embedding-models/{embeddingModel}', [AdminSettingsController::class, 'destroyEmbedding'])->name('admin.settings.embedding.destroy');
+    });
 
     // Owner-only routes: workspace settings, model management, invitations
     Route::middleware('owner')->group(function () {

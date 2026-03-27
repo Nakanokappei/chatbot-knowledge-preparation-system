@@ -22,7 +22,10 @@ class InvitationController extends Controller
     /** Send an invitation email to a new user. */
     public function send(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        $request->validate([
+            'email' => 'required|email',
+            'role' => 'sometimes|in:owner,member',
+        ]);
 
         $inviter = auth()->user();
         $email = $request->email;
@@ -43,12 +46,15 @@ class InvitationController extends Controller
         }
 
         // Create a new invitation with a unique token
+        // System admin invitations have no workspace binding
+        $role = $request->input('role', 'member');
         $token = Str::random(64);
         Invitation::create([
-            'workspace_id' => $inviter->workspace_id,
+            'workspace_id' => ($role === 'system_admin') ? null : $inviter->workspace_id,
             'invited_by' => $inviter->id,
             'email' => $email,
             'token' => $token,
+            'role' => $role,
         ]);
 
         // Build the registration URL
@@ -105,12 +111,17 @@ class InvitationController extends Controller
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
-        // Create the user in the inviter's workspace
+        // System admins have no workspace binding; all other roles inherit the inviter's workspace
+        $role = $invitation->role ?? 'member';
+        $workspaceId = ($role === 'system_admin') ? null : $invitation->workspace_id;
+
+        // Create the user in the inviter's workspace with the specified role
         $user = User::create([
             'name' => $request->name,
             'email' => $invitation->email,
             'password' => Hash::make($request->password),
-            'workspace_id' => $invitation->workspace_id,
+            'workspace_id' => $workspaceId,
+            'role' => $role,
         ]);
 
         // Mark the invitation as accepted
@@ -120,7 +131,10 @@ class InvitationController extends Controller
         auth()->login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        // System admins go to the admin dashboard; others to the regular dashboard
+        return $user->isSystemAdmin()
+            ? redirect()->route('admin.index')
+            : redirect()->route('dashboard');
     }
 
     /** Cancel a pending invitation by deleting it. */

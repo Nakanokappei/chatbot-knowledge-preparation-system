@@ -1,13 +1,12 @@
-{{-- Main application layout: provides the shared chrome for all authenticated pages.
-     Includes top navigation bar, user dropdown menu with locale switcher, common CSS
-     (buttons, badges, cards, tables, status indicators), and shared JavaScript
-     (user dropdown, sidebar toggle, timestamp localization). --}}
+{{-- System administrator layout: provides the shared chrome for admin pages.
+     Differs from app.blade.php with a purple topbar, no Usage link,
+     and "System Admin" instead of workspace name. --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', __('ui.app_name'))</title>
+    <title>@yield('title', __('ui.app_name') . ' — ' . __('ui.system_admin'))</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,24 +14,24 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F6F6F6; color: #1d1d1f; height: 100vh; display: flex; flex-direction: column; font-size: 15px; line-height: 22px; }
 
-        /* ── Top navigation bar ─────────────────────────────── */
-        .topbar { background: #F6F6F6; border-bottom: none; padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        /* Top navigation bar — light purple for system admin */
+        .topbar { background: #F0E6FA; border-bottom: none; padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         .topbar-left { display: flex; align-items: center; gap: 16px; }
         .topbar-left h1 { font-size: 18px; font-weight: 600; }
         .topbar-left h1 a { color: #1d1d1f; text-decoration: none; }
         .hamburger { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-        .hamburger:hover { background: #E9E9E9; }
+        .hamburger:hover { background: #E0D0F0; }
         .hamburger svg { width: 18px; height: 18px; color: #1d1d1f; }
         .topbar-nav { display: flex; gap: 4px; }
         .topbar-nav a { font-size: 15px; color: #5f6368; text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: all 0.15s; }
-        .topbar-nav a:hover { background: #E9E9E9; color: #1d1d1f; }
-        .topbar-nav a.active { background: #0071e3; color: #fff; }
+        .topbar-nav a:hover { background: #E0D0F0; color: #1d1d1f; }
+        .topbar-nav a.active { background: #7C3AED; color: #fff; }
         .topbar-right { display: flex; align-items: center; gap: 12px; }
 
         /* User dropdown */
         .user-menu { position: relative; }
-        .user-btn { background: #F6F6F6; border: none; border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-        .user-avatar { width: 22px; height: 22px; background: #0071e3; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
+        .user-btn { background: #F0E6FA; border: none; border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .user-avatar { width: 22px; height: 22px; background: #7C3AED; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
         .user-dropdown { display: none; position: absolute; right: 0; top: calc(100% + 4px); background: #fff; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); min-width: 180px; z-index: 100; overflow: hidden; }
         .user-dropdown.show { display: block; }
         .user-dropdown-header { padding: 10px 14px; border-bottom: 1px solid #f0f0f2; }
@@ -42,10 +41,10 @@
         .user-dropdown a:hover, .user-dropdown button:hover { background: #f5f5f7; }
         .user-dropdown .logout { color: #1d1d1f; border-top: 1px solid #f0f0f2; }
 
-        /* ── Common elements ─────────────────────────────────── */
+        /* Common elements */
         .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.15s; }
-        .btn-primary { background: #0071e3; color: #fff; }
-        .btn-primary:hover { background: #0077ed; }
+        .btn-primary { background: #7C3AED; color: #fff; }
+        .btn-primary:hover { background: #6D28D9; }
         .btn-success { background: #34c759; color: #fff; }
         .btn-success:hover { background: #2db84e; }
         .btn-outline { background: transparent; border: 1px solid #d2d2d7; color: #1d1d1f; }
@@ -53,22 +52,16 @@
         .btn-danger { background: #ff3b30; color: #fff; }
         .btn-sm { padding: 4px 10px; font-size: 12px; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
-        .badge-draft { background: #f0f0f2; color: #5f6368; }
-        .badge-reviewed { background: #fff3cd; color: #856404; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .badge-rejected { background: #f8d7da; color: #721c24; }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-inactive { background: #f0f0f2; color: #5f6368; }
         .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
         table { width: 100%; border-collapse: collapse; font-size: 15px; }
         th { text-align: left; padding: 8px 12px; color: #5f6368; font-weight: 500; border-bottom: 1px solid #e5e5e7; }
         td { padding: 10px 12px; border-bottom: 1px solid #f0f0f2; }
         .status { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-        .status-submitted { background: #f0f0f2; color: #5f6368; }
-        .status-validating, .status-preprocessing, .status-embedding, .status-clustering { background: #fff3cd; color: #856404; }
         .status-completed { background: #d4edda; color: #155724; }
         .status-failed { background: #f8d7da; color: #721c24; }
-        .progress-bar { width: 100%; height: 6px; background: #e5e5e7; border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: #34c759; border-radius: 3px; transition: width 0.5s; }
         .empty { text-align: center; padding: 40px; color: #5f6368; }
 
         /* Page content area */
@@ -79,7 +72,7 @@
     </style>
 </head>
 <body>
-    {{-- Top navigation bar: hamburger menu, app title, nav links, and user dropdown --}}
+    {{-- Top navigation bar: hamburger, app title, settings link, user dropdown --}}
     <div class="topbar">
         <div class="topbar-left">
             <button class="hamburger" onclick="toggleSidebar()" title="{{ __('ui.toggle_sidebar') }}">
@@ -87,24 +80,15 @@
                     <line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/>
                 </svg>
             </button>
-            <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
+            <h1><a href="{{ route('admin.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
-                <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
-                @if(auth()->user()->isOwner())
-                <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
-                @endif
+                <a href="{{ route('admin.settings.index') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
             </nav>
         </div>
         <div class="topbar-right">
             <div class="user-menu" id="user-menu">
                 <button class="user-btn" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
-                    @if(auth()->user()->workspace)
-                        @if(auth()->user()->isOwner())
-                            <a href="{{ route('workspace.settings') }}" style="color: #5f6368; font-size: 13px; text-decoration: none; margin-right: 12px;" onmouseover="this.style.color='#0071e3'" onmouseout="this.style.color='#5f6368'">{{ auth()->user()->workspace->name }}</a>
-                        @else
-                            <span style="color: #5f6368; font-size: 13px; margin-right: 12px;">{{ auth()->user()->workspace->name }}</span>
-                        @endif
-                    @endif
+                    <span style="color: #7C3AED; font-size: 13px; font-weight: 500; margin-right: 12px;">{{ __('ui.system_admin') }}</span>
                     <span class="user-avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
                     {{ auth()->user()->name }}
                 </button>
@@ -135,7 +119,7 @@
             }
         });
 
-        // Toggle sidebar between full and collapsed (icon-only) mode
+        // Toggle sidebar between full and collapsed mode
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
             if (!sidebar) return;

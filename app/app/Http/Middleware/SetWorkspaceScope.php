@@ -22,9 +22,14 @@ class SetWorkspaceScope
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Propagate workspace_id into the PostgreSQL session for RLS policies
-        if (auth()->check() && auth()->user()->workspace_id) {
-            DB::statement("SET app.workspace_id = '" . (int) auth()->user()->workspace_id . "'");
+        if (auth()->check()) {
+            if (auth()->user()->isSystemAdmin()) {
+                // System admins bypass RLS — set a flag instead of workspace_id
+                DB::statement("SET app.is_system_admin = 'true'");
+            } elseif (auth()->user()->workspace_id) {
+                // Regular users: propagate workspace_id for RLS policies
+                DB::statement("SET app.workspace_id = '" . (int) auth()->user()->workspace_id . "'");
+            }
         }
 
         return $next($request);

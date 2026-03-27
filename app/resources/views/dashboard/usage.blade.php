@@ -1,7 +1,8 @@
 {{-- Usage dashboard: displays token consumption and cost metrics for the last 30 days.
      Includes summary stats, daily bar charts (tokens & cost by category), and breakdowns by endpoint/model. --}}
-@extends('layouts.app')
+@extends(($isAdminView ?? false) ? 'layouts.admin' : 'layouts.app')
 @section('title', 'Usage — KPS')
+@php $showCost = auth()->user()->isSystemAdmin(); @endphp
 
 @section('extra-styles')
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
@@ -21,23 +22,31 @@
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.usage') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.usage_description') }}</p>
 
-            {{-- Summary stats: 30-day totals for cost, tokens, and requests --}}
-            <div class="stats-grid">
+            {{-- Summary stats: 30-day totals --}}
+            <div class="stats-grid" style="grid-template-columns: repeat({{ $showCost ? 3 : 2 }}, 1fr);">
+                @if($showCost)
                 <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">{{ __('ui.cost_30days') }}</div></div>
+                @endif
                 <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">{{ __('ui.tokens_30days') }}</div></div>
                 <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">{{ __('ui.requests_30days') }}</div></div>
             </div>
 
-            {{-- Daily combined chart: cost as stacked bars (left Y), tokens as line (right Y) --}}
+            {{-- Daily chart --}}
             <div style="margin-bottom: 20px;">
                 <div class="card">
+                    @if($showCost)
                     <h2>{{ __('ui.daily_cost') }} / {{ __('ui.daily_tokens') }}</h2>
+                    @else
+                    <h2>{{ __('ui.daily_tokens') }}</h2>
+                    @endif
                     <div class="chart-container" style="height: 280px;"><canvas id="combinedChart"></canvas></div>
                     <div class="chart-legend">
+                        @if($showCost)
                         <span style="--c: #0071e3;">{{ __('ui.pipeline') }}</span>
                         <span style="--c: #34c759;">{{ __('ui.chat') }}</span>
                         <span style="--c: #ff9500;">{{ __('ui.embedding') }}</span>
-                        <span style="--c: #8e8e93;">─ {{ __('ui.tokens') }}</span>
+                        @endif
+                        <span style="--c: #8e8e93;">{{ $showCost ? '─' : '' }} {{ __('ui.tokens') }}</span>
                     </div>
                 </div>
             </div>
@@ -55,31 +64,31 @@
                 </div>
             </div>
 
-            {{-- Breakdown tables: cost aggregated by API endpoint and by model --}}
+            {{-- Breakdown tables --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div class="card">
-                    <h2>{{ __('ui.cost_by_endpoint') }}</h2>
+                    <h2>{{ $showCost ? __('ui.cost_by_endpoint') : __('ui.usage_by_endpoint') }}</h2>
                     <table>
-                        <thead><tr><th>{{ __('ui.endpoint') }}</th><th>{{ __('ui.requests') }}</th><th>{{ __('ui.tokens') }}</th><th>{{ __('ui.cost') }}</th></tr></thead>
+                        <thead><tr><th>{{ __('ui.endpoint') }}</th><th>{{ __('ui.requests') }}</th><th>{{ __('ui.tokens') }}</th>@if($showCost)<th>{{ __('ui.cost') }}</th>@endif</tr></thead>
                         <tbody>
                         @forelse($byEndpoint as $row)
-                            <tr><td>{{ $row->endpoint }}</td><td>{{ number_format($row->requests) }}</td><td>{{ number_format($row->tokens) }}</td><td>${{ number_format($row->cost, 4) }}</td></tr>
+                            <tr><td>{{ $row->endpoint }}</td><td>{{ number_format($row->requests) }}</td><td>{{ number_format($row->tokens) }}</td>@if($showCost)<td>${{ number_format($row->cost, 4) }}</td>@endif</tr>
                         @empty
-                            <tr><td colspan="4" class="empty">{{ __('ui.no_usage_data') }}</td></tr>
+                            <tr><td colspan="{{ $showCost ? 4 : 3 }}" class="empty">{{ __('ui.no_usage_data') }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>
                 </div>
 
                 <div class="card">
-                    <h2>{{ __('ui.cost_by_model') }}</h2>
+                    <h2>{{ $showCost ? __('ui.cost_by_model') : __('ui.usage_by_model') }}</h2>
                     <table>
-                        <thead><tr><th>{{ __('ui.llm_model') }}</th><th>{{ __('ui.requests') }}</th><th>{{ __('ui.tokens') }}</th><th>{{ __('ui.cost') }}</th></tr></thead>
+                        <thead><tr><th>{{ __('ui.llm_model') }}</th><th>{{ __('ui.requests') }}</th><th>{{ __('ui.tokens') }}</th>@if($showCost)<th>{{ __('ui.cost') }}</th>@endif</tr></thead>
                         <tbody>
                         @forelse($byModel as $row)
-                            <tr><td style="font-size: 12px;">{{ $row->model_id }}</td><td>{{ number_format($row->requests) }}</td><td>{{ number_format($row->tokens) }}</td><td>${{ number_format($row->cost, 4) }}</td></tr>
+                            <tr><td style="font-size: 12px;">{{ $row->model_id }}</td><td>{{ number_format($row->requests) }}</td><td>{{ number_format($row->tokens) }}</td>@if($showCost)<td>${{ number_format($row->cost, 4) }}</td>@endif</tr>
                         @empty
-                            <tr><td colspan="4" class="empty">{{ __('ui.no_usage_data') }}</td></tr>
+                            <tr><td colspan="{{ $showCost ? 4 : 3 }}" class="empty">{{ __('ui.no_usage_data') }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>
@@ -91,6 +100,7 @@
 
 @section('scripts')
     const dailyData = @json($dailyTrend);
+    const showCost = @json($showCost);
 
     // Fill missing dates in the last 30 days with zero values
     function buildDateRange(data) {
@@ -161,35 +171,53 @@
             ctx.moveTo(pad.left, y);
             ctx.lineTo(W - pad.right, y);
             ctx.stroke();
-            // Left Y-axis: cost
-            ctx.textAlign = 'right';
-            ctx.fillText(fmtCost(maxCost * i / 4), pad.left - 6, y + 4);
-            // Right Y-axis: tokens
-            ctx.textAlign = 'left';
-            ctx.fillText(fmtTokens(maxTokens * i / 4), W - pad.right + 6, y + 4);
+            if (showCost) {
+                // Left Y-axis: cost
+                ctx.textAlign = 'right';
+                ctx.fillText(fmtCost(maxCost * i / 4), pad.left - 6, y + 4);
+                // Right Y-axis: tokens
+                ctx.textAlign = 'left';
+                ctx.fillText(fmtTokens(maxTokens * i / 4), W - pad.right + 6, y + 4);
+            } else {
+                // Only token axis (left)
+                ctx.textAlign = 'right';
+                ctx.fillText(fmtTokens(maxTokens * i / 4), pad.left - 6, y + 4);
+            }
         }
 
-        // Draw stacked cost bars
+        // Draw bars
         const barW = Math.max(2, (chartW / days.length) - 2);
         const gap = (chartW - barW * days.length) / days.length;
 
         days.forEach((day, i) => {
             const x = pad.left + i * (barW + gap) + gap / 2;
-            const segments = [
-                { value: Number(day.pipeline_cost) || 0, color: '#0071e3' },
-                { value: Number(day.chat_cost) || 0, color: '#34c759' },
-                { value: Number(day.embedding_cost) || 0, color: '#ff9500' },
-            ];
-            let yOffset = 0;
-            segments.forEach(seg => {
-                const h = maxCost > 0 ? (seg.value / maxCost) * chartH : 0;
-                const y = pad.top + chartH - yOffset - h;
-                ctx.fillStyle = seg.color;
+
+            if (showCost) {
+                // Stacked cost bars
+                const segments = [
+                    { value: Number(day.pipeline_cost) || 0, color: '#0071e3' },
+                    { value: Number(day.chat_cost) || 0, color: '#34c759' },
+                    { value: Number(day.embedding_cost) || 0, color: '#ff9500' },
+                ];
+                let yOffset = 0;
+                segments.forEach(seg => {
+                    const h = maxCost > 0 ? (seg.value / maxCost) * chartH : 0;
+                    const y = pad.top + chartH - yOffset - h;
+                    ctx.fillStyle = seg.color;
+                    ctx.beginPath();
+                    ctx.roundRect(x, y, barW, Math.max(h, h > 0 ? 1 : 0), [2, 2, 0, 0]);
+                    ctx.fill();
+                    yOffset += h;
+                });
+            } else {
+                // Token bars only (no cost)
+                const tokens = Number(day.total_tokens) || 0;
+                const h = maxTokens > 0 ? (tokens / maxTokens) * chartH : 0;
+                ctx.fillStyle = '#8e8e93';
                 ctx.beginPath();
-                ctx.roundRect(x, y, barW, Math.max(h, h > 0 ? 1 : 0), [2, 2, 0, 0]);
+                ctx.roundRect(x, pad.top + chartH - h, barW, Math.max(h, h > 0 ? 1 : 0), [2, 2, 0, 0]);
                 ctx.fill();
-                yOffset += h;
-            });
+            }
 
             // X-axis date labels
             if (i % 5 === 0 || i === days.length - 1) {
@@ -200,7 +228,8 @@
             }
         });
 
-        // Draw token line on right Y-axis
+        // Draw token line on right Y-axis (only when cost bars are shown)
+        if (!showCost) { return; }
         ctx.beginPath();
         ctx.strokeStyle = '#8e8e93';
         ctx.lineWidth = 2;

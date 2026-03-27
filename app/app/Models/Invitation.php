@@ -18,6 +18,7 @@ class Invitation extends Model
         'email',
         'token',
         'accepted_at',
+        'role',
     ];
 
     protected $casts = [

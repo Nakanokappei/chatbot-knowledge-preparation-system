@@ -17,7 +17,7 @@ class RequireOwner
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || !auth()->user()->isOwner()) {
+        if (!auth()->check() || (!auth()->user()->isOwner() && !auth()->user()->isSystemAdmin())) {
             abort(403, 'Owner access required.');
         }
 

@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'budget' => \App\Http\Middleware\EnforceBudget::class,
             'owner' => \App\Http\Middleware\RequireOwner::class,
+            'system_admin' => \App\Http\Middleware\RequireSystemAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

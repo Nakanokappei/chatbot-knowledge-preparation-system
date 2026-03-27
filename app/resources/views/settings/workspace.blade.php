@@ -83,6 +83,13 @@
                         <label for="invite_email">{{ __('ui.email') }}</label>
                         <input type="email" name="email" id="invite_email" placeholder="colleague@example.com" required style="margin-bottom: 0;">
                     </div>
+                    <div style="width: 120px;">
+                        <label for="invite_role">{{ __('ui.invite_role') }}</label>
+                        <select name="role" id="invite_role" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                            <option value="member">Member</option>
+                            <option value="owner">Owner</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn btn-primary" style="white-space: nowrap;">{{ __('ui.send_invitation') }}</button>
                 </form>
 

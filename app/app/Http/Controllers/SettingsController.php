@@ -39,6 +39,17 @@ class SettingsController extends Controller
             ->orderBy('sort_order')
             ->get();
 
+        // System templates: models added by system admin (workspace_id = NULL)
+        $systemLlmModels = LlmModel::whereNull('workspace_id')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        $systemEmbeddingModels = EmbeddingModel::whereNull('workspace_id')
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
         // Fetch available Bedrock models (cached for 1 hour)
         $bedrockModels = $this->fetchBedrockModels();
         $bedrockEmbeddingModels = $this->fetchBedrockEmbeddingModels();
@@ -49,6 +60,7 @@ class SettingsController extends Controller
         return view('settings.index', compact(
             'models', 'embeddingModels', 'bedrockModels',
             'bedrockEmbeddingModels', 'pricing',
+            'systemLlmModels', 'systemEmbeddingModels',
         ));
     }
 
@@ -328,10 +340,15 @@ class SettingsController extends Controller
         $workspaceId = auth()->user()->workspace_id;
         $modelId = $request->input('model_id');
 
-        // Bedrock on-demand inference for newer models requires an inference
-        // profile ID (e.g. "jp.anthropic.claude-...") rather than the bare
-        // model ID. The model_id from the Bedrock dropdown already includes
-        // the correct prefix, so we use it as-is.
+        // If system templates exist, owner/member can only choose from them
+        $systemTemplates = LlmModel::whereNull('workspace_id')->where('is_active', true)->get();
+        if ($systemTemplates->isNotEmpty()) {
+            $template = $systemTemplates->firstWhere('model_id', $modelId);
+            if (!$template) {
+                return redirect()->route('settings.index')
+                    ->with('error', __('ui.model_not_in_system_templates'));
+            }
+        }
 
         // Check for duplicate model_id within the workspace
         $exists = LlmModel::where('workspace_id', $workspaceId)
@@ -343,8 +360,11 @@ class SettingsController extends Controller
                 ->with('error', 'This model is already registered.');
         }
 
-        // Use provided display_name, or look up from Bedrock API cache
+        // Use system template display_name and pricing if available
         $displayName = $request->input('display_name');
+        if (!$displayName && isset($template)) {
+            $displayName = $template->display_name;
+        }
         if (!$displayName) {
             $bedrockModels = $this->fetchBedrockModels();
             foreach ($bedrockModels as $bm) {
@@ -359,8 +379,6 @@ class SettingsController extends Controller
         }
 
         $maxSort = LlmModel::where('workspace_id', $workspaceId)->max('sort_order') ?? -1;
-
-        // First model registered becomes the default automatically
         $isFirst = LlmModel::where('workspace_id', $workspaceId)->count() === 0;
 
         LlmModel::create([
@@ -370,6 +388,8 @@ class SettingsController extends Controller
             'is_default' => $isFirst,
             'sort_order' => $maxSort + 1,
             'is_active' => true,
+            'input_price_per_1m' => isset($template) ? $template->input_price_per_1m : null,
+            'output_price_per_1m' => isset($template) ? $template->output_price_per_1m : null,
         ]);
 
         $suffix = $isFirst ? ' (set as default)' : '';

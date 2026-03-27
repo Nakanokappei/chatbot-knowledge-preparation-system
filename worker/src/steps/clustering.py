@@ -728,15 +728,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     embedding_id = pipeline_config.get("embedding_id")
     if embedding_id:
         link_clusters_to_embedding(job_id, embedding_id)
-        # Rename embedding to reflect clustering method and key parameters
-        key_params = {
-            "hdbscan": lambda params: f"min_size={params.get('min_cluster_size', '?')}",
-            "kmeans": lambda params: f"k={params.get('n_clusters', '?')}",
-            "agglomerative": lambda params: f"k={params.get('n_clusters', '?')}, {params.get('linkage', 'ward')}",
-            "leiden": lambda params: f"res={params.get('resolution', '?')}",
-        }
-        param_str = key_params.get(method_used, lambda params: "")(effective_params)
-        cluster_name = f"{method_used.upper()} ({param_str})" if param_str else method_used.upper()
+        # Rename embedding with timestamp-based naming convention
+        from datetime import datetime
+        cluster_name = f"KU-{datetime.now().strftime('%Y%m%d-%H%M')}"
         conn = get_connection()
         try:
             with conn.cursor() as cur:

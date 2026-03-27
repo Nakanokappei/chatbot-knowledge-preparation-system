@@ -24,8 +24,13 @@ class EmbeddingController extends Controller
      *
      * If no embedding_id is specified, selects the most recent one.
      */
-    public function index(Request $request, ?int $embeddingId = null): View
+    public function index(Request $request, ?int $embeddingId = null)
     {
+        // System admins have no workspace — redirect to admin dashboard
+        if (auth()->user()->isSystemAdmin()) {
+            return redirect()->route('admin.index');
+        }
+
         $workspaceId = auth()->user()->workspace_id;
 
         // Datasets with their embeddings for tree view
