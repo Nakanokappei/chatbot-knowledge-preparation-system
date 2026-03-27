@@ -10,7 +10,7 @@
  */
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CostController;
+use App\Http\Controllers\UsageController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\TenantController;
@@ -98,8 +98,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/knowledge-datasets/{dataset}/chat', [KnowledgeDatasetController::class, 'chat'])->name('kd.chat');
     Route::get('/knowledge-datasets/{dataset}/evaluation', [KnowledgeDatasetController::class, 'evaluation'])->name('kd.evaluation');
 
-    // Cost dashboard
-    Route::get('/cost', [CostController::class, 'index'])->name('cost');
+    // Usage dashboard
+    Route::get('/usage', [UsageController::class, 'index'])->name('usage');
 
     // Chat & Retrieve (web session auth, used by browser UI)
     Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
@@ -122,10 +122,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/invitation/{invitation}/cancel', [InvitationController::class, 'cancel'])->name('invitation.cancel');
 
         // Settings: LLM model management
-        Route::get('/settings/models', [SettingsController::class, 'index'])->name('settings.models');
-        Route::post('/settings/models', [SettingsController::class, 'store'])->name('settings.models.store');
-        Route::put('/settings/models/{llmModel}', [SettingsController::class, 'update'])->name('settings.models.update');
-        Route::delete('/settings/models/{llmModel}', [SettingsController::class, 'destroy'])->name('settings.models.destroy');
+        Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
+        Route::post('/settings', [SettingsController::class, 'store'])->name('settings.store');
+        Route::put('/settings/{llmModel}', [SettingsController::class, 'update'])->name('settings.update');
+        Route::delete('/settings/{llmModel}', [SettingsController::class, 'destroy'])->name('settings.destroy');
 
         // Embedding model management
         Route::post('/settings/embedding-models', [SettingsController::class, 'storeEmbedding'])->name('settings.embedding.store');

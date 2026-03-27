@@ -39,7 +39,7 @@
             {{-- Add LLM model form: dropdown of available Bedrock models with auto-fill display name --}}
             <div class="card">
                 <h2>{{ __('ui.add_model') }}</h2>
-                <form method="POST" action="{{ route('settings.models.store') }}">
+                <form method="POST" action="{{ route('settings.store') }}">
                     @csrf
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
@@ -96,7 +96,7 @@
                                 <td style="font-weight: 500;">{{ $model->display_name }}</td>
                                 <td><span class="mono">{{ $model->model_id }}</span></td>
                                 <td style="white-space: nowrap; font-size: 12px;">
-                                    <form method="POST" action="{{ route('settings.models.update', $model) }}" style="display: inline; margin: 0;">
+                                    <form method="POST" action="{{ route('settings.update', $model) }}" style="display: inline; margin: 0;">
                                         @csrf @method('PUT')
                                         <input type="hidden" name="action" value="update_pricing">
                                         <span style="color: #5f6368;">$</span><input type="number" name="input_price_per_1m" value="{{ $model->input_price_per_1m }}"
@@ -106,7 +106,7 @@
                                     </form>
                                 </td>
                                 <td style="white-space: nowrap; font-size: 12px;">
-                                    <form method="POST" action="{{ route('settings.models.update', $model) }}" style="display: inline; margin: 0;">
+                                    <form method="POST" action="{{ route('settings.update', $model) }}" style="display: inline; margin: 0;">
                                         @csrf @method('PUT')
                                         <input type="hidden" name="action" value="update_pricing">
                                         <span style="color: #5f6368;">$</span><input type="number" name="output_price_per_1m" value="{{ $model->output_price_per_1m }}"
@@ -127,9 +127,9 @@
                                 <td>
                                     <div class="actions">
                                         @if(!$model->is_default)
-                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
-                                            <form method="POST" action="{{ route('settings.models.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
-                                            <form method="POST" action="{{ route('settings.models.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
+                                            <form method="POST" action="{{ route('settings.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
                                     </div>
                                 </td>

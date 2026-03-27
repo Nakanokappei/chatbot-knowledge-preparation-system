@@ -6,9 +6,9 @@ use App\Services\CostTrackingService;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Cost dashboard — monthly cost by tenant, endpoint, model, and daily trend.
+ * Usage dashboard — monthly usage by tenant, endpoint, model, and daily trend.
  */
-class CostController extends Controller
+class UsageController extends Controller
 {
     /**
      * Display the cost dashboard with monthly summary, daily trend,
@@ -49,7 +49,7 @@ class CostController extends Controller
             ->orderByDesc('cost')
             ->get();
 
-        return view('dashboard.cost', compact(
+        return view('dashboard.usage', compact(
             'monthly', 'dailyTrend', 'byEndpoint', 'byModel'
         ));
     }

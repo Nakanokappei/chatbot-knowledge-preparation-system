@@ -89,9 +89,9 @@
             </button>
             <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
-                <a href="{{ route('cost') }}" class="{{ request()->routeIs('cost') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
+                <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
                 @if(auth()->user()->isOwner())
-                <a href="{{ route('settings.models') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
+                <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
                 @endif
             </nav>
         </div>

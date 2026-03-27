@@ -46,7 +46,7 @@ class SettingsController extends Controller
         // Fetch pricing from AWS Price List API (cached 24 hours)
         $pricing = $this->fetchBedrockPricing();
 
-        return view('settings.models', compact(
+        return view('settings.index', compact(
             'models', 'embeddingModels', 'bedrockModels',
             'bedrockEmbeddingModels', 'pricing',
         ));
@@ -339,7 +339,7 @@ class SettingsController extends Controller
             ->exists();
 
         if ($exists) {
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('error', 'This model is already registered.');
         }
 
@@ -373,7 +373,7 @@ class SettingsController extends Controller
         ]);
 
         $suffix = $isFirst ? ' (set as default)' : '';
-        return redirect()->route('settings.models')
+        return redirect()->route('settings.index')
             ->with('success', "{$displayName} added{$suffix}.");
     }
 
@@ -389,7 +389,7 @@ class SettingsController extends Controller
             $llmModel->update(['is_active' => !$llmModel->is_active]);
             $status = $llmModel->is_active ? 'activated' : 'deactivated';
 
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('success', "{$llmModel->display_name} {$status}.");
         }
 
@@ -399,7 +399,7 @@ class SettingsController extends Controller
             LlmModel::where('tenant_id', $tenantId)->update(['is_default' => false]);
             $llmModel->update(['is_default' => true]);
 
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('success', "{$llmModel->display_name} is now the default model.");
         }
 
@@ -416,7 +416,7 @@ class SettingsController extends Controller
                 $llmModel->update($data);
             }
 
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('success', "Pricing updated for {$llmModel->display_name}.");
         }
 
@@ -428,7 +428,7 @@ class SettingsController extends Controller
 
         $llmModel->update($request->only(['display_name', 'sort_order']));
 
-        return redirect()->route('settings.models')
+        return redirect()->route('settings.index')
             ->with('success', 'Model updated.');
     }
 
@@ -440,7 +440,7 @@ class SettingsController extends Controller
         $name = $llmModel->display_name;
         $llmModel->delete();
 
-        return redirect()->route('settings.models')
+        return redirect()->route('settings.index')
             ->with('success', "{$name} deleted.");
     }
 
@@ -465,7 +465,7 @@ class SettingsController extends Controller
             ->exists();
 
         if ($exists) {
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('error', 'This embedding model is already registered.');
         }
 
@@ -497,7 +497,7 @@ class SettingsController extends Controller
         ]);
 
         $suffix = $isFirst ? ' (set as default)' : '';
-        return redirect()->route('settings.models')
+        return redirect()->route('settings.index')
             ->with('success', "{$displayName} added{$suffix}.");
     }
 
@@ -511,7 +511,7 @@ class SettingsController extends Controller
         if ($action === 'toggle_active') {
             $embeddingModel->update(['is_active' => !$embeddingModel->is_active]);
             $status = $embeddingModel->is_active ? 'activated' : 'deactivated';
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('success', "{$embeddingModel->display_name} {$status}.");
         }
 
@@ -519,7 +519,7 @@ class SettingsController extends Controller
             $tenantId = auth()->user()->tenant_id;
             EmbeddingModel::where('tenant_id', $tenantId)->update(['is_default' => false]);
             $embeddingModel->update(['is_default' => true]);
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('success', "{$embeddingModel->display_name} is now the default embedding model.");
         }
 
@@ -529,11 +529,11 @@ class SettingsController extends Controller
                     'input_price_per_1m' => max(0, (float) $request->input('input_price_per_1m')),
                 ]);
             }
-            return redirect()->route('settings.models')
+            return redirect()->route('settings.index')
                 ->with('success', "Pricing updated for {$embeddingModel->display_name}.");
         }
 
-        return redirect()->route('settings.models');
+        return redirect()->route('settings.index');
     }
 
     /**
@@ -543,7 +543,7 @@ class SettingsController extends Controller
     {
         $name = $embeddingModel->display_name;
         $embeddingModel->delete();
-        return redirect()->route('settings.models')
+        return redirect()->route('settings.index')
             ->with('success', "{$name} deleted.");
     }
 }
