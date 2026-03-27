@@ -26,7 +26,9 @@
         <div class="page-container">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.llm_models') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.llm_models_desc') }}
+                @if(auth()->user()->isSystemAdmin())
                 <a href="https://aws.amazon.com/bedrock/pricing/" target="_blank" rel="noopener" style="color: #0071e3; text-decoration: none;">AWS Bedrock Pricing ↗</a>
+                @endif
             </p>
 
             @if(session('success'))
