@@ -80,6 +80,13 @@ return [
     'chat_searching_for' => ':name について調べています…',
     'chat_broad_match' => '該当する情報が見つからなかったため、参考情報をお伝えします。',
     'chat_no_match' => 'ご質問に該当するナレッジが見つかりませんでした。',
+    'chat_no_match_title' => '該当する情報が見つかりませんでした',
+    'chat_no_match_body' => '現在のナレッジベースにはご質問に対応する情報がありません。別の言葉で言い換えるか、製品名を確認してみてください。',
+    'chat_no_match_reset' => '会話をリセットして、もう一度試す',
+    'chat_history' => '履歴',
+    'chat_history_loading' => '読み込み中...',
+    'chat_history_empty' => '会話履歴はありません',
+    'chat_history_untitled' => '(タイトルなし)',
     'select_embedding' => '埋め込みを選択',
     'select_embedding_hint' => 'サイドバーから埋め込みを選択して、クラスターを表示します。',
 

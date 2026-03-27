@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\AnswerFeedback;
+use App\Models\ChatSession;
+use App\Models\ChatTurn;
 use App\Models\Embedding;
 use App\Models\KnowledgeUnit;
 use App\Services\BedrockService;
@@ -32,10 +34,11 @@ class EmbeddingChatController extends Controller
     public function chat(Request $request, int $embeddingId): JsonResponse
     {
         $request->validate([
-            'message' => 'required|string|max:4000',
-            'context' => 'nullable|array',
+            'message'                => 'required|string|max:4000',
+            'context'                => 'nullable|array',
             'context.primary_filter' => 'nullable|string',
-            'context.question' => 'nullable|string',
+            'context.question'       => 'nullable|string',
+            'session_id'             => 'nullable|integer',
         ]);
 
         $workspaceId = auth()->user()->workspace_id;
@@ -128,18 +131,28 @@ class EmbeddingChatController extends Controller
             }
             $costTracker->recordChatAnswer($workspaceId);
 
+            $sources = $rag->buildSources($chatResult['results'], $chatResult['search_mode']);
+
+            // Persist the conversation turn to chat history
+            $sessionId = $this->persistTurn(
+                $request, $workspaceId, $embeddingId,
+                $request->message, $llmResult['content'],
+                $action, $context, $sources,
+            );
+
             return response()->json([
-                'message' => $llmResult['content'],
-                'action' => $action,
-                'context' => $context,
-                'sources' => $rag->buildSources($chatResult['results'], $chatResult['search_mode']),
-                'source_ku_ids' => $sourceKuIds,
-                'model' => $llmResult['model_id'],
-                'usage' => [
-                    'input_tokens' => $llmResult['input_tokens'],
+                'message'        => $llmResult['content'],
+                'action'         => $action,
+                'context'        => $context,
+                'sources'        => $sources,
+                'source_ku_ids'  => $sourceKuIds,
+                'session_id'     => $sessionId,
+                'model'          => $llmResult['model_id'],
+                'usage'          => [
+                    'input_tokens'  => $llmResult['input_tokens'],
                     'output_tokens' => $llmResult['output_tokens'],
                 ],
-                'latency_ms' => $llmResult['latency_ms'],
+                'latency_ms'     => $llmResult['latency_ms'],
             ]);
 
         } catch (\Exception $e) {
@@ -273,6 +286,104 @@ PROMPT;
         // Fallback to static jokes
         $jokes = __('ui.chat_rejection_jokes');
         return is_array($jokes) ? $jokes[array_rand($jokes)] : $jokes;
+    }
+
+    /**
+     * Return recent chat sessions for the given embedding (for history sidebar).
+     */
+    public function sessions(\Illuminate\Http\Request $request, int $embeddingId): \Illuminate\Http\JsonResponse
+    {
+        $workspaceId = auth()->user()->workspace_id;
+        Embedding::where('workspace_id', $workspaceId)->findOrFail($embeddingId);
+
+        $sessions = ChatSession::where('workspace_id', $workspaceId)
+            ->where('embedding_id', $embeddingId)
+            ->orderByDesc('updated_at')
+            ->limit(30)
+            ->get(['id', 'title', 'created_at', 'updated_at']);
+
+        return response()->json($sessions);
+    }
+
+    /**
+     * Return all turns for a specific session (for history replay).
+     */
+    public function sessionDetail(\Illuminate\Http\Request $request, int $embeddingId, ChatSession $session): \Illuminate\Http\JsonResponse
+    {
+        $workspaceId = auth()->user()->workspace_id;
+
+        // Verify session belongs to this workspace and embedding
+        abort_if($session->workspace_id !== $workspaceId || $session->embedding_id !== $embeddingId, 403);
+
+        $turns = $session->turns()->get(['role', 'content', 'action', 'sources', 'context', 'created_at']);
+
+        return response()->json([
+            'session' => ['id' => $session->id, 'title' => $session->title],
+            'turns'   => $turns,
+        ]);
+    }
+
+    /**
+     * Persist a user/assistant turn pair to chat history.
+     *
+     * Reuses an existing session when the client passes session_id,
+     * otherwise creates a new session with a title derived from the first message.
+     * Errors are swallowed so history failures never break the chat response.
+     *
+     * Returns the session ID (new or existing).
+     */
+    private function persistTurn(
+        \Illuminate\Http\Request $request,
+        int $workspaceId,
+        int $embeddingId,
+        string $userContent,
+        string $assistantContent,
+        string $action,
+        array $context,
+        array $sources,
+    ): ?int {
+        try {
+            $sessionId = $request->input('session_id');
+            $session = $sessionId
+                ? ChatSession::where('workspace_id', $workspaceId)->find($sessionId)
+                : null;
+
+            // Create a new session if none exists or the provided ID is invalid
+            if (!$session) {
+                $title = mb_substr($userContent, 0, 60);
+                $session = ChatSession::create([
+                    'workspace_id' => $workspaceId,
+                    'user_id'      => auth()->id(),
+                    'embedding_id' => $embeddingId,
+                    'title'        => $title,
+                ]);
+            }
+
+            // Save user turn
+            ChatTurn::create([
+                'session_id' => $session->id,
+                'role'       => 'user',
+                'content'    => $userContent,
+                'context'    => $context,
+                'action'     => null,
+                'sources'    => null,
+            ]);
+
+            // Save assistant turn
+            ChatTurn::create([
+                'session_id' => $session->id,
+                'role'       => 'assistant',
+                'content'    => $assistantContent,
+                'context'    => $context,
+                'action'     => $action,
+                'sources'    => $sources,
+            ]);
+
+            return $session->id;
+        } catch (\Exception $e) {
+            \Log::warning('Chat history persist failed: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**

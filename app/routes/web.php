@@ -69,6 +69,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/workspace/{embeddingId}/export-rows', [EmbeddingController::class, 'exportWithClusters'])->name('workspace.export-rows');
     Route::post('/workspace/{embeddingId}/chat', [\App\Http\Controllers\EmbeddingChatController::class, 'chat'])->name('workspace.chat');
     Route::post('/workspace/{embeddingId}/chat-feedback', [\App\Http\Controllers\EmbeddingChatController::class, 'feedback'])->name('workspace.chat-feedback');
+    Route::get('/workspace/{embeddingId}/chat-sessions', [\App\Http\Controllers\EmbeddingChatController::class, 'sessions'])->name('workspace.chat-sessions');
+    Route::get('/workspace/{embeddingId}/chat-sessions/{session}', [\App\Http\Controllers\EmbeddingChatController::class, 'sessionDetail'])->name('workspace.chat-session');
 
     // Pipeline: redirect legacy URLs to workspace pipeline view
     Route::get('/pipeline', fn () => redirect('/?pipeline=jobs&pf=all'))->name('dashboard');

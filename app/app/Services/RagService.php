@@ -215,9 +215,10 @@ PROMPT;
     public function buildSources(array $knowledgeUnits, string $searchMode): array
     {
         return array_map(fn($ku) => [
-            'topic' => $ku->topic,
-            'intent' => $ku->intent,
-            'similarity' => round((float) $ku->similarity, 4),
+            'id'          => $ku->id,
+            'topic'       => $ku->topic,
+            'intent'      => $ku->intent,
+            'similarity'  => round((float) $ku->similarity, 4),
             'search_mode' => $searchMode,
         ], $knowledgeUnits);
     }

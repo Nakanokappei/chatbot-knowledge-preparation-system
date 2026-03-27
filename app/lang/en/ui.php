@@ -80,6 +80,13 @@ return [
     'chat_searching_for' => 'Searching for :name...',
     'chat_broad_match' => 'No exact match found. Here is some reference information.',
     'chat_no_match' => 'No matching knowledge found for your question.',
+    'chat_no_match_title' => 'No matching information found',
+    'chat_no_match_body' => 'The knowledge base does not contain information relevant to your question. Try rephrasing or check the product name.',
+    'chat_no_match_reset' => 'Reset conversation and try again',
+    'chat_history' => 'History',
+    'chat_history_loading' => 'Loading...',
+    'chat_history_empty' => 'No conversation history yet',
+    'chat_history_untitled' => '(Untitled)',
     'select_embedding' => 'Select an embedding',
     'select_embedding_hint' => 'Choose an embedding from the sidebar to view its clusters.',
 

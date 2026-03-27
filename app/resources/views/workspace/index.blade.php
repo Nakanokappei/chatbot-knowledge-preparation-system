@@ -660,9 +660,27 @@
                 <div style="font-size: 14px; font-weight: 600; color: #fff;">{{ __('ui.chat') }} — {{ Str::limit($current->name, 30) }}</div>
                 <div style="font-size: 11px; color: #aaa;">{{ $knowledgeUnits->where('review_status', 'approved')->count() }} approved clusters as knowledge source</div>
             </div>
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button onclick="toggleHistoryPanel()" title="{{ __('ui.chat_history') }}"
+                    style="background: none; border: none; cursor: pointer; color: #aaa; font-size: 12px; display: flex; align-items: center; gap: 4px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    {{ __('ui.chat_history') }}
+                </button>
                 <button onclick="clearChat()" style="background: none; border: none; cursor: pointer; color: #aaa; font-size: 12px;" title="Clear">Clear</button>
                 <button onclick="closeChatOverlay()" style="background: none; border: none; cursor: pointer; color: #fff; font-size: 18px; line-height: 1; padding: 0 4px;">✕</button>
+            </div>
+        </div>
+
+        <!-- History panel: slides in over the messages area -->
+        <div id="chat-history-panel" style="display: none; flex-direction: column; flex: 1; overflow: hidden; background: #fff;">
+            <div style="padding: 10px 16px; border-bottom: 1px solid #e5e5e7; display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 13px; font-weight: 600; color: #1d1d1f;">{{ __('ui.chat_history') }}</span>
+                <button onclick="toggleHistoryPanel()" style="background: none; border: none; cursor: pointer; color: #5f6368; font-size: 12px;">{{ __('ui.close') }}</button>
+            </div>
+            <div id="chat-history-list" style="flex: 1; overflow-y: auto; padding: 8px;">
+                <div style="text-align: center; color: #aaa; font-size: 12px; padding: 20px;">{{ __('ui.chat_history_loading') }}</div>
             </div>
         </div>
 
@@ -771,6 +789,7 @@
 
         // Chat overlay — session state tracks extracted primary_filter/question
         let chatContext = { primary_filter: null, question: null };
+        let chatSessionId = null;   // current chat_sessions.id (null = new session)
         let chatSending = false;
 
         function openChatOverlay() {
@@ -845,6 +864,7 @@
 
         function clearChat() {
             chatContext = { primary_filter: null, question: null };
+            chatSessionId = null;
             const container = document.getElementById('chat-messages');
             container.innerHTML = '<div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">{{ __("ui.chat_placeholder") }}</div>';
             // Clear the context indicator bar
@@ -853,6 +873,27 @@
                 indicator.textContent = '';
                 indicator.style.display = 'none';
             }
+        }
+
+        // Fallback UI: shown when the knowledge base has no matching answer.
+        // Displays a dedicated card with an icon, message, and a reset button.
+        function appendFallbackMessage() {
+            const container = document.getElementById('chat-messages');
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'align-self: flex-start; max-width: 85%;';
+            wrapper.innerHTML = `
+                <div style="background: #FFF8E1; border: 1px solid #FFE082; border-radius: 12px; padding: 12px 16px; display: flex; gap: 10px; align-items: flex-start;">
+                    <span style="font-size: 20px; flex-shrink: 0;">🔍</span>
+                    <div>
+                        <div style="font-size: 13px; font-weight: 600; color: #5D4037; margin-bottom: 4px;">{{ __("ui.chat_no_match_title") }}</div>
+                        <div style="font-size: 12px; color: #795548; line-height: 1.5;">{{ __("ui.chat_no_match_body") }}</div>
+                        <button onclick="clearChat()" style="margin-top: 8px; font-size: 12px; color: #0071e3; background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline;">
+                            {{ __("ui.chat_no_match_reset") }}
+                        </button>
+                    </div>
+                </div>`;
+            container.appendChild(wrapper);
+            container.scrollTop = container.scrollHeight;
         }
 
         function appendChatMessage(role, content, meta) {
@@ -923,9 +964,45 @@
             if (!isUser && meta) {
                 if (meta.sources && meta.sources.length > 0) {
                     const sourcesDiv = document.createElement('div');
-                    sourcesDiv.style.cssText = 'align-self: flex-start; font-size: 11px; color: #5f6368; padding: 2px 4px;';
-                    const topicList = meta.sources.map(s => s.topic + ' (' + (s.similarity * 100).toFixed(1) + '%)').join(', ');
-                    sourcesDiv.textContent = 'Sources: ' + topicList;
+                    sourcesDiv.style.cssText = 'align-self: flex-start; max-width: 85%; margin-top: 2px;';
+                    const label = document.createElement('div');
+                    label.style.cssText = 'font-size: 11px; color: #aaa; padding: 0 4px 4px; letter-spacing: 0.3px;';
+                    label.textContent = '{{ __("ui.sources") }}';
+                    sourcesDiv.appendChild(label);
+                    const cards = document.createElement('div');
+                    cards.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+                    meta.sources.forEach(s => {
+                        const card = document.createElement('a');
+                        card.href = '/knowledge-units/' + s.id;
+                        card.target = '_blank';
+                        card.rel = 'noopener';
+                        card.style.cssText = 'display: flex; align-items: flex-start; gap: 6px; background: #F0F0F0; border-radius: 8px; padding: 6px 10px; text-decoration: none; color: inherit; transition: background 0.15s;';
+                        card.addEventListener('mouseenter', () => card.style.background = '#E4E4E4');
+                        card.addEventListener('mouseleave', () => card.style.background = '#F0F0F0');
+                        // Similarity badge — color by score
+                        const pct = Math.round(s.similarity * 100);
+                        const badgeColor = pct >= 70 ? '#34a853' : pct >= 40 ? '#fbbc05' : '#aaa';
+                        const badge = document.createElement('span');
+                        badge.style.cssText = `flex-shrink: 0; font-size: 10px; font-weight: 600; color: ${badgeColor}; min-width: 32px; padding-top: 1px;`;
+                        badge.textContent = pct + '%';
+                        // Topic + intent
+                        const text = document.createElement('div');
+                        text.style.cssText = 'flex: 1; min-width: 0;';
+                        const topic = document.createElement('div');
+                        topic.style.cssText = 'font-size: 12px; font-weight: 500; color: #1d1d1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+                        topic.textContent = s.topic;
+                        text.appendChild(topic);
+                        if (s.intent) {
+                            const intent = document.createElement('div');
+                            intent.style.cssText = 'font-size: 11px; color: #5f6368; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+                            intent.textContent = s.intent;
+                            text.appendChild(intent);
+                        }
+                        card.appendChild(badge);
+                        card.appendChild(text);
+                        cards.appendChild(card);
+                    });
+                    sourcesDiv.appendChild(cards);
                     container.appendChild(sourcesDiv);
                 }
                 // Feedback row: meta info + upvote/downvote buttons
@@ -1022,8 +1099,9 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     },
                     body: JSON.stringify({
-                        message: message,
-                        context: chatContext,
+                        message:    message,
+                        context:    chatContext,
+                        session_id: chatSessionId,
                     }),
                 });
 
@@ -1032,10 +1110,13 @@
                 // Remove typing indicator
                 document.getElementById('typing-indicator')?.remove();
 
-                // Update session context from server response
+                // Update session context and history session ID from server response
                 if (data.context) {
                     chatContext = data.context;
                     updateContextIndicator();
+                }
+                if (data.session_id) {
+                    chatSessionId = data.session_id;
                 }
 
                 if (data.error) {
@@ -1045,6 +1126,9 @@
                     chatContext = { primary_filter: null, question: null };
                     updateContextIndicator();
                     appendChatMessage('assistant', '⚠️ ' + data.message);
+                } else if (data.action === 'no_match') {
+                    // No knowledge found — show dedicated fallback UI
+                    appendFallbackMessage();
                 } else {
                     // Add note for broad/reference results
                     let responseMessage = data.message;
@@ -1069,6 +1153,96 @@
             sendBtn.disabled = false;
             sendBtn.style.opacity = '1';
             input.focus();
+        }
+
+        // Toggle the history panel visibility and load sessions on first open.
+        let historyLoaded = false;
+        function toggleHistoryPanel() {
+            const panel = document.getElementById('chat-history-panel');
+            const messages = document.getElementById('chat-messages');
+            const isOpen = panel.style.display !== 'none';
+            if (isOpen) {
+                panel.style.display = 'none';
+                messages.style.display = 'flex';
+            } else {
+                panel.style.display = 'flex';
+                messages.style.display = 'none';
+                if (!historyLoaded) {
+                    loadChatHistory();
+                    historyLoaded = true;
+                }
+            }
+        }
+
+        // Load and render the list of past chat sessions for this embedding.
+        async function loadChatHistory() {
+            const list = document.getElementById('chat-history-list');
+            @if($current)
+            try {
+                const resp = await fetch('{{ url("/workspace") }}/{{ $current->id }}/chat-sessions', {
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                });
+                const sessions = await resp.json();
+                if (!sessions.length) {
+                    list.innerHTML = '<div style="text-align:center;color:#aaa;font-size:12px;padding:20px;">{{ __("ui.chat_history_empty") }}</div>';
+                    return;
+                }
+                list.innerHTML = '';
+                sessions.forEach(s => {
+                    const item = document.createElement('button');
+                    item.style.cssText = 'display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 8px 10px; border-radius: 8px; margin-bottom: 2px; transition: background 0.15s;';
+                    item.addEventListener('mouseenter', () => item.style.background = '#F0F0F0');
+                    item.addEventListener('mouseleave', () => item.style.background = 'none');
+                    const title = document.createElement('div');
+                    title.style.cssText = 'font-size: 13px; color: #1d1d1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+                    title.textContent = s.title || '{{ __("ui.chat_history_untitled") }}';
+                    const date = document.createElement('div');
+                    date.style.cssText = 'font-size: 11px; color: #aaa; margin-top: 2px;';
+                    date.textContent = new Date(s.updated_at).toLocaleString();
+                    item.appendChild(title);
+                    item.appendChild(date);
+                    item.addEventListener('click', () => loadSession(s.id));
+                    list.appendChild(item);
+                });
+            } catch (e) {
+                list.innerHTML = '<div style="text-align:center;color:#ea4335;font-size:12px;padding:20px;">Failed to load history</div>';
+            }
+            @endif
+        }
+
+        // Load and replay a specific session into the chat messages area.
+        async function loadSession(sessionId) {
+            @if($current)
+            try {
+                const resp = await fetch('{{ url("/workspace") }}/{{ $current->id }}/chat-sessions/' + sessionId, {
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                });
+                const data = await resp.json();
+                // Close history panel, show messages
+                document.getElementById('chat-history-panel').style.display = 'none';
+                document.getElementById('chat-messages').style.display = 'flex';
+                clearChat();
+                chatSessionId = sessionId;
+                // Replay turns
+                data.turns.forEach(turn => {
+                    if (turn.role === 'user') {
+                        appendChatMessage('user', turn.content);
+                    } else {
+                        appendChatMessage('assistant', turn.content, {
+                            sources: turn.sources || [],
+                        });
+                    }
+                });
+                // Restore context from last assistant turn
+                const lastAssistant = [...data.turns].reverse().find(t => t.role === 'assistant');
+                if (lastAssistant?.context) {
+                    chatContext = lastAssistant.context;
+                    updateContextIndicator();
+                }
+            } catch (e) {
+                appendChatMessage('assistant', 'Failed to load session: ' + e.message);
+            }
+            @endif
         }
 
         // Show extracted context (product/question) as indicator in chat header
