@@ -24,13 +24,15 @@
 
         /* Pipeline section */
         .pipeline-header { font-size: 11px; font-weight: 600; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; padding: 16px 12px 4px; }
-        .pipeline-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 20px; font-size: 13px; color: #5f6368; }
-        .pipeline-item .pipeline-ws { font-size: 11px; color: #8e8e93; margin-left: auto; }
-        .pipeline-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-        .pipeline-status.completed { background: #34c759; }
-        .pipeline-status.failed { background: #ff3b30; }
-        .pipeline-status.processing { background: #ff9500; }
-        .pipeline-status.submitted { background: #d2d2d7; }
+        .pipeline-filter { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 16px; border-radius: 0 100px 100px 0; font-size: 13px; color: #5f6368; text-decoration: none; margin-right: 8px; transition: background 0.15s; }
+        .pipeline-filter:hover { background: #DDD0F5; }
+        .pipeline-filter.active { background: #CCBAF0; color: #1d1d1f; }
+        .pipeline-filter-count { font-size: 12px; color: #5f6368; margin-left: auto; }
+        .pipeline-filter svg { flex-shrink: 0; }
+
+        /* Job table */
+        .ku-table { width: 100%; border-collapse: collapse; }
+        .ku-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f2; vertical-align: top; }
 
         /* Main content */
         .main { flex: 1; overflow-y: auto; padding: 24px; background: #fff; border-radius: 12px 0 0 0; }
@@ -88,71 +90,153 @@
                     </a>
                 @endforeach
 
-                {{-- Pipeline section --}}
-                <div class="pipeline-header">{{ __('ui.pipeline') }}</div>
-                @forelse($pipelineJobs->take(20) as $job)
-                    @php
-                        $statusClass = match(true) {
-                            $job->status === 'completed' => 'completed',
-                            $job->status === 'failed' => 'failed',
-                            in_array($job->status, ['submitted']) => 'submitted',
-                            default => 'processing',
-                        };
-                    @endphp
-                    <div class="pipeline-item">
-                        <span class="pipeline-status {{ $statusClass }}"></span>
-                        <span style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $job->dataset->name ?? 'Job #' . $job->id }}</span>
-                        <span class="pipeline-ws">{{ $job->workspace_id }}</span>
-                    </div>
-                @empty
-                    <div class="pipeline-item" style="color: #8e8e93;">{{ __('ui.no_jobs') }}</div>
-                @endforelse
+                {{-- Pipeline section: filter links with counts --}}
+                <div class="pipeline-header" style="margin-top: 8px; border-top: 1px solid #D8C8F0; padding-top: 16px;">{{ __('ui.pipeline') }}</div>
+
+                <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'all']) }}"
+                   class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'all') ? 'active' : '' }}">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/><line x1="4" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="7.5" x2="10" y2="7.5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="10" x2="7.5" y2="10" stroke="currentColor" stroke-width="1"/></svg>
+                    {{ __('ui.all_jobs') }}
+                    <span class="pipeline-filter-count">{{ $jobStats['total'] }}</span>
+                </a>
+                <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'completed']) }}"
+                   class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'completed') ? 'active' : '' }}">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ __('ui.completed') }}
+                    <span class="pipeline-filter-count">{{ $jobStats['completed'] }}</span>
+                </a>
+                <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'processing']) }}"
+                   class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'processing') ? 'active' : '' }}">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7 4v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    {{ __('ui.processing') }}
+                    <span class="pipeline-filter-count">{{ $jobStats['processing'] }}</span>
+                </a>
+                <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'failed']) }}"
+                   class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'failed') ? 'active' : '' }}">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><line x1="5" y1="5" x2="9" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="5" x2="5" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                    {{ __('ui.failed') }}
+                    <span class="pipeline-filter-count">{{ $jobStats['failed'] }}</span>
+                </a>
             </div>
         </div>
 
-        {{-- Main content: usage stats --}}
+        {{-- Main content: pipeline job list or usage stats --}}
         <div class="main">
-            <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">
-                @if($selectedWorkspace)
-                    {{ $selectedWorkspace->name }} — {{ __('ui.usage') }}
-                @else
-                    {{ __('ui.all_workspaces') }} — {{ __('ui.usage') }}
-                @endif
-            </h2>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.usage_30days') }}</p>
-
             @if(session('success'))
                 <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✓ {{ session('success') }}</div>
             @endif
 
-            {{-- Summary stats --}}
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">${{ number_format($usageData['monthly']['cost'], 4) }}</div>
-                    <div class="stat-label">{{ __('ui.cost_30days') }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ number_format($usageData['monthly']['tokens']) }}</div>
-                    <div class="stat-label">{{ __('ui.tokens_30days') }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ number_format($usageData['monthly']['requests']) }}</div>
-                    <div class="stat-label">{{ __('ui.requests_30days') }}</div>
-                </div>
-            </div>
+            @if($pipelineView === 'jobs')
+                {{-- Pipeline job table: same columns as workspace view, plus workspace name --}}
+                @if($filteredJobs->isEmpty())
+                    <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
+                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 12px;">
+                            <path d="M6 18l8-12h20l8 12"/><path d="M6 18v18a2 2 0 002 2h32a2 2 0 002-2V18"/><path d="M6 18h12l2 4h8l2-4h12"/>
+                        </svg>
+                        <div style="font-size: 15px; font-weight: 500; margin-bottom: 4px;">{{ __('ui.no_jobs') }}</div>
+                    </div>
+                @else
+                    <table class="ku-table" id="job-list">
+                        <tbody>
+                            @foreach($filteredJobs as $job)
+                            @php
+                                $clustering = $job->step_outputs_json['clustering'] ?? null;
+                                $nClusters  = $clustering['n_clusters'] ?? null;
+                                $nNoise     = $clustering['n_noise'] ?? null;
+                                $silhouette = $clustering['silhouette_score'] ?? null;
+                            @endphp
+                            <tr>
+                                <td style="max-width: 0; width: 100%;">
+                                    <div style="font-size: 14px; font-weight: 500;">{{ $job->dataset->name ?? 'Job #' . $job->id }}</div>
+                                    <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
+                                        @if($nClusters !== null)
+                                            {{ $nClusters }} clusters
+                                            @if($silhouette !== null) · silhouette {{ number_format($silhouette, 3) }} @endif
+                                        @else
+                                            {{ $job->status }}
+                                            @if($job->progress > 0 && $job->progress < 100) · {{ $job->progress }}% @endif
+                                        @endif
+                                    </div>
+                                    <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        @if($nNoise !== null) {{ $nNoise }} {{ __('ui.noise_points') }}
+                                        @elseif($job->error_detail) {{ Str::limit($job->error_detail, 80) }}
+                                        @endif
+                                    </div>
+                                </td>
+                                {{-- Workspace name column --}}
+                                <td style="white-space: nowrap; vertical-align: top; padding-top: 12px;">
+                                    <span style="font-size: 12px; color: #8e8e93;">{{ $job->workspace->name ?? '—' }}</span>
+                                </td>
+                                <td style="white-space: nowrap; text-align: right; vertical-align: top;">
+                                    <div style="font-size: 12px; color: #5f6368;"><time datetime="{{ $job->created_at->toIso8601String() }}">{{ $job->created_at->format('m/d H:i') }}</time></div>
+                                    <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
+                                        @if($job->progress > 0 && $job->progress < 100)
+                                            <div style="width: 60px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle;">
+                                                <div style="height: 100%; background: #ff9500; width: {{ $job->progress }}%; border-radius: 2px;"></div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div style="font-size: 14px; margin-top: 4px;">
+                                        @if($job->status === 'completed') ✅
+                                        @elseif($job->status === 'failed') ❌
+                                        @elseif($job->status === 'cancelled')
+                                            <span style="color: #8e8e93;">⊘</span>
+                                        @else
+                                            <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                                ⏳
+                                                <form method="POST" action="{{ route('admin.cancel-pipeline', $job) }}"
+                                                      onsubmit="return confirm('{{ __('ui.confirm_cancel_job') }}')" style="display: inline;">
+                                                    @csrf
+                                                    <button type="submit" style="background: #fff; border: 1px solid #ff3b30; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #ff3b30; cursor: pointer;">{{ __('ui.cancel') }}</button>
+                                                </form>
+                                            </span>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+            @else
+                {{-- Usage stats panel --}}
+                <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">
+                    @if($selectedWorkspace)
+                        {{ $selectedWorkspace->name }} — {{ __('ui.usage') }}
+                    @else
+                        {{ __('ui.all_workspaces') }} — {{ __('ui.usage') }}
+                    @endif
+                </h2>
+                <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.usage_30days') }}</p>
 
-            {{-- Daily trend chart --}}
-            <div class="card">
-                <h2>{{ __('ui.daily_trend') }}</h2>
-                <div class="chart-container">
-                    <canvas id="dailyChart" height="200"></canvas>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${{ number_format($usageData['monthly']['cost'], 4) }}</div>
+                        <div class="stat-label">{{ __('ui.cost_30days') }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ number_format($usageData['monthly']['tokens']) }}</div>
+                        <div class="stat-label">{{ __('ui.tokens_30days') }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ number_format($usageData['monthly']['requests']) }}</div>
+                        <div class="stat-label">{{ __('ui.requests_30days') }}</div>
+                    </div>
                 </div>
-            </div>
+
+                <div class="card">
+                    <h2>{{ __('ui.daily_trend') }}</h2>
+                    <div class="chart-container">
+                        <canvas id="dailyChart" height="200"></canvas>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 @endsection
 
 @section('scripts')
+        @if(!$pipelineView)
         // Daily trend chart (tokens only — simple bar chart)
         (function() {
             const canvas = document.getElementById('dailyChart');
@@ -236,4 +320,5 @@
             draw();
             window.addEventListener('resize', draw);
         })();
+        @endif
 @endsection

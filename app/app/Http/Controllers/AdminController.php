@@ -28,15 +28,36 @@ class AdminController extends Controller
     {
         $workspaces = Workspace::orderBy('name')->get();
         $selectedWorkspaceId = $request->query('workspace');
+        $pipelineView = $request->query('pipeline');
+        $pipelineFilter = $request->query('pf', 'all');
 
-        // Pipeline jobs across all workspaces (most recent 50)
-        $pipelineJobs = PipelineJob::with('dataset')
-            ->latest()
-            ->limit(50)
+        // All pipeline jobs across all workspaces, with workspace name for display
+        $allJobs = PipelineJob::with(['dataset:id,name', 'workspace:id,name'])
+            ->orderByDesc('created_at')
+            ->limit(200)
             ->get();
 
-        // Determine which usage data to show
-        if ($selectedWorkspaceId && $selectedWorkspaceId !== 'all') {
+        // Count by status bucket (same logic as EmbeddingController)
+        $jobStats = [
+            'total'      => $allJobs->count(),
+            'completed'  => $allJobs->filter(fn($j) => $j->status === 'completed')->count(),
+            'processing' => $allJobs->filter(fn($j) => !in_array($j->status, ['completed', 'failed', 'cancelled']))->count(),
+            'failed'     => $allJobs->filter(fn($j) => in_array($j->status, ['failed', 'cancelled']))->count(),
+        ];
+
+        $filteredJobs = match ($pipelineFilter) {
+            'completed'  => $allJobs->filter(fn($j) => $j->status === 'completed'),
+            'processing' => $allJobs->filter(fn($j) => !in_array($j->status, ['completed', 'failed', 'cancelled'])),
+            'failed'     => $allJobs->filter(fn($j) => in_array($j->status, ['failed', 'cancelled'])),
+            default      => $allJobs,
+        };
+
+        // When pipeline view is active, suppress workspace usage panel
+        if ($pipelineView) {
+            $usageData = null;
+            $selectedWorkspace = null;
+            $selectedWorkspaceId = null;
+        } elseif ($selectedWorkspaceId && $selectedWorkspaceId !== 'all') {
             $usageData = $this->getWorkspaceUsage((int) $selectedWorkspaceId);
             $selectedWorkspace = $workspaces->firstWhere('id', $selectedWorkspaceId);
         } else {
@@ -45,9 +66,23 @@ class AdminController extends Controller
         }
 
         return view('admin.index', compact(
-            'workspaces', 'pipelineJobs', 'usageData',
-            'selectedWorkspaceId', 'selectedWorkspace'
+            'workspaces', 'filteredJobs', 'jobStats', 'usageData',
+            'selectedWorkspaceId', 'selectedWorkspace',
+            'pipelineView', 'pipelineFilter'
         ));
+    }
+
+    /**
+     * Cancel a pipeline job from the admin dashboard.
+     */
+    public function cancelJob(PipelineJob $pipelineJob): RedirectResponse
+    {
+        if (!in_array($pipelineJob->status, ['completed', 'failed', 'cancelled'])) {
+            $pipelineJob->update(['status' => 'cancelled']);
+        }
+
+        return redirect()->route('admin.index', ['pipeline' => 'jobs', 'pf' => request('pf', 'all')])
+            ->with('success', __('ui.job_cancelled'));
     }
 
     /**
