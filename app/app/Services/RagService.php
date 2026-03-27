@@ -262,33 +262,38 @@ PROMPT;
     ): array {
         $modelId = $this->resolveModelId($workspaceId);
 
-        // Step 1: Extract primary filter value and question from user input
-        $extracted = $this->extractPrimaryFilterAndQuestion($userMessage, $existingContext, $modelId);
-
-        // Step 1.5: Input gate — reject non-support messages and prompt injection
-        if (empty($extracted['is_valid'])) {
-            return [
-                'action' => 'rejected',
-                'message' => null,
-                'context' => ['primary_filter' => null, 'question' => null],
-                'results' => [],
-                'search_mode' => 'none',
-                'model_id' => $modelId,
-            ];
-        }
-
-        // Step 2: Merge extracted values with existing session context
-        $context = [
-            'primary_filter' => $extracted['primary_filter'] ?? $existingContext['primary_filter'] ?? null,
-            'question' => $extracted['question'] ?? $existingContext['question'] ?? null,
-        ];
-
-        // Special case: we previously asked for primary filter (question exists, filter missing).
-        // If the user replied and LLM didn't detect a filter value, treat the entire reply as the filter.
+        // Detect early whether we were waiting for the user to supply the primary filter value.
+        // When the bot has already asked "which product?" (question set, filter missing), the user's
+        // reply is the filter — not a new support question — so input-gate validation must be skipped.
         $wasAskingForFilter = !empty($existingContext['question']) && empty($existingContext['primary_filter']);
-        if ($wasAskingForFilter && empty($extracted['primary_filter'])) {
-            $context['primary_filter'] = $userMessage;
-            $context['question'] = $existingContext['question'];
+
+        if ($wasAskingForFilter) {
+            // Bypass the LLM extraction entirely: use the raw reply as the primary filter value.
+            $context = [
+                'primary_filter' => trim($userMessage),
+                'question'       => $existingContext['question'],
+            ];
+        } else {
+            // Step 1: Extract primary filter value and question from user input
+            $extracted = $this->extractPrimaryFilterAndQuestion($userMessage, $existingContext, $modelId);
+
+            // Step 1.5: Input gate — reject non-support messages and prompt injection
+            if (empty($extracted['is_valid'])) {
+                return [
+                    'action' => 'rejected',
+                    'message' => null,
+                    'context' => ['primary_filter' => null, 'question' => null],
+                    'results' => [],
+                    'search_mode' => 'none',
+                    'model_id' => $modelId,
+                ];
+            }
+
+            // Step 2: Merge extracted values with existing session context
+            $context = [
+                'primary_filter' => $extracted['primary_filter'] ?? $existingContext['primary_filter'] ?? null,
+                'question' => $extracted['question'] ?? $existingContext['question'] ?? null,
+            ];
         }
 
         // Step 3: If primary filter is still missing, ask the user
