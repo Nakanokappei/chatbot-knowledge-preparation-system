@@ -1,0 +1,73 @@
+# CI/CD: on push to main, build Docker images, push to ECR, deploy to ECS.
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REGISTRY: 891377034477.dkr.ecr.ap-northeast-1.amazonaws.com
+  APP_IMAGE: kps-dev-app
+  WORKER_IMAGE: kps-dev-worker
+  ECS_CLUSTER: kps-dev-cluster
+  ECS_APP_SERVICE: kps-dev-app
+  ECS_WORKER_SERVICE: kps-dev-worker
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # Authenticate with AWS via OIDC (no long-lived keys)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Detect which directories changed to skip unnecessary builds
+      - name: Detect changes
+        id: changes
+        run: |
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            git diff --name-only HEAD~1 HEAD > changed_files.txt
+          else
+            echo "." > changed_files.txt
+          fi
+          echo "app_changed=$(grep -qE '^app/|^\.github/' changed_files.txt && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "worker_changed=$(grep -qE '^worker/|^\.github/' changed_files.txt && echo true || echo false)" >> $GITHUB_OUTPUT
+
+      # Build and push App image
+      - name: Build and push App image
+        if: steps.changes.outputs.app_changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          docker build -t $ECR_REGISTRY/$APP_IMAGE:latest -t $ECR_REGISTRY/$APP_IMAGE:${{ github.sha }} ./app
+          docker push $ECR_REGISTRY/$APP_IMAGE --all-tags
+
+      # Build and push Worker image
+      - name: Build and push Worker image
+        if: steps.changes.outputs.worker_changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          docker build -t $ECR_REGISTRY/$WORKER_IMAGE:latest -t $ECR_REGISTRY/$WORKER_IMAGE:${{ github.sha }} ./worker
+          docker push $ECR_REGISTRY/$WORKER_IMAGE --all-tags
+
+      # Deploy to ECS
+      - name: Deploy App to ECS
+        if: steps.changes.outputs.app_changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_APP_SERVICE --force-new-deployment
+
+      - name: Deploy Worker to ECS
+        if: steps.changes.outputs.worker_changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_WORKER_SERVICE --force-new-deployment

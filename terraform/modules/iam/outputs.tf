@@ -16,3 +16,8 @@ output "worker_task_role_arn" {
   description = "ARN of the Worker task role (used in Worker task definition task_role_arn)."
   value       = aws_iam_role.worker_task.arn
 }
+
+output "github_actions_role_arn" {
+  description = "ARN of the GitHub Actions deploy role (set as AWS_DEPLOY_ROLE_ARN secret in GitHub)."
+  value       = var.github_repo != "" ? aws_iam_role.github_actions_deploy[0].arn : ""
+}

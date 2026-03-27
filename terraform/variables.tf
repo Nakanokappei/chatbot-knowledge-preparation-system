@@ -150,3 +150,13 @@ variable "domain_name" {
   type        = string
   default     = ""
 }
+
+# ----------------------------------------------------------
+# CI/CD
+# ----------------------------------------------------------
+
+variable "github_repo" {
+  description = "GitHub repository in 'owner/repo' format for OIDC deploy role (e.g. 'Nakanokappei/chatbot-knowledge-preparation-system')"
+  type        = string
+  default     = ""
+}

@@ -32,3 +32,21 @@ variable "s3_bucket_arn" {
   description = "ARN of the S3 bucket used for exports and intermediate pipeline data. Object-level permissions are granted on this bucket."
   type        = string
 }
+
+variable "github_repo" {
+  description = "GitHub repository in 'owner/repo' format for OIDC deploy role. Empty string disables GitHub Actions integration."
+  type        = string
+  default     = ""
+}
+
+variable "ecr_repo_arns" {
+  description = "List of ECR repository ARNs that the GitHub Actions deploy role can push to."
+  type        = list(string)
+  default     = []
+}
+
+variable "ecs_cluster_arn" {
+  description = "ARN of the ECS cluster that the GitHub Actions deploy role can update services in."
+  type        = string
+  default     = ""
+}

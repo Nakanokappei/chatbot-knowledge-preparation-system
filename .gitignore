@@ -40,6 +40,5 @@ docs/
 # Claude
 .claude/
 .env.docker
-.github/workflows/
 terraform/.terraform/
 terraform/tfplan

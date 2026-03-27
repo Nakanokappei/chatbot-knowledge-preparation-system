@@ -88,12 +88,15 @@ module "ssm_parameters" {
 module "iam" {
   source = "./modules/iam"
 
-  name_prefix    = local.name_prefix
-  common_tags    = local.common_tags
-  secret_arns    = [module.secrets.db_secret_arn, module.secrets.app_key_secret_arn]
-  parameter_arns = values(module.ssm_parameters.parameter_arns)
-  sqs_queue_arn  = module.sqs.queue_arn
-  s3_bucket_arn  = module.s3.bucket_arn
+  name_prefix     = local.name_prefix
+  common_tags     = local.common_tags
+  secret_arns     = [module.secrets.db_secret_arn, module.secrets.app_key_secret_arn]
+  parameter_arns  = values(module.ssm_parameters.parameter_arns)
+  sqs_queue_arn   = module.sqs.queue_arn
+  s3_bucket_arn   = module.s3.bucket_arn
+  github_repo     = var.github_repo
+  ecr_repo_arns   = [module.ecr.app_repository_arn, module.ecr.worker_repository_arn]
+  ecs_cluster_arn = module.ecs.cluster_arn
 }
 
 # ------------------------------------------------------------------

@@ -33,3 +33,6 @@ allowed_cidr_blocks = [
   "24.239.132.20/31",
   "24.239.141.22/31",
 ]
+
+# GitHub Actions CI/CD
+github_repo = "Nakanokappei/chatbot-knowledge-preparation-system"

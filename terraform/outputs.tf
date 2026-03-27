@@ -64,3 +64,12 @@ output "csv_bucket_name" {
   description = "S3 bucket name for CSV file uploads"
   value       = module.s3.bucket_name
 }
+
+# ----------------------------------------------------------
+# CI/CD
+# ----------------------------------------------------------
+
+output "github_actions_role_arn" {
+  description = "IAM role ARN for GitHub Actions OIDC deploy (set as AWS_DEPLOY_ROLE_ARN secret in GitHub)"
+  value       = module.iam.github_actions_role_arn
+}

@@ -217,3 +217,100 @@ resource "aws_iam_role_policy" "worker_task_permissions" {
     ]
   })
 }
+
+# ===========================================================================
+# 4. GitHub Actions OIDC Deploy Role
+# ===========================================================================
+# This role allows GitHub Actions to deploy to AWS without long-lived
+# access keys. GitHub's OIDC provider is trusted, and the role is scoped
+# to a specific GitHub repository and branch.
+
+# Create the GitHub OIDC identity provider (only needs to exist once per account)
+resource "aws_iam_openid_connect_provider" "github" {
+  count = var.github_repo != "" ? 1 : 0
+
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["ffffffffffffffffffffffffffffffffffffffff"]
+  tags            = var.common_tags
+}
+
+# Trust policy: only allow the specified GitHub repo on the main branch
+data "aws_iam_policy_document" "github_actions_assume_role" {
+  count = var.github_repo != "" ? 1 : 0
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github[0].arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_repo}:*"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions_deploy" {
+  count = var.github_repo != "" ? 1 : 0
+
+  name               = "${var.name_prefix}-github-actions-deploy"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_assume_role[0].json
+  tags               = var.common_tags
+}
+
+# Deploy permissions: ECR push + ECS service update
+resource "aws_iam_role_policy" "github_actions_deploy_permissions" {
+  count = var.github_repo != "" ? 1 : 0
+
+  name = "${var.name_prefix}-github-deploy-permissions"
+  role = aws_iam_role.github_actions_deploy[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ECRAuth"
+        Effect = "Allow"
+        Action = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRPush"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload"
+        ]
+        Resource = var.ecr_repo_arns
+      },
+      {
+        Sid    = "ECSDeploy"
+        Effect = "Allow"
+        Action = ["ecs:UpdateService", "ecs:DescribeServices"]
+        Resource = "*"
+        Condition = {
+          ArnEquals = {
+            "ecs:cluster" = var.ecs_cluster_arn
+          }
+        }
+      }
+    ]
+  })
+}
