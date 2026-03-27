@@ -16,6 +16,11 @@ class UsageController extends Controller
      */
     public function index()
     {
+        // System admins have no workspace; redirect them to the admin dashboard
+        if (auth()->user()->isSystemAdmin()) {
+            return redirect()->route('admin.index');
+        }
+
         $workspaceId = auth()->user()->workspace_id;
         $costService = new CostTrackingService();
 

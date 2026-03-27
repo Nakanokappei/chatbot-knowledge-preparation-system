@@ -20,6 +20,10 @@ return new class extends Migration
         // Allow invitations.workspace_id to be NULL for system_admin invitations
         DB::statement('ALTER TABLE invitations ALTER COLUMN workspace_id DROP NOT NULL');
 
+        // Allow llm_models and embedding_models workspace_id to be NULL for system templates
+        DB::statement('ALTER TABLE llm_models ALTER COLUMN workspace_id DROP NOT NULL');
+        DB::statement('ALTER TABLE embedding_models ALTER COLUMN workspace_id DROP NOT NULL');
+
         // Add role column to invitations so the inviter can choose which role
         // the invited user will receive upon registration
         if (!Schema::hasColumn('invitations', 'role')) {
