@@ -25,18 +25,12 @@ worker_desired_count = 1
 
 # Restrict ALB access to office networks only
 allowed_cidr_blocks = [
-  "162.120.184.20/30",
-  "203.114.29.108/30",
-  "124.35.118.208/29",
-  "124.35.235.160/29",
-  "220.216.68.148/30",
-  "24.239.132.20/31",
-  "24.239.141.22/31",
+  # "x.x.x.x/32",  # Add your office IP ranges here
 ]
 
-# Custom domain + HTTPS
-domain_name      = "demo02.poc-pxt.com"
-hosted_zone_name = "poc-pxt.com"
+# Custom domain + HTTPS (leave empty to skip)
+domain_name      = ""
+hosted_zone_name = ""
 
-# GitHub Actions CI/CD
-github_repo = "Nakanokappei/chatbot-knowledge-preparation-system"
+# GitHub Actions CI/CD (owner/repo format)
+github_repo = ""

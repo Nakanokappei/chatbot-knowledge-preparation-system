@@ -42,3 +42,5 @@ docs/
 .env.docker
 terraform/.terraform/
 terraform/tfplan
+terraform/envs/*.tfvars
+!terraform/envs/*.tfvars.example
