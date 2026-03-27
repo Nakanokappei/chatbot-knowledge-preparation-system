@@ -35,6 +35,8 @@ return new class extends Migration
         'invitations',
         'embedding_models',
         'answer_feedback',
+        'token_usage',
+        'daily_cost_summary',
     ];
 
     /**
