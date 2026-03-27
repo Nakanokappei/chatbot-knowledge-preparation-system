@@ -20,6 +20,11 @@ class AuthController extends Controller
      */
     public function showLogin(): View
     {
+        // If no users exist and setup passphrase is configured, redirect to setup
+        if (\App\Models\User::count() === 0 && !empty(config('app.setup_passphrase'))) {
+            return redirect()->route('setup');
+        }
+
         return view('auth.login');
     }
 

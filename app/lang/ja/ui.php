@@ -436,6 +436,9 @@ return [
     'pending' => '保留中',
     'expired' => '期限切れ',
 
+    'password_reset_sent' => ':name にパスワード再設定メールを送信しました。',
+    'send_reset' => 'PW再設定',
+
     // ── System Admin ───────────────────────────────────
     'system_admin' => 'システム管理者',
     'all_workspaces' => 'すべてのワークスペース',

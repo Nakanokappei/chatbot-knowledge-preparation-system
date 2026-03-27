@@ -118,7 +118,11 @@
                                     <div class="actions">
                                         {{-- No "Set Default" button for system admin --}}
                                         <form method="POST" action="{{ route('admin.settings.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
-                                        <form method="POST" action="{{ route('admin.settings.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                        @if(in_array($model->model_id, $usedModelIds))
+                                            <button type="button" class="btn btn-sm btn-danger" disabled title="In use by a workspace" style="opacity:0.4;cursor:not-allowed;">{{ __('ui.delete') }}</button>
+                                        @else
+                                            <form method="POST" action="{{ route('admin.settings.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -209,7 +213,11 @@
                                 <td>
                                     <div class="actions">
                                         <form method="POST" action="{{ route('admin.settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
-                                        <form method="POST" action="{{ route('admin.settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                        @if(in_array($em->model_id, $usedEmbeddingModelIds))
+                                            <button type="button" class="btn btn-sm btn-danger" disabled title="In use by a workspace" style="opacity:0.4;cursor:not-allowed;">{{ __('ui.delete') }}</button>
+                                        @else
+                                            <form method="POST" action="{{ route('admin.settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

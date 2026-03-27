@@ -33,6 +33,17 @@ class AdminSettingsController extends Controller
             ->orderBy('sort_order')
             ->get();
 
+        // Collect model_ids that are actively used in at least one workspace
+        $usedModelIds = LlmModel::whereNotNull('workspace_id')
+            ->pluck('model_id')
+            ->unique()
+            ->toArray();
+
+        $usedEmbeddingModelIds = EmbeddingModel::whereNotNull('workspace_id')
+            ->pluck('model_id')
+            ->unique()
+            ->toArray();
+
         // Fetch available Bedrock models (reuse SettingsController method)
         $settingsCtrl = new SettingsController();
         $bedrockModels = $this->invokePrivate($settingsCtrl, 'fetchBedrockModels');
@@ -42,6 +53,7 @@ class AdminSettingsController extends Controller
         return view('admin.settings', compact(
             'models', 'embeddingModels', 'bedrockModels',
             'bedrockEmbeddingModels', 'pricing',
+            'usedModelIds', 'usedEmbeddingModelIds',
         ));
     }
 

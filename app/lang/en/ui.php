@@ -436,6 +436,9 @@ return [
     'pending' => 'Pending',
     'expired' => 'Expired',
 
+    'password_reset_sent' => 'Password reset email sent to :name.',
+    'send_reset' => 'Reset Password',
+
     // ── System Admin ───────────────────────────────────
     'system_admin' => 'System Admin',
     'all_workspaces' => 'All Workspaces',

@@ -34,6 +34,10 @@ Route::get('/locale/{locale}', function (string $locale) {
     return redirect()->back();
 })->name('locale.switch');
 
+// First-run setup: create the initial system administrator
+Route::get('/setup', [\App\Http\Controllers\SetupController::class, 'show'])->name('setup');
+Route::post('/setup', [\App\Http\Controllers\SetupController::class, 'createAdmin']);
+
 // Authentication (public)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -140,6 +144,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings/workspace', [WorkspaceController::class, 'edit'])->name('workspace.settings');
         Route::put('/settings/workspace', [WorkspaceController::class, 'update'])->name('workspace.update');
         Route::put('/settings/workspace/users/{user}/role', [WorkspaceController::class, 'updateRole'])->name('workspace.update-role');
+
+        // Password reset on behalf of a member
+        Route::post('/settings/workspace/users/{user}/reset-password', [WorkspaceController::class, 'sendPasswordReset'])->name('workspace.reset-password');
 
         // Member invitation
         Route::post('/profile/invite', [InvitationController::class, 'send'])->name('invitation.send');

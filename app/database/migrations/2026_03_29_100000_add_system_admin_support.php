@@ -24,6 +24,9 @@ return new class extends Migration
         DB::statement('ALTER TABLE llm_models ALTER COLUMN workspace_id DROP NOT NULL');
         DB::statement('ALTER TABLE embedding_models ALTER COLUMN workspace_id DROP NOT NULL');
 
+        // Allow invitations.invited_by to be NULL for setup-mode invitations
+        DB::statement('ALTER TABLE invitations ALTER COLUMN invited_by DROP NOT NULL');
+
         // Add role column to invitations so the inviter can choose which role
         // the invited user will receive upon registration
         if (!Schema::hasColumn('invitations', 'role')) {

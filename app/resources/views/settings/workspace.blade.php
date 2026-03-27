@@ -63,6 +63,11 @@
                                 <span class="badge" style="background: #e8f5e9; color: #2e7d32;">Owner</span>
                             @endif
                             <div style="font-size: 12px; color: #5f6368;">{{ $member->created_at->format('Y-m-d') }}</div>
+                            <form method="POST" action="{{ route('workspace.reset-password', $member) }}" style="margin: 0;"
+                                  onsubmit="return confirm('Send password reset email to {{ $member->name }}?')">
+                                @csrf
+                                <button type="submit" style="background: none; border: 1px solid #d2d2d7; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #5f6368; cursor: pointer; white-space: nowrap;">{{ __('ui.send_reset') }}</button>
+                            </form>
                         </li>
                     @endforeach
                 </ul>
