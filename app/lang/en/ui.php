@@ -495,16 +495,16 @@ return [
     'top_searched_kus' => 'Frequently Retrieved Knowledge Units',
     'search_count' => 'Retrieval Count',
 
-    // ── Knowledge Dataset approval workflow ─────────────
-    'submit_for_review' => 'Submit for Review',
-    'pending_review' => 'Pending Review',
-    'approve_publish' => 'Approve & Publish',
-    'reject_review' => 'Reject',
-    'review_submitted' => 'Submitted for review. Awaiting owner approval.',
-    'review_rejected' => 'Review rejected. Reverted to draft.',
-    'only_drafts_submittable' => 'Only draft datasets can be submitted for review.',
-    'owner_approval_required' => 'Owner approval is required to publish.',
-    'publish_directly' => 'Publish Directly',
+    // ── Knowledge Package publication workflow ───────────
+    'submit_for_review' => 'Request Publication',
+    'pending_review' => 'Publication Requested',
+    'approve_publish' => 'Authorize Publication',
+    'reject_review' => 'Reject Request',
+    'review_submitted' => 'Publication requested. Awaiting owner authorization.',
+    'review_rejected' => 'Publication request rejected. Reverted to draft.',
+    'only_drafts_submittable' => 'Only draft packages can be submitted for publication.',
+    'owner_approval_required' => 'Owner authorization is required to publish.',
+    'publish_directly' => 'Publish',
 
     // ── API Tokens ──────────────────────────────────────
     'api_tokens' => 'API Tokens',

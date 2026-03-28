@@ -495,16 +495,16 @@ return [
     'top_searched_kus' => 'よく検索されたナレッジユニット',
     'search_count' => '検索回数',
 
-    // ── ナレッジデータセット承認フロー
-    'submit_for_review' => 'レビューに提出',
-    'pending_review' => 'レビュー待ち',
-    'approve_publish' => '承認して公開',
-    'reject_review' => '差し戻し',
-    'review_submitted' => 'レビューに提出しました。オーナーの承認をお待ちください。',
-    'review_rejected' => '差し戻しました。下書きに戻りました。',
-    'only_drafts_submittable' => '下書き状態のデータセットのみ提出できます。',
-    'owner_approval_required' => '公開にはオーナーの承認が必要です。',
-    'publish_directly' => '直接公開',
+    // ── ナレッジパッケージ公開フロー
+    'submit_for_review' => '公開申請',
+    'pending_review' => '公開申請中',
+    'approve_publish' => '公開許可',
+    'reject_review' => '申請却下',
+    'review_submitted' => '公開を申請しました。オーナーの公開許可をお待ちください。',
+    'review_rejected' => '申請を却下しました。下書きに戻りました。',
+    'only_drafts_submittable' => '下書き状態のナレッジパッケージのみ公開申請できます。',
+    'owner_approval_required' => '公開にはオーナーの公開許可が必要です。',
+    'publish_directly' => '公開',
 
     // ── APIトークン ──────────────────────────────────────
     'api_tokens' => 'APIトークン',
