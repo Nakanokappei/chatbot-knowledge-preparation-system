@@ -2,7 +2,7 @@
      All demo requests use session authentication — no API token is required.
      All queries are automatically scoped to the authenticated user's workspace. --}}
 @extends('layouts.app')
-@section('title', 'API Guide — KPS')
+@section('title', __('ui.api_guide') . ' — KPS')
 
 @section('extra-styles')
         .guide-header { margin-bottom: 28px; }
@@ -63,21 +63,20 @@
     <div class="page-container">
 
         <div class="guide-header">
-            <h1>API ガイド</h1>
-            <p>KPSナレッジAPIの使い方とインタラクティブなサンドボックス。APIトークンなしで体験できます。</p>
+            <h1>{{ __('ui.api_guide') }}</h1>
+            <p>{{ __('ui.api_guide_subtitle') }}</p>
         </div>
 
         {{-- Base URL --}}
         <div class="base-url-box">
-            <strong>ベースURL: </strong><code>{{ rtrim(config('app.url'), '/') }}/api</code>
+            <strong>{{ __('ui.api_base_url') }}: </strong><code>{{ rtrim(config('app.url'), '/') }}/api</code>
         </div>
 
         {{-- Authentication info --}}
         <div class="auth-note">
-            <strong>認証</strong>: 本番環境ではプロフィールページで発行した <strong>APIトークン</strong> を
-            <code>Authorization: Bearer &lt;token&gt;</code> ヘッダーで送信してください。<br>
-            <strong>このページのサンドボックスはセッション認証を使用しているため、トークン不要です。</strong>
-            リクエストはログイン中のワークスペース（<strong>{{ auth()->user()->workspace->name ?? '—' }}</strong>）にのみアクセスできます。
+            <strong>{{ __('ui.api_auth_label') }}</strong>: {!! __('ui.api_auth_note') !!}<br>
+            <strong>{{ __('ui.api_sandbox_no_token') }}</strong>
+            {{ __('ui.api_sandbox_workspace_scope') }}（<strong>{{ auth()->user()->workspace->name ?? '—' }}</strong>）
         </div>
 
         {{-- Published packages for the sandbox selectors --}}
@@ -88,26 +87,26 @@
             <div class="endpoint-header" onclick="toggleCard('ep-datasets')">
                 <span class="method-badge method-get">GET</span>
                 <span class="endpoint-path">/api/datasets</span>
-                <span class="endpoint-desc">ナレッジデータセット一覧</span>
+                <span class="endpoint-desc">{{ __('ui.api_ep_datasets_title') }}</span>
                 <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="endpoint-body">
-                <div class="section-label">説明</div>
+                <div class="section-label">{{ __('ui.api_section_description') }}</div>
                 <p style="font-size: 13px; color: #5f6368; margin-bottom: 8px;">
-                    ワークスペース内のすべてのナレッジデータセットを返します。ステータス（draft / processing / published）を含みます。
+                    {{ __('ui.api_ep_datasets_desc') }}
                 </p>
 
-                <div class="section-label">レスポンス例</div>
+                <div class="section-label">{{ __('ui.api_section_response_example') }}</div>
                 <pre class="code-block">[
   {
     "id": 1,
-    "name": "製品マニュアル Q&amp;A",
+    "name": "{{ __('ui.api_example_query') }}",
     "status": "published",
     "created_at": "2026-03-01T09:00:00Z"
   }
 ]</pre>
 
-                <div class="section-label">コード例</div>
+                <div class="section-label">{{ __('ui.api_section_code_example') }}</div>
                 <div class="code-tabs">
                     <button class="code-tab active" onclick="showTab('datasets-curl', this)">curl</button>
                     <button class="code-tab" onclick="showTab('datasets-js', this)">JavaScript</button>
@@ -120,9 +119,9 @@
 const data = await res.json();</pre>
 
                 <div class="sandbox">
-                    <h4>サンドボックス</h4>
+                    <h4>{{ __('ui.api_section_sandbox') }}</h4>
                     <button class="sandbox-run" onclick="runRequest('datasets-response', 'GET', '/api/datasets')">
-                        実行
+                        {{ __('ui.api_sandbox_run') }}
                     </button>
                     <div class="response-box" id="datasets-response">
                         <div class="response-status"></div>
@@ -137,22 +136,22 @@ const data = await res.json();</pre>
             <div class="endpoint-header" onclick="toggleCard('ep-retrieve')">
                 <span class="method-badge method-post">POST</span>
                 <span class="endpoint-path">/api/retrieve</span>
-                <span class="endpoint-desc">ナレッジベース検索</span>
+                <span class="endpoint-desc">{{ __('ui.api_ep_retrieve_title') }}</span>
                 <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="endpoint-body">
-                <div class="section-label">説明</div>
+                <div class="section-label">{{ __('ui.api_section_description') }}</div>
                 <p style="font-size: 13px; color: #5f6368; margin-bottom: 8px;">
-                    クエリテキストをベクトル化し、公開済みデータセットから意味的に近いナレッジユニットを返します。
+                    {{ __('ui.api_ep_retrieve_desc') }}
                 </p>
 
-                <div class="section-label">パラメータ</div>
-                <div class="param-row"><span class="param-name">query</span><span class="param-type">string</span><span class="param-required">必須</span><span class="param-desc">検索クエリ</span></div>
-                <div class="param-row"><span class="param-name">package_id</span><span class="param-type">integer</span><span class="param-required">必須</span><span class="param-desc">対象ナレッジパッケージID（公開済みのもの）</span></div>
-                <div class="param-row"><span class="param-name">top_k</span><span class="param-type">integer</span><span class="param-desc">返す件数（デフォルト: 5、最大: 20）</span></div>
-                <div class="param-row"><span class="param-name">min_similarity</span><span class="param-type">float</span><span class="param-desc">最低類似度スコア（0.0〜1.0）</span></div>
+                <div class="section-label">{{ __('ui.api_section_parameters') }}</div>
+                <div class="param-row"><span class="param-name">query</span><span class="param-type">string</span><span class="param-required">{{ __('ui.api_param_required') }}</span><span class="param-desc">{{ __('ui.api_param_query_desc') }}</span></div>
+                <div class="param-row"><span class="param-name">package_id</span><span class="param-type">integer</span><span class="param-required">{{ __('ui.api_param_required') }}</span><span class="param-desc">{{ __('ui.api_param_package_id_desc') }}</span></div>
+                <div class="param-row"><span class="param-name">top_k</span><span class="param-type">integer</span><span class="param-desc">{{ __('ui.api_param_topk_desc') }}</span></div>
+                <div class="param-row"><span class="param-name">min_similarity</span><span class="param-type">float</span><span class="param-desc">{{ __('ui.api_param_min_sim_desc') }}</span></div>
 
-                <div class="section-label">コード例</div>
+                <div class="section-label">{{ __('ui.api_section_code_example') }}</div>
                 <div class="code-tabs">
                     <button class="code-tab active" onclick="showTab('retrieve-curl', this)">curl</button>
                     <button class="code-tab" onclick="showTab('retrieve-js', this)">JavaScript</button>
@@ -160,7 +159,7 @@ const data = await res.json();</pre>
                 <pre class="code-block" id="retrieve-curl">curl -X POST \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"query": "パスワードを忘れた", "package_id": 1, "top_k": 5}' \
+  -d '{"query": "{{ __('ui.api_example_query') }}", "package_id": 1, "top_k": 5}' \
   {{ rtrim(config('app.url'), '/') }}/api/retrieve</pre>
                 <pre class="code-block" id="retrieve-js" style="display:none;">const res = await fetch('/api/retrieve', {
   method: 'POST',
@@ -169,7 +168,7 @@ const data = await res.json();</pre>
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    query: 'パスワードを忘れた',
+    query: '{{ __('ui.api_example_query') }}',
     package_id: 1,
     top_k: 5,
   }),
@@ -179,24 +178,24 @@ const data = await res.json();</pre>
                 @if($packages->isEmpty())
                     <div class="sandbox">
                         <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">
-                            サンドボックスを利用するには<strong>公開済みナレッジパッケージ</strong>が必要です。<br>
-                            <a href="{{ route('kp.index') }}" style="color: #0071e3;">ナレッジパッケージ管理</a>でナレッジパッケージを作成・公開してください。
+                            {!! __('ui.api_no_package_hint') !!}<br>
+                            <a href="{{ route('kp.index') }}" style="color: #0071e3;">{{ __('ui.api_no_package_link_text') }}</a> {{ __('ui.api_no_package_link_suffix') }}
                         </p>
                     </div>
                 @else
                     <div class="sandbox">
-                        <h4>サンドボックス</h4>
-                        <label>ナレッジパッケージ</label>
+                        <h4>{{ __('ui.api_section_sandbox') }}</h4>
+                        <label>{{ __('ui.api_sandbox_package_label') }}</label>
                         <select id="retrieve-dataset">
                             @foreach($packages as $p)
                                 <option value="{{ $p->id }}">{{ $p->name }} (ID: {{ $p->id }})</option>
                             @endforeach
                         </select>
-                        <label>クエリ</label>
-                        <textarea id="retrieve-query" placeholder="例: パスワードを忘れた場合はどうすればいいですか？"></textarea>
+                        <label>{{ __('ui.api_sandbox_query_label') }}</label>
+                        <textarea id="retrieve-query" placeholder="{{ __('ui.api_sandbox_query_placeholder') }}"></textarea>
                         <label>top_k</label>
                         <input type="number" id="retrieve-topk" value="5" min="1" max="20" style="max-width: 80px;">
-                        <button class="sandbox-run" onclick="runRetrieve()">実行</button>
+                        <button class="sandbox-run" onclick="runRetrieve()">{{ __('ui.api_sandbox_run') }}</button>
                         <div class="response-box" id="retrieve-response">
                             <div class="response-status"></div>
                             <pre class="response-body"></pre>
@@ -211,22 +210,22 @@ const data = await res.json();</pre>
             <div class="endpoint-header" onclick="toggleCard('ep-chat')">
                 <span class="method-badge method-post">POST</span>
                 <span class="endpoint-path">/api/chat</span>
-                <span class="endpoint-desc">RAGチャット</span>
+                <span class="endpoint-desc">{{ __('ui.api_ep_chat_title') }}</span>
                 <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="endpoint-body">
-                <div class="section-label">説明</div>
+                <div class="section-label">{{ __('ui.api_section_description') }}</div>
                 <p style="font-size: 13px; color: #5f6368; margin-bottom: 8px;">
-                    ナレッジベースを参照してLLMが回答を生成します。<code>conversation_id</code> を渡すことで会話履歴を保持できます。
+                    {!! __('ui.api_ep_chat_desc') !!}
                 </p>
 
-                <div class="section-label">パラメータ</div>
-                <div class="param-row"><span class="param-name">message</span><span class="param-type">string</span><span class="param-required">必須</span><span class="param-desc">ユーザーメッセージ</span></div>
-                <div class="param-row"><span class="param-name">package_id</span><span class="param-type">integer</span><span class="param-required">必須</span><span class="param-desc">対象ナレッジパッケージID（公開済みのもの）</span></div>
-                <div class="param-row"><span class="param-name">conversation_id</span><span class="param-type">UUID</span><span class="param-desc">会話ID（省略すると新規会話）</span></div>
-                <div class="param-row"><span class="param-name">top_k</span><span class="param-type">integer</span><span class="param-desc">参照するナレッジユニット数（デフォルト: 5）</span></div>
+                <div class="section-label">{{ __('ui.api_section_parameters') }}</div>
+                <div class="param-row"><span class="param-name">message</span><span class="param-type">string</span><span class="param-required">{{ __('ui.api_param_required') }}</span><span class="param-desc">{{ __('ui.api_param_message_desc') }}</span></div>
+                <div class="param-row"><span class="param-name">package_id</span><span class="param-type">integer</span><span class="param-required">{{ __('ui.api_param_required') }}</span><span class="param-desc">{{ __('ui.api_param_package_id_desc') }}</span></div>
+                <div class="param-row"><span class="param-name">conversation_id</span><span class="param-type">UUID</span><span class="param-desc">{{ __('ui.api_param_conv_id_desc') }}</span></div>
+                <div class="param-row"><span class="param-name">top_k</span><span class="param-type">integer</span><span class="param-desc">{{ __('ui.api_param_topk_chat_desc') }}</span></div>
 
-                <div class="section-label">コード例</div>
+                <div class="section-label">{{ __('ui.api_section_code_example') }}</div>
                 <div class="code-tabs">
                     <button class="code-tab active" onclick="showTab('chat-curl', this)">curl</button>
                     <button class="code-tab" onclick="showTab('chat-js', this)">JavaScript</button>
@@ -234,7 +233,7 @@ const data = await res.json();</pre>
                 <pre class="code-block" id="chat-curl">curl -X POST \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"message": "パスワードを忘れました", "package_id": 1}' \
+  -d '{"message": "{{ __('ui.api_example_message') }}", "package_id": 1}' \
   {{ rtrim(config('app.url'), '/') }}/api/chat</pre>
                 <pre class="code-block" id="chat-js" style="display:none;">const res = await fetch('/api/chat', {
   method: 'POST',
@@ -243,7 +242,7 @@ const data = await res.json();</pre>
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
-    message: 'パスワードを忘れました',
+    message: '{{ __('ui.api_example_message') }}',
     package_id: 1,
   }),
 });
@@ -252,22 +251,22 @@ const data = await res.json();</pre>
                 @if($packages->isEmpty())
                     <div class="sandbox">
                         <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">
-                            サンドボックスを利用するには<strong>公開済みナレッジパッケージ</strong>が必要です。<br>
-                            <a href="{{ route('kp.index') }}" style="color: #0071e3;">ナレッジパッケージ管理</a>でナレッジパッケージを作成・公開してください。
+                            {!! __('ui.api_no_package_hint') !!}<br>
+                            <a href="{{ route('kp.index') }}" style="color: #0071e3;">{{ __('ui.api_no_package_link_text') }}</a> {{ __('ui.api_no_package_link_suffix') }}
                         </p>
                     </div>
                 @else
                     <div class="sandbox">
-                        <h4>サンドボックス</h4>
-                        <label>ナレッジパッケージ</label>
+                        <h4>{{ __('ui.api_section_sandbox') }}</h4>
+                        <label>{{ __('ui.api_sandbox_package_label') }}</label>
                         <select id="chat-dataset">
                             @foreach($packages as $p)
                                 <option value="{{ $p->id }}">{{ $p->name }} (ID: {{ $p->id }})</option>
                             @endforeach
                         </select>
-                        <label>メッセージ</label>
-                        <textarea id="chat-message" placeholder="例: パスワードを忘れた場合はどうすればいいですか？"></textarea>
-                        <button class="sandbox-run" onclick="runChat()" id="chat-run-btn">実行（LLM応答 — 数秒かかります）</button>
+                        <label>{{ __('ui.api_sandbox_message_label') }}</label>
+                        <textarea id="chat-message" placeholder="{{ __('ui.api_sandbox_msg_placeholder') }}"></textarea>
+                        <button class="sandbox-run" onclick="runChat()" id="chat-run-btn">{{ __('ui.api_sandbox_run_llm') }}</button>
                         <div class="response-box" id="chat-response">
                             <div class="response-status"></div>
                             <pre class="response-body"></pre>
@@ -282,22 +281,22 @@ const data = await res.json();</pre>
             <div class="endpoint-header" onclick="toggleCard('ep-jobs')">
                 <span class="method-badge method-get">GET</span>
                 <span class="endpoint-path">/api/pipeline-jobs</span>
-                <span class="endpoint-desc">パイプラインジョブ一覧</span>
+                <span class="endpoint-desc">{{ __('ui.api_ep_jobs_title') }}</span>
                 <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
             <div class="endpoint-body">
-                <div class="section-label">説明</div>
+                <div class="section-label">{{ __('ui.api_section_description') }}</div>
                 <p style="font-size: 13px; color: #5f6368; margin-bottom: 8px;">
-                    ワークスペースのパイプラインジョブ履歴を返します。処理状況の確認に使用します。
+                    {{ __('ui.api_ep_jobs_desc') }}
                 </p>
 
-                <div class="section-label">コード例</div>
+                <div class="section-label">{{ __('ui.api_section_code_example') }}</div>
                 <pre class="code-block">curl -H "Authorization: Bearer YOUR_TOKEN" \
   {{ rtrim(config('app.url'), '/') }}/api/pipeline-jobs</pre>
 
                 <div class="sandbox">
-                    <h4>サンドボックス</h4>
-                    <button class="sandbox-run" onclick="runRequest('jobs-response', 'GET', '/api/pipeline-jobs')">実行</button>
+                    <h4>{{ __('ui.api_section_sandbox') }}</h4>
+                    <button class="sandbox-run" onclick="runRequest('jobs-response', 'GET', '/api/pipeline-jobs')">{{ __('ui.api_sandbox_run') }}</button>
                     <div class="response-box" id="jobs-response">
                         <div class="response-status"></div>
                         <pre class="response-body"></pre>
@@ -312,6 +311,16 @@ const data = await res.json();</pre>
 
 @section('scripts')
 const csrfToken = '{{ csrf_token() }}';
+
+// Localised UI strings for JavaScript (rendered server-side per locale)
+const i18n = {
+    running:     '{{ __("ui.api_sandbox_running") }}',
+    networkErr:  '{{ __("ui.api_network_error") }}',
+    runLlm:      '{{ __("ui.api_sandbox_run_llm") }}',
+    generatingLlm: '{{ __("ui.api_sandbox_running_llm") }}',
+    enterQuery:  '{{ __("ui.api_enter_query") }}',
+    enterMsg:    '{{ __("ui.api_enter_message") }}',
+};
 
 // Toggle endpoint card open/close
 function toggleCard(id) {
@@ -343,7 +352,7 @@ async function runRequest(responseId, method, path, body = null) {
     const statusEl = box.querySelector('.response-status');
     const bodyEl   = box.querySelector('.response-body');
     box.style.display = 'block';
-    statusEl.textContent = '実行中...';
+    statusEl.textContent = i18n.running;
     statusEl.className = 'response-status';
     bodyEl.textContent = '';
 
@@ -367,7 +376,7 @@ async function runRequest(responseId, method, path, body = null) {
         statusEl.className = 'response-status ' + (res.ok ? 'ok' : 'err');
         bodyEl.textContent = JSON.stringify(json, null, 2);
     } catch (e) {
-        statusEl.textContent = 'ネットワークエラー';
+        statusEl.textContent = i18n.networkErr;
         statusEl.className = 'response-status err';
         bodyEl.textContent = e.message;
     }
@@ -378,7 +387,7 @@ async function runRetrieve() {
     const query     = document.getElementById('retrieve-query').value.trim();
     const datasetId = parseInt(document.getElementById('retrieve-dataset').value);
     const topK      = parseInt(document.getElementById('retrieve-topk').value) || 5;
-    if (!query) { alert('クエリを入力してください'); return; }
+    if (!query) { alert(i18n.enterQuery); return; }
     await runRequest('retrieve-response', 'POST', '/web-api/retrieve', {
         query, package_id: datasetId, top_k: topK,
     });
@@ -389,14 +398,14 @@ async function runRetrieve() {
 async function runChat() {
     const message   = document.getElementById('chat-message').value.trim();
     const datasetId = parseInt(document.getElementById('chat-dataset').value);
-    if (!message) { alert('メッセージを入力してください'); return; }
+    if (!message) { alert(i18n.enterMsg); return; }
     const btn = document.getElementById('chat-run-btn');
     btn.disabled = true;
-    btn.textContent = 'LLM生成中...';
+    btn.textContent = i18n.generatingLlm;
     await runRequest('chat-response', 'POST', '/web-api/chat', {
         message, package_id: datasetId,
     });
     btn.disabled = false;
-    btn.textContent = '実行（LLM応答 — 数秒かかります）';
+    btn.textContent = i18n.runLlm;
 }
 @endsection
