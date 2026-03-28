@@ -64,15 +64,31 @@ class AuthController extends Controller
             $request->session()->regenerate();
 
             Log::info('auth.login_success', array_merge($baseContext, [
-                'user_id'        => auth()->id(),
-                'role'           => auth()->user()->role,
-                'workspace_id'   => auth()->user()->workspace_id,
+                'user_id'         => auth()->id(),
+                'role'            => auth()->user()->role,
+                'workspace_id'    => auth()->user()->workspace_id,
                 'session_id_post' => $request->session()->getId(),
+                'url_intended'    => $request->session()->get('url.intended'),
             ]));
 
-            // System admins are redirected to the admin dashboard
+            // System admins are always redirected to the admin dashboard
             if (auth()->user()->isSystemAdmin()) {
                 return redirect()->route('admin.index');
+            }
+
+            // If the intended URL points to an admin route, clear it.
+            // This prevents a 403 when an owner visited /admin while unauthenticated —
+            // the auth middleware stores url.intended = /admin, then redirect()->intended()
+            // would land the owner on a system_admin-only route after login.
+            $intended     = $request->session()->get('url.intended', '');
+            $intendedPath = parse_url($intended, PHP_URL_PATH) ?? '';
+            if (str_starts_with($intendedPath, '/admin')) {
+                $request->session()->forget('url.intended');
+                Log::info('auth.intended_url_cleared', [
+                    'reason'       => 'admin_route_not_accessible_to_role',
+                    'role'         => auth()->user()->role,
+                    'url_intended' => $intended,
+                ]);
             }
 
             return redirect()->intended(route('dashboard'));
