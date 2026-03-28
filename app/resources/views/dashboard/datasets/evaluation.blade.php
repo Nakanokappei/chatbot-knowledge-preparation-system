@@ -84,7 +84,7 @@ async function runEvaluation() {
             const response = await fetch('/web-api/retrieve', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-                body: JSON.stringify({ query: testCase.query, dataset_id: datasetId, top_k: 5 }),
+                body: JSON.stringify({ query: testCase.query, package_id: datasetId, top_k: 5 }),
             });
             const data = await response.json();
             totalLatency += data.latency_ms || 0;

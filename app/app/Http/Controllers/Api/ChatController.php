@@ -32,7 +32,7 @@ class ChatController extends Controller
     {
         $request->validate([
             'message' => 'required|string|max:4000',
-            'dataset_id' => 'required|integer|exists:knowledge_packages,id',
+            'package_id' => 'required|integer|exists:knowledge_packages,id',
             'conversation_id' => 'nullable|uuid',
             'top_k' => 'integer|min:1|max:10',
         ]);
@@ -41,7 +41,7 @@ class ChatController extends Controller
         $topK = $request->input('top_k', 5);
 
         // Verify package is published
-        $package = KnowledgePackage::where('id', $request->dataset_id)
+        $package = KnowledgePackage::where('id', $request->package_id)
             ->where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->first();

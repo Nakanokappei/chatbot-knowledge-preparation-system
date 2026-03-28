@@ -84,7 +84,7 @@ async function sendMessage() {
         const res = await fetch('/web-api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
-            body: JSON.stringify({ message, dataset_id: datasetId, conversation_id: conversationId }),
+            body: JSON.stringify({ message, package_id: datasetId, conversation_id: conversationId }),
         });
         document.getElementById('typing')?.remove();
 

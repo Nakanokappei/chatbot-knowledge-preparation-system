@@ -39,7 +39,7 @@ class TrackApiMetrics
                 $data = json_decode($response->getContent(), true) ?? [];
                 $resultCount = count($data['results'] ?? []);
                 $topSimilarity = $resultCount > 0 ? ($data['results'][0]['similarity'] ?? 0) : 0;
-                $datasetId = $request->input('dataset_id', 0);
+                $datasetId = $request->input('package_id', 0);
 
                 $metrics->recordRetrieval($workspaceId, $datasetId, $latencyMs, $resultCount, $topSimilarity);
             } elseif (str_contains($path, 'chat')) {

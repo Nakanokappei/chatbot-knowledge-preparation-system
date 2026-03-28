@@ -24,7 +24,7 @@ class RetrievalController extends Controller
     {
         $request->validate([
             'query' => 'required|string|max:2000',
-            'dataset_id' => 'required|integer|exists:knowledge_packages,id',
+            'package_id' => 'required|integer|exists:knowledge_packages,id',
             'top_k' => 'integer|min:1|max:20',
             'min_similarity' => 'numeric|min:0|max:1',
         ]);
@@ -35,7 +35,7 @@ class RetrievalController extends Controller
         $startTime = microtime(true);
 
         // Verify package is published and belongs to this workspace
-        $package = KnowledgePackage::where('id', $request->dataset_id)
+        $package = KnowledgePackage::where('id', $request->package_id)
             ->where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->first();
@@ -93,7 +93,7 @@ class RetrievalController extends Controller
 
         return response()->json([
             'query' => $request->input('query'),
-            'dataset_id' => $package->id,
+            'package_id' => $package->id,
             'results' => $formattedResults,
             'latency_ms' => $latencyMs,
         ]);

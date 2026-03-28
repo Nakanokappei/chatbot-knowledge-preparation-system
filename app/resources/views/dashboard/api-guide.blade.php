@@ -148,7 +148,7 @@ const data = await res.json();</pre>
 
                 <div class="section-label">パラメータ</div>
                 <div class="param-row"><span class="param-name">query</span><span class="param-type">string</span><span class="param-required">必須</span><span class="param-desc">検索クエリ</span></div>
-                <div class="param-row"><span class="param-name">dataset_id</span><span class="param-type">integer</span><span class="param-required">必須</span><span class="param-desc">対象データセットID（公開済みのもの）</span></div>
+                <div class="param-row"><span class="param-name">package_id</span><span class="param-type">integer</span><span class="param-required">必須</span><span class="param-desc">対象ナレッジパッケージID（公開済みのもの）</span></div>
                 <div class="param-row"><span class="param-name">top_k</span><span class="param-type">integer</span><span class="param-desc">返す件数（デフォルト: 5、最大: 20）</span></div>
                 <div class="param-row"><span class="param-name">min_similarity</span><span class="param-type">float</span><span class="param-desc">最低類似度スコア（0.0〜1.0）</span></div>
 
@@ -160,7 +160,7 @@ const data = await res.json();</pre>
                 <pre class="code-block" id="retrieve-curl">curl -X POST \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"query": "パスワードを忘れた", "dataset_id": 1, "top_k": 5}' \
+  -d '{"query": "パスワードを忘れた", "package_id": 1, "top_k": 5}' \
   {{ rtrim(config('app.url'), '/') }}/api/retrieve</pre>
                 <pre class="code-block" id="retrieve-js" style="display:none;">const res = await fetch('/api/retrieve', {
   method: 'POST',
@@ -170,7 +170,7 @@ const data = await res.json();</pre>
   },
   body: JSON.stringify({
     query: 'パスワードを忘れた',
-    dataset_id: 1,
+    package_id: 1,
     top_k: 5,
   }),
 });
@@ -222,7 +222,7 @@ const data = await res.json();</pre>
 
                 <div class="section-label">パラメータ</div>
                 <div class="param-row"><span class="param-name">message</span><span class="param-type">string</span><span class="param-required">必須</span><span class="param-desc">ユーザーメッセージ</span></div>
-                <div class="param-row"><span class="param-name">dataset_id</span><span class="param-type">integer</span><span class="param-required">必須</span><span class="param-desc">対象データセットID（公開済みのもの）</span></div>
+                <div class="param-row"><span class="param-name">package_id</span><span class="param-type">integer</span><span class="param-required">必須</span><span class="param-desc">対象ナレッジパッケージID（公開済みのもの）</span></div>
                 <div class="param-row"><span class="param-name">conversation_id</span><span class="param-type">UUID</span><span class="param-desc">会話ID（省略すると新規会話）</span></div>
                 <div class="param-row"><span class="param-name">top_k</span><span class="param-type">integer</span><span class="param-desc">参照するナレッジユニット数（デフォルト: 5）</span></div>
 
@@ -234,7 +234,7 @@ const data = await res.json();</pre>
                 <pre class="code-block" id="chat-curl">curl -X POST \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"message": "パスワードを忘れました", "dataset_id": 1}' \
+  -d '{"message": "パスワードを忘れました", "package_id": 1}' \
   {{ rtrim(config('app.url'), '/') }}/api/chat</pre>
                 <pre class="code-block" id="chat-js" style="display:none;">const res = await fetch('/api/chat', {
   method: 'POST',
@@ -244,7 +244,7 @@ const data = await res.json();</pre>
   },
   body: JSON.stringify({
     message: 'パスワードを忘れました',
-    dataset_id: 1,
+    package_id: 1,
   }),
 });
 const data = await res.json();</pre>
@@ -380,7 +380,7 @@ async function runRetrieve() {
     const topK      = parseInt(document.getElementById('retrieve-topk').value) || 5;
     if (!query) { alert('クエリを入力してください'); return; }
     await runRequest('retrieve-response', 'POST', '/api/retrieve', {
-        query, dataset_id: datasetId, top_k: topK,
+        query, package_id: datasetId, top_k: topK,
     });
 }
 
@@ -393,7 +393,7 @@ async function runChat() {
     btn.disabled = true;
     btn.textContent = 'LLM生成中...';
     await runRequest('chat-response', 'POST', '/api/chat', {
-        message, dataset_id: datasetId,
+        message, package_id: datasetId,
     });
     btn.disabled = false;
     btn.textContent = '実行（LLM応答 — 数秒かかります）';
