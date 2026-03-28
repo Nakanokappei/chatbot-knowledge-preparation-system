@@ -3,9 +3,12 @@
 # ============================================================
 # Creates a production-ready VPC with public and private subnet
 # tiers spread across two availability zones. Public subnets
-# host the ALB and NAT Gateway; private subnets host ECS tasks
-# and RDS instances that must not be directly reachable from
-# the internet.
+# host the ALB and NAT Gateway(s); private subnets host ECS
+# tasks and RDS instances that must not be directly reachable
+# from the internet.
+#
+# For production, set nat_gateway_count = 2 to deploy a NAT
+# Gateway per AZ for high availability.
 # ============================================================
 
 # ----------------------------------------------------------
@@ -52,8 +55,8 @@ resource "aws_subnet" "public" {
 # Private Subnets
 # ----------------------------------------------------------
 # Two private subnets host ECS tasks and the RDS instance.
-# They reach the internet only via the NAT Gateway in the
-# first public subnet.
+# They reach the internet via NAT Gateway(s) in the public
+# subnets.
 # ----------------------------------------------------------
 
 resource "aws_subnet" "private" {
@@ -84,35 +87,39 @@ resource "aws_internet_gateway" "this" {
 }
 
 # ----------------------------------------------------------
-# Elastic IP for NAT Gateway
+# Elastic IP(s) for NAT Gateway(s)
 # ----------------------------------------------------------
-# A dedicated EIP ensures the NAT Gateway retains a stable
-# outbound IP, which simplifies allowlisting on third-party
-# services.
+# One EIP per NAT Gateway. For dev (count=1) a single NAT
+# is used; for prod (count=2) each AZ gets its own NAT with
+# a stable outbound IP.
 # ----------------------------------------------------------
 
 resource "aws_eip" "nat" {
+  count  = var.nat_gateway_count
   domain = "vpc"
 
   tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-nat-eip"
+    Name = "${var.name_prefix}-nat-eip-${count.index}"
   })
 }
 
 # ----------------------------------------------------------
-# NAT Gateway
+# NAT Gateway(s)
 # ----------------------------------------------------------
-# A single NAT Gateway in the first public subnet provides
-# outbound internet access for all private subnets. For
-# production, consider adding a second NAT in the other AZ.
+# Dev: a single NAT Gateway in the first public subnet.
+# Prod: one NAT Gateway per AZ for high availability — if
+# one AZ goes down, the other's private subnet retains
+# internet access.
 # ----------------------------------------------------------
 
 resource "aws_nat_gateway" "this" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
+  count = var.nat_gateway_count
+
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-nat"
+    Name = "${var.name_prefix}-nat-${count.index}"
   })
 
   # The NAT Gateway depends on the IGW being attached first.
@@ -147,23 +154,25 @@ resource "aws_route_table_association" "public" {
 }
 
 # ----------------------------------------------------------
-# Private Route Table
+# Private Route Table(s)
 # ----------------------------------------------------------
-# A single route table shared by both private subnets sends
-# all non-local traffic through the NAT Gateway so that ECS
-# tasks can pull images and call external APIs.
+# When nat_gateway_count == 1, a single route table is shared
+# by both private subnets (same as before). When count == 2,
+# each private subnet gets its own route table pointing to
+# the NAT Gateway in its AZ.
 # ----------------------------------------------------------
 
 resource "aws_route_table" "private" {
+  count  = var.nat_gateway_count
   vpc_id = aws_vpc.this.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.this.id
+    nat_gateway_id = aws_nat_gateway.this[count.index].id
   }
 
   tags = merge(var.common_tags, {
-    Name = "${var.name_prefix}-private-rt"
+    Name = "${var.name_prefix}-private-rt-${count.index}"
   })
 }
 
@@ -171,5 +180,7 @@ resource "aws_route_table_association" "private" {
   count = 2
 
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
+  # When only 1 NAT, both subnets share route table [0].
+  # When 2 NATs, each subnet uses its own route table.
+  route_table_id = aws_route_table.private[min(count.index, var.nat_gateway_count - 1)].id
 }

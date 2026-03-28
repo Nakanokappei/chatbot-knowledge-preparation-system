@@ -393,14 +393,6 @@ PROMPT;
             'search_mode' => 'broad_unfiltered',
             'model_id' => $modelId,
         ];
-        return [
-            'action' => 'no_match',
-            'message' => null,
-            'context' => $context,
-            'results' => [],
-            'search_mode' => 'none',
-            'model_id' => $modelId,
-        ];
     }
 
     /**

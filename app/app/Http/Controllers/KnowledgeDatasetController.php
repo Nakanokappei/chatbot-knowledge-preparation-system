@@ -116,12 +116,35 @@ class KnowledgeDatasetController extends Controller
     }
 
     /**
-     * Publish a draft dataset — makes it available for retrieval/chat.
+     * Submit a draft dataset for owner review (member workflow).
+     */
+    public function submitForReview(KnowledgeDataset $dataset)
+    {
+        if (! $dataset->isSubmittable()) {
+            return back()->withErrors(['status' => __('ui.only_drafts_submittable')]);
+        }
+
+        $dataset->update(['status' => 'pending_review']);
+
+        return back()->with('success', __('ui.review_submitted'));
+    }
+
+    /**
+     * Publish a dataset — owner-only approval step.
+     *
+     * Owners can publish from both draft (shortcut) and pending_review states.
+     * Members must go through submitForReview first.
      */
     public function publish(KnowledgeDataset $dataset)
     {
-        if (! $dataset->isEditable()) {
-            return back()->withErrors(['status' => 'Only draft datasets can be published.']);
+        // Owners can publish from draft or pending_review
+        if (! in_array($dataset->status, ['draft', 'pending_review'])) {
+            return back()->withErrors(['status' => 'Only draft or pending review datasets can be published.']);
+        }
+
+        // Non-owners cannot publish directly — they must submit for review
+        if (! auth()->user()->isOwner() && ! auth()->user()->isSystemAdmin()) {
+            return back()->withErrors(['status' => __('ui.owner_approval_required')]);
         }
 
         // Demote any existing published dataset with the same name to archived
@@ -133,6 +156,20 @@ class KnowledgeDatasetController extends Controller
         $dataset->update(['status' => 'published']);
 
         return back()->with('success', "Dataset \"{$dataset->name}\" v{$dataset->version} is now published.");
+    }
+
+    /**
+     * Reject a pending review and revert to draft (owner only).
+     */
+    public function rejectReview(KnowledgeDataset $dataset)
+    {
+        if (! $dataset->isApprovable()) {
+            return back()->withErrors(['status' => 'Only pending review datasets can be rejected.']);
+        }
+
+        $dataset->update(['status' => 'draft']);
+
+        return back()->with('success', __('ui.review_rejected'));
     }
 
     /**

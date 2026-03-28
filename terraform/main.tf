@@ -15,10 +15,11 @@
 module "vpc" {
   source = "./modules/vpc"
 
-  vpc_cidr           = var.vpc_cidr
-  name_prefix        = local.name_prefix
-  availability_zones = local.availability_zones
-  common_tags        = local.common_tags
+  vpc_cidr            = var.vpc_cidr
+  name_prefix         = local.name_prefix
+  availability_zones  = local.availability_zones
+  nat_gateway_count   = var.nat_gateway_count
+  common_tags         = local.common_tags
 }
 
 module "security_groups" {
@@ -106,14 +107,17 @@ module "iam" {
 module "rds" {
   source = "./modules/rds"
 
-  name_prefix        = local.name_prefix
-  common_tags        = local.common_tags
-  private_subnet_ids = module.vpc.private_subnet_ids
-  rds_sg_id          = module.security_groups.rds_sg_id
-  db_instance_class  = var.db_instance_class
-  db_name            = var.db_name
-  db_username        = var.db_username
-  db_password        = module.secrets.db_password
+  name_prefix         = local.name_prefix
+  common_tags         = local.common_tags
+  private_subnet_ids  = module.vpc.private_subnet_ids
+  rds_sg_id           = module.security_groups.rds_sg_id
+  db_instance_class   = var.db_instance_class
+  db_name             = var.db_name
+  db_username         = var.db_username
+  db_password         = module.secrets.db_password
+  multi_az            = var.multi_az
+  force_ssl           = var.force_ssl
+  skip_final_snapshot = var.skip_final_snapshot
 }
 
 # ------------------------------------------------------------------
@@ -213,6 +217,19 @@ module "dns" {
   target_group_arn  = module.alb.target_group_arn
   http_listener_arn = module.alb.listener_arn
   common_tags       = local.common_tags
+}
+
+# ------------------------------------------------------------------
+# WAF (optional — only when enable_waf is true)
+# ------------------------------------------------------------------
+
+module "waf" {
+  source = "./modules/waf"
+  count  = var.enable_waf ? 1 : 0
+
+  name_prefix = local.name_prefix
+  common_tags = local.common_tags
+  alb_arn     = module.alb.alb_arn
 }
 
 # ------------------------------------------------------------------

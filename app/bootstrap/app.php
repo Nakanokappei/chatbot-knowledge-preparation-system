@@ -24,11 +24,15 @@ return Application::configure(basePath: dirname(__DIR__))
         // API metrics tracking
         $middleware->appendToGroup('api', \App\Http\Middleware\TrackApiMetrics::class);
 
-        // Role-based access control aliases
+        // Set PostgreSQL RLS workspace scope for API requests after Sanctum auth
+        $middleware->appendToGroup('api', \App\Http\Middleware\SetWorkspaceScope::class);
+
+        // Role-based access control and Sanctum ability aliases
         $middleware->alias([
             'budget' => \App\Http\Middleware\EnforceBudget::class,
             'owner' => \App\Http\Middleware\RequireOwner::class,
             'system_admin' => \App\Http\Middleware\RequireSystemAdmin::class,
+            'ability' => \App\Http\Middleware\CheckTokenAbility::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

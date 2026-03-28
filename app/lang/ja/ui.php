@@ -377,6 +377,13 @@ return [
     'llm_fallback_hint' => 'マッピング列が空または低品質の場合、LLMで値を生成',
     'preview_select_columns' => '上で列を選択するとプレビューが表示されます…',
 
+    // クラスタリング手法オプション
+    'clustering_hdbscan' => 'HDBSCAN（密度ベース、自動）',
+    'clustering_kmeans' => 'K-Means++（球面クラスタリング）',
+    'clustering_agglomerative' => '凝集型（階層的）',
+    'clustering_leiden' => 'HNSW + Leiden（グラフコミュニティ）',
+    'column_fallback' => '列',
+
     // パスワードリセット
     'forgot_password' => 'パスワードを忘れた場合',
     'forgot_password_link' => 'パスワードをお忘れですか？',
@@ -462,4 +469,40 @@ return [
     'create' => '作成',
     'cancel' => 'キャンセル',
     'usage_30days' => '過去30日間の使用状況統計。',
+
+    // ── ナレッジデータセット承認フロー
+    'submit_for_review' => 'レビューに提出',
+    'pending_review' => 'レビュー待ち',
+    'approve_publish' => '承認して公開',
+    'reject_review' => '差し戻し',
+    'review_submitted' => 'レビューに提出しました。オーナーの承認をお待ちください。',
+    'review_rejected' => '差し戻しました。下書きに戻りました。',
+    'only_drafts_submittable' => '下書き状態のデータセットのみ提出できます。',
+    'owner_approval_required' => '公開にはオーナーの承認が必要です。',
+    'publish_directly' => '直接公開',
+
+    // ── APIトークン ──────────────────────────────────────
+    'api_tokens' => 'APIトークン',
+    'api_tokens_desc' => '外部システム連携用のAPIトークンを管理します。',
+    'token_name' => 'トークン名',
+    'token_name_placeholder' => '例: CI/CDパイプライン',
+    'token_abilities' => '権限',
+    'token_expiration' => '有効期限',
+    'token_expires_30' => '30日',
+    'token_expires_60' => '60日',
+    'token_expires_90' => '90日',
+    'token_expires_365' => '365日',
+    'token_expires_never' => '無期限',
+    'create_token' => 'トークン発行',
+    'token_created' => 'トークンを発行しました。この値は再表示できません。',
+    'token_revoked' => 'トークンを削除しました。',
+    'no_tokens' => 'APIトークンはまだありません。',
+    'last_used' => '最終使用',
+    'expires_at' => '有効期限',
+    'never' => 'なし',
+    'never_used' => '未使用',
+    'revoke' => '削除',
+    'confirm_revoke_token' => 'このトークンを削除しますか？使用中のアプリケーションはアクセスできなくなります。',
+    'copy_token' => 'コピー',
+    'token_copied' => 'コピーしました',
 ];

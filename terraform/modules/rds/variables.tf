@@ -45,3 +45,21 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "multi_az" {
+  description = "Enable Multi-AZ deployment for automatic failover. Use true for production."
+  type        = bool
+  default     = false
+}
+
+variable "force_ssl" {
+  description = "Require SSL/TLS for all database connections. Use true for production."
+  type        = bool
+  default     = false
+}
+
+variable "skip_final_snapshot" {
+  description = "Skip final DB snapshot on deletion. Use false for production."
+  type        = bool
+  default     = true
+}

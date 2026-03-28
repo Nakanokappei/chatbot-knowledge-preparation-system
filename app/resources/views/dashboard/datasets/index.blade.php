@@ -24,6 +24,7 @@
         .badge-draft { background: #fef3c7; color: #92400e; }
         .badge-published { background: #d1fae5; color: #065f46; }
         .badge-archived { background: #e5e7eb; color: #374151; }
+        .badge-pending_review { background: #fef3c7; color: #92400e; }
         .meta { color: #6b7280; font-size: 13px; }
         .meta span { margin-right: 16px; }
         .empty { text-align: center; padding: 40px; color: #6b7280; }
@@ -51,7 +52,7 @@
                     {{ $dataset->name }}
                     <span style="font-weight: normal; color: #6b7280;">v{{ $dataset->version }}</span>
                 </a>
-                <span class="badge badge-{{ $dataset->status }}">{{ ucfirst($dataset->status) }}</span>
+                <span class="badge badge-{{ $dataset->status }}">{{ $dataset->status === 'pending_review' ? __('ui.pending_review') : ucfirst($dataset->status) }}</span>
             </div>
             @if($dataset->description)
                 <p style="margin-bottom: 8px; color: #374151;">{{ $dataset->description }}</p>

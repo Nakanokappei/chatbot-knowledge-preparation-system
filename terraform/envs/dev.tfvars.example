@@ -34,3 +34,10 @@ hosted_zone_name = ""
 
 # GitHub Actions CI/CD (owner/repo format)
 github_repo = ""
+
+# Dev defaults for prod-only features (explicit for clarity)
+nat_gateway_count   = 1
+multi_az            = false
+force_ssl           = false
+skip_final_snapshot = true
+enable_waf          = false

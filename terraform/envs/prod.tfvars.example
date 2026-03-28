@@ -1,0 +1,62 @@
+# ============================================================
+# Production Environment Overrides
+# ============================================================
+# Usage:
+#   terraform plan  -var-file=envs/prod.tfvars
+#   terraform apply -var-file=envs/prod.tfvars
+#
+# Prerequisites:
+#   - Separate Terraform state backend for prod (recommended)
+#   - Production domain name and hosted zone configured
+#   - SNS alarm subscribers (email, Slack) added after first apply
+# ============================================================
+
+environment = "prod"
+
+# ----------------------------------------------------------
+# Database — production-grade RDS
+# ----------------------------------------------------------
+db_instance_class   = "db.r6g.large"
+multi_az            = true
+force_ssl           = true
+skip_final_snapshot = false
+
+# ----------------------------------------------------------
+# Networking — HA NAT Gateway (one per AZ)
+# ----------------------------------------------------------
+nat_gateway_count = 2
+
+# ----------------------------------------------------------
+# WAF — OWASP Top 10, SQLi, known bad inputs
+# ----------------------------------------------------------
+enable_waf = true
+
+# ----------------------------------------------------------
+# ECS — Application Container (2 replicas for HA)
+# ----------------------------------------------------------
+app_cpu          = 512
+app_memory       = 1024
+app_desired_count = 2
+
+# ----------------------------------------------------------
+# ECS — Worker Container
+# ----------------------------------------------------------
+worker_cpu           = 1024
+worker_memory        = 2048
+worker_desired_count = 1
+
+# ----------------------------------------------------------
+# Network Access — WAF handles protection, ALB open
+# ----------------------------------------------------------
+allowed_cidr_blocks = []
+
+# ----------------------------------------------------------
+# DNS / TLS — set to production domain
+# ----------------------------------------------------------
+# domain_name      = "kps.example.com"
+# hosted_zone_name = "example.com"
+
+# ----------------------------------------------------------
+# CI/CD
+# ----------------------------------------------------------
+github_repo = "Nakanokappei/chatbot-knowledge-preparation-system"

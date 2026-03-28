@@ -316,10 +316,10 @@
                     <div>
                         <label>{{ __('ui.clustering_method') }}</label>
                         <select name="clustering_method" id="clustering-method" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            <option value="hdbscan" selected>HDBSCAN (density-based, auto)</option>
-                            <option value="kmeans">K-Means++ (spherical)</option>
-                            <option value="agglomerative">Agglomerative (hierarchical)</option>
-                            <option value="leiden">HNSW + Leiden (graph community)</option>
+                            <option value="hdbscan" selected>{{ __('ui.clustering_hdbscan') }}</option>
+                            <option value="kmeans">{{ __('ui.clustering_kmeans') }}</option>
+                            <option value="agglomerative">{{ __('ui.clustering_agglomerative') }}</option>
+                            <option value="leiden">{{ __('ui.clustering_leiden') }}</option>
                         </select>
                     </div>
                 </div>
@@ -700,7 +700,7 @@
                 return;
             }
             const hasHeader = document.getElementById('has-header').value === '1';
-            let headers = hasHeader ? allColumns : allColumns.map((_, i) => `Column ${i + 1}`);
+            let headers = hasHeader ? allColumns : allColumns.map((_, i) => `{{ __("ui.column_fallback") }} ${i + 1}`);
             let html = '';
             previewRows.forEach((row, ri) => {
                 html += `<div class="preview-row"><span style="color: #5f6368; font-size: 11px;">${ri + 1}</span>\n`;

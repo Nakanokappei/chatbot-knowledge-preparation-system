@@ -19,6 +19,7 @@
         .badge-draft { background: #fef3c7; color: #92400e; }
         .badge-published { background: #d1fae5; color: #065f46; }
         .badge-archived { background: #e5e7eb; color: #374151; }
+        .badge-pending_review { background: #fef3c7; color: #92400e; }
         .btn { display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; border: none; text-decoration: none; }
         .btn-primary { background: #2563eb; color: white; }
         .btn-success { background: #059669; color: white; }
@@ -52,7 +53,7 @@
         <div class="error">{{ $errors->first() }}</div>
     @endif
 
-    <h1>{{ $dataset->name }} <span class="badge badge-{{ $dataset->status }}">{{ ucfirst($dataset->status) }}</span></h1>
+    <h1>{{ $dataset->name }} <span class="badge badge-{{ $dataset->status }}">{{ $dataset->status === 'pending_review' ? __('ui.pending_review') : ucfirst($dataset->status) }}</span></h1>
     <p class="subtitle">Version {{ $dataset->version }} | {{ $dataset->ku_count }} Knowledge Units | Created {{ $dataset->created_at->format('Y-m-d H:i') }}</p>
 
     @if($dataset->description)
@@ -60,15 +61,41 @@
     @endif
 
     <div class="actions">
+        {{-- Draft: members can submit for review, owners can publish directly --}}
         @if($dataset->isEditable())
-            <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+            <form method="POST" action="{{ route('kd.submit-review', $dataset) }}">
                 @csrf
-                <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">
-                    {{ __('ui.publish') }}
-                </button>
+                <button type="submit" class="btn btn-primary">{{ __('ui.submit_for_review') }}</button>
             </form>
+            @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
+                <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">
+                        {{ __('ui.publish_directly') }}
+                    </button>
+                </form>
+            @endif
         @endif
 
+        {{-- Pending review: owners can approve or reject --}}
+        @if($dataset->isPendingReview())
+            @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
+                <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">
+                        {{ __('ui.approve_publish') }}
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('kd.reject-review', $dataset) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-outline">{{ __('ui.reject_review') }}</button>
+                </form>
+            @else
+                <span style="color: #6b7280; font-size: 14px;">{{ __('ui.owner_approval_required') }}</span>
+            @endif
+        @endif
+
+        {{-- Published: new version, export, chat --}}
         @if($dataset->isPublished())
             <form method="POST" action="{{ route('kd.new-version', $dataset) }}">
                 @csrf

@@ -22,3 +22,9 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "nat_gateway_count" {
+  description = "Number of NAT Gateways. Use 1 for dev (single AZ), 2 for prod (one per AZ)."
+  type        = number
+  default     = 1
+}

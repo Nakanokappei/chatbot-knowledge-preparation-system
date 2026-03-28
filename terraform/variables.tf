@@ -65,6 +65,44 @@ variable "db_username" {
   default     = "ckps_admin"
 }
 
+variable "multi_az" {
+  description = "Enable Multi-AZ for RDS. Use true for production."
+  type        = bool
+  default     = false
+}
+
+variable "force_ssl" {
+  description = "Require SSL for all RDS connections. Use true for production."
+  type        = bool
+  default     = false
+}
+
+variable "skip_final_snapshot" {
+  description = "Skip final DB snapshot on deletion. Use false for production."
+  type        = bool
+  default     = true
+}
+
+# ----------------------------------------------------------
+# Networking — NAT Gateway
+# ----------------------------------------------------------
+
+variable "nat_gateway_count" {
+  description = "Number of NAT Gateways (1 for dev, 2 for prod HA)"
+  type        = number
+  default     = 1
+}
+
+# ----------------------------------------------------------
+# WAF
+# ----------------------------------------------------------
+
+variable "enable_waf" {
+  description = "Enable AWS WAF on the ALB. Use true for production."
+  type        = bool
+  default     = false
+}
+
 # ----------------------------------------------------------
 # ECS — Application Container
 # ----------------------------------------------------------

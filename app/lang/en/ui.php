@@ -377,6 +377,13 @@ return [
     'llm_fallback_hint' => 'When a mapped column has empty or low-quality data, use LLM to generate the value',
     'preview_select_columns' => 'Select columns above to see preview...',
 
+    // Clustering method options
+    'clustering_hdbscan' => 'HDBSCAN (density-based, auto)',
+    'clustering_kmeans' => 'K-Means++ (spherical)',
+    'clustering_agglomerative' => 'Agglomerative (hierarchical)',
+    'clustering_leiden' => 'HNSW + Leiden (graph community)',
+    'column_fallback' => 'Column',
+
     // Password reset
     'forgot_password' => 'Forgot Password',
     'forgot_password_link' => 'Forgot password?',
@@ -462,4 +469,40 @@ return [
     'create' => 'Create',
     'cancel' => 'Cancel',
     'usage_30days' => 'Last 30 days usage statistics.',
+
+    // ── Knowledge Dataset approval workflow ─────────────
+    'submit_for_review' => 'Submit for Review',
+    'pending_review' => 'Pending Review',
+    'approve_publish' => 'Approve & Publish',
+    'reject_review' => 'Reject',
+    'review_submitted' => 'Submitted for review. Awaiting owner approval.',
+    'review_rejected' => 'Review rejected. Reverted to draft.',
+    'only_drafts_submittable' => 'Only draft datasets can be submitted for review.',
+    'owner_approval_required' => 'Owner approval is required to publish.',
+    'publish_directly' => 'Publish Directly',
+
+    // ── API Tokens ──────────────────────────────────────
+    'api_tokens' => 'API Tokens',
+    'api_tokens_desc' => 'Manage API tokens for external system integration.',
+    'token_name' => 'Token name',
+    'token_name_placeholder' => 'e.g. CI/CD pipeline',
+    'token_abilities' => 'Permissions',
+    'token_expiration' => 'Expiration',
+    'token_expires_30' => '30 days',
+    'token_expires_60' => '60 days',
+    'token_expires_90' => '90 days',
+    'token_expires_365' => '365 days',
+    'token_expires_never' => 'Never',
+    'create_token' => 'Create Token',
+    'token_created' => 'Token created. This value will not be shown again.',
+    'token_revoked' => 'Token revoked.',
+    'no_tokens' => 'No API tokens yet.',
+    'last_used' => 'Last used',
+    'expires_at' => 'Expires',
+    'never' => 'Never',
+    'never_used' => 'Never used',
+    'revoke' => 'Revoke',
+    'confirm_revoke_token' => 'Revoke this token? Any applications using it will lose access.',
+    'copy_token' => 'Copy',
+    'token_copied' => 'Copied!',
 ];

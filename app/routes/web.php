@@ -101,7 +101,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/knowledge-datasets/create', [KnowledgeDatasetController::class, 'create'])->name('kd.create');
     Route::post('/knowledge-datasets', [KnowledgeDatasetController::class, 'store'])->name('kd.store');
     Route::get('/knowledge-datasets/{dataset}', [KnowledgeDatasetController::class, 'show'])->name('kd.show');
+    Route::post('/knowledge-datasets/{dataset}/submit-review', [KnowledgeDatasetController::class, 'submitForReview'])->name('kd.submit-review');
     Route::post('/knowledge-datasets/{dataset}/publish', [KnowledgeDatasetController::class, 'publish'])->name('kd.publish');
+    Route::post('/knowledge-datasets/{dataset}/reject-review', [KnowledgeDatasetController::class, 'rejectReview'])->name('kd.reject-review');
     Route::post('/knowledge-datasets/{dataset}/new-version', [KnowledgeDatasetController::class, 'newVersion'])->name('kd.new-version');
     Route::get('/knowledge-datasets/{dataset}/export', [KnowledgeDatasetController::class, 'export'])->name('kd.export');
     Route::get('/knowledge-datasets/{dataset}/chat', [KnowledgeDatasetController::class, 'chat'])->name('kd.chat');
@@ -114,10 +116,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
     Route::post('/web-api/chat', [\App\Http\Controllers\Api\ChatController::class, 'chat'])->name('web.chat');
 
-    // Profile: user settings, password change
+    // Profile: user settings, password change, API tokens
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+    Route::get('/profile/tokens', [ProfileController::class, 'tokens'])->name('profile.tokens');
+    Route::post('/profile/tokens', [ProfileController::class, 'createToken'])->name('profile.tokens.create');
+    Route::delete('/profile/tokens/{tokenId}', [ProfileController::class, 'revokeToken'])->name('profile.tokens.revoke');
 
     // System admin routes: cross-workspace management
     Route::middleware('system_admin')->prefix('admin')->group(function () {
