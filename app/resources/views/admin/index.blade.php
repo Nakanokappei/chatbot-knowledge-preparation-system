@@ -8,9 +8,16 @@
         .layout { display: flex; flex: 1; overflow: hidden; }
         .sidebar { width: 280px; background: #F0E6FA; border-right: none; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s ease; }
         .sidebar.collapsed { width: 52px; }
-        .sidebar.collapsed .ws-name, .sidebar.collapsed .ws-count,
+        /* When collapsed: hide labels, keep icons and counts visible */
+        .sidebar.collapsed .ws-name,
         .sidebar.collapsed .pipeline-header,
+        .sidebar.collapsed .pipeline-filter-label,
         .sidebar.collapsed .create-label { display: none; }
+        /* Keep counts visible and right-aligned when collapsed */
+        .sidebar.collapsed .ws-item,
+        .sidebar.collapsed .pipeline-filter { justify-content: center; padding-left: 0; padding-right: 0; margin-right: 4px; }
+        .sidebar.collapsed .ws-count,
+        .sidebar.collapsed .pipeline-filter-count { margin-left: 0; font-size: 11px; }
         .sidebar-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
 
         /* Workspace list items */
@@ -96,25 +103,25 @@
                 <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'all']) }}"
                    class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'all') ? 'active' : '' }}">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/><line x1="4" y1="5" x2="10" y2="5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="7.5" x2="10" y2="7.5" stroke="currentColor" stroke-width="1"/><line x1="4" y1="10" x2="7.5" y2="10" stroke="currentColor" stroke-width="1"/></svg>
-                    {{ __('ui.all_jobs') }}
+                    <span class="pipeline-filter-label">{{ __('ui.all_jobs') }}</span>
                     <span class="pipeline-filter-count">{{ $jobStats['total'] }}</span>
                 </a>
                 <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'completed']) }}"
                    class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'completed') ? 'active' : '' }}">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M4.5 7l2 2 3.5-3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    {{ __('ui.completed') }}
+                    <span class="pipeline-filter-label">{{ __('ui.completed') }}</span>
                     <span class="pipeline-filter-count">{{ $jobStats['completed'] }}</span>
                 </a>
                 <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'processing']) }}"
                    class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'processing') ? 'active' : '' }}">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><path d="M7 4v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    {{ __('ui.processing') }}
+                    <span class="pipeline-filter-label">{{ __('ui.processing') }}</span>
                     <span class="pipeline-filter-count">{{ $jobStats['processing'] }}</span>
                 </a>
                 <a href="{{ route('admin.index', ['pipeline' => 'jobs', 'pf' => 'failed']) }}"
                    class="pipeline-filter {{ ($pipelineView === 'jobs' && $pipelineFilter === 'failed') ? 'active' : '' }}">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><line x1="5" y1="5" x2="9" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="9" y1="5" x2="5" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-                    {{ __('ui.failed') }}
+                    <span class="pipeline-filter-label">{{ __('ui.failed') }}</span>
                     <span class="pipeline-filter-count">{{ $jobStats['failed'] }}</span>
                 </a>
             </div>
