@@ -24,7 +24,7 @@ class RetrievalController extends Controller
     {
         $request->validate([
             'query' => 'required|string|max:2000',
-            'dataset_id' => 'required|integer|exists:knowledge_datasets,id',
+            'dataset_id' => 'required|integer|exists:knowledge_packages,id',
             'top_k' => 'integer|min:1|max:20',
             'min_similarity' => 'numeric|min:0|max:1',
         ]);
@@ -51,7 +51,7 @@ class RetrievalController extends Controller
         $queryEmbedding = $bedrock->generateEmbedding($request->query('query', $request->input('query')));
         $vectorString = '[' . implode(',', $queryEmbedding) . ']';
 
-        // pgvector cosine similarity search scoped to dataset items
+        // pgvector cosine similarity search scoped to package items
         $results = DB::select("
             SELECT
                 ku.id AS knowledge_unit_id,
@@ -62,9 +62,9 @@ class RetrievalController extends Controller
                 ku.confidence,
                 1 - (ku.search_embedding <=> ?::vector) AS similarity
             FROM knowledge_units ku
-            JOIN knowledge_dataset_items kdi
-                ON kdi.knowledge_unit_id = ku.id
-            WHERE kdi.knowledge_dataset_id = ?
+            JOIN knowledge_package_items kpi
+                ON kpi.knowledge_unit_id = ku.id
+            WHERE kpi.knowledge_package_id = ?
               AND ku.review_status = 'approved'
               AND ku.search_embedding IS NOT NULL
             ORDER BY ku.search_embedding <=> ?::vector

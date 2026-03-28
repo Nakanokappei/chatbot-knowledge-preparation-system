@@ -32,7 +32,7 @@ class ChatController extends Controller
     {
         $request->validate([
             'message' => 'required|string|max:4000',
-            'dataset_id' => 'required|integer|exists:knowledge_datasets,id',
+            'dataset_id' => 'required|integer|exists:knowledge_packages,id',
             'conversation_id' => 'nullable|uuid',
             'top_k' => 'integer|min:1|max:10',
         ]);
@@ -69,7 +69,7 @@ class ChatController extends Controller
 
         // Step 3: Get or create conversation
         $conversation = $this->getOrCreateConversation(
-            $request->conversation_id, $workspaceId, $dataset->id, $request->user()->id
+            $request->conversation_id, $workspaceId, $package->id, $request->user()->id
         );
 
         // Save user message
@@ -131,7 +131,7 @@ class ChatController extends Controller
     /**
      * Get existing conversation or create a new one.
      */
-    private function getOrCreateConversation(?string $conversationId, int $workspaceId, int $datasetId, int $userId): ChatConversation
+    private function getOrCreateConversation(?string $conversationId, int $workspaceId, int $packageId, int $userId): ChatConversation
     {
         // Attempt to resume an existing conversation if an ID was provided
         if ($conversationId) {
@@ -146,7 +146,7 @@ class ChatController extends Controller
 
         return ChatConversation::create([
             'workspace_id' => $workspaceId,
-            'knowledge_dataset_id' => $datasetId,
+            'knowledge_package_id' => $packageId,
             'user_id' => $userId,
         ]);
     }

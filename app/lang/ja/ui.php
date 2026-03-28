@@ -497,7 +497,7 @@ return [
 
     // ── ナレッジパッケージ公開フロー
     'submit_for_review' => '公開申請',
-    'pending_review' => '公開申請中',
+    'publication_requested' => '公開申請中',
     'approve_publish' => '公開許可',
     'reject_review' => '申請却下',
     'review_submitted' => '公開を申請しました。オーナーの公開許可をお待ちください。',

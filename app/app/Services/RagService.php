@@ -99,8 +99,7 @@ class RagService
     /**
      * Two-stage vector search for published KnowledgePackage (API chat).
      *
-     * Searches KUs linked to a package via knowledge_dataset_items JOIN.
-     * JOIN table uses legacy name until Phase 3 DB rename.
+     * Searches KUs linked to a package via knowledge_package_items JOIN.
      */
     public function searchPackageKnowledgeUnits(
         string $queryText,
@@ -154,8 +153,8 @@ class RagService
                 ku.symptoms, ku.root_cause, ku.cause_summary, ku.resolution_summary,
                 1 - (ku.{$embeddingColumn} <=> ?::vector) AS similarity
             FROM knowledge_units ku
-            JOIN knowledge_dataset_items kdi ON kdi.knowledge_unit_id = ku.id
-            WHERE kdi.knowledge_dataset_id = ?
+            JOIN knowledge_package_items kpi ON kpi.knowledge_unit_id = ku.id
+            WHERE kpi.knowledge_package_id = ?
               AND ku.review_status = 'approved'
               AND ku.{$embeddingColumn} IS NOT NULL
               AND 1 - (ku.{$embeddingColumn} <=> ?::vector) >= ?

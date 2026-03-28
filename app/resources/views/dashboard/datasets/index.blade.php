@@ -33,7 +33,7 @@
                         <div class="kp-meta">{{ Str::limit($package->description, 100) }}</div>
                     @endif
                 </div>
-                <span class="badge badge-{{ $package->status }}">{{ $package->status === 'pending_review' ? __('ui.pending_review') : ucfirst($package->status) }}</span>
+                <span class="badge badge-{{ $package->status }}">{{ $package->status === 'publication_requested' ? __('ui.publication_requested') : ucfirst($package->status) }}</span>
             </a>
         @empty
             <div class="card empty">

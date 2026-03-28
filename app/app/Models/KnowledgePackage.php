@@ -10,18 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A versioned collection of approved Knowledge Units for chatbot consumption.
  *
- * Lifecycle: draft → pending_review → published (→ archived when superseded).
+ * Lifecycle: draft → publication_requested → published (→ archived when superseded).
  * Published packages are immutable — use newVersion() to create an editable copy.
  * Retrieval is only performed against published packages.
- *
- * DB table: knowledge_datasets (renamed in Phase 3)
  */
 class KnowledgePackage extends Model
 {
     use BelongsToWorkspace;
-
-    // Explicit table name until Phase 3 DB rename
-    protected $table = 'knowledge_datasets';
 
     protected $fillable = [
         'workspace_id', 'name', 'description', 'version', 'status',
@@ -45,11 +40,11 @@ class KnowledgePackage extends Model
      */
     public function isPendingReview(): bool
     {
-        return $this->status === 'pending_review';
+        return $this->status === 'publication_requested';
     }
 
     /**
-     * Only drafts can be edited (pending_review, published, archived are immutable).
+     * Only drafts can be edited (publication_requested, published, archived are immutable).
      */
     public function isEditable(): bool
     {
@@ -65,18 +60,17 @@ class KnowledgePackage extends Model
     }
 
     /**
-     * Check if this package can be authorized for publication by an owner (must be pending_review).
+     * Check if this package can be authorized for publication by an owner (must be publication_requested).
      */
     public function isApprovable(): bool
     {
-        return $this->status === 'pending_review';
+        return $this->status === 'publication_requested';
     }
 
     /** The KU items included in this package, ordered by sort position. */
     public function items(): HasMany
     {
-        // FK column name uses legacy 'knowledge_dataset_id' until Phase 3 DB rename
-        return $this->hasMany(KnowledgePackageItem::class, 'knowledge_dataset_id')->orderBy('sort_order');
+        return $this->hasMany(KnowledgePackageItem::class, 'knowledge_package_id')->orderBy('sort_order');
     }
 
     /** The user who created this package. */

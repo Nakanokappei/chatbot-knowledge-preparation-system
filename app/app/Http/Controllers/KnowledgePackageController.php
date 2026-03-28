@@ -90,7 +90,7 @@ class KnowledgePackageController extends Controller
             // Add each KU as an item, recording its current version
             foreach ($selectedKUs->values() as $index => $ku) {
                 KnowledgePackageItem::create([
-                    'knowledge_dataset_id' => $package->id,
+                    'knowledge_package_id' => $package->id,
                     'knowledge_unit_id' => $ku->id,
                     'sort_order' => $index,
                     'included_version' => $ku->version,
@@ -124,7 +124,7 @@ class KnowledgePackageController extends Controller
             return back()->withErrors(['status' => __('ui.only_drafts_submittable')]);
         }
 
-        $package->update(['status' => 'pending_review']);
+        $package->update(['status' => 'publication_requested']);
 
         return back()->with('success', __('ui.review_submitted'));
     }
@@ -132,13 +132,13 @@ class KnowledgePackageController extends Controller
     /**
      * Publish a package — owner-only authorization step.
      *
-     * Owners can publish from both draft (shortcut) and pending_review states.
+     * Owners can publish from both draft (shortcut) and publication_requested states.
      * Members must go through submitForReview first.
      */
     public function publish(KnowledgePackage $package)
     {
-        // Owners can publish from draft or pending_review
-        if (! in_array($package->status, ['draft', 'pending_review'])) {
+        // Owners can publish from draft or publication_requested
+        if (! in_array($package->status, ['draft', 'publication_requested'])) {
             return back()->withErrors(['status' => 'Only draft or publication-requested packages can be published.']);
         }
 
@@ -198,7 +198,7 @@ class KnowledgePackageController extends Controller
             // Clone all items, refreshing included_version to current KU version
             foreach ($package->items()->with('knowledgeUnit')->get() as $item) {
                 KnowledgePackageItem::create([
-                    'knowledge_dataset_id' => $newPackage->id,
+                    'knowledge_package_id' => $newPackage->id,
                     'knowledge_unit_id' => $item->knowledge_unit_id,
                     'sort_order' => $item->sort_order,
                     'included_version' => $item->knowledgeUnit->version,

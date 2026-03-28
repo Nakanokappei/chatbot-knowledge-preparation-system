@@ -62,7 +62,7 @@
         .badge-approved { background: #d4edda; color: #155724; }
         .badge-rejected { background: #f8d7da; color: #721c24; }
         .badge-published { background: #d4edda; color: #155724; }
-        .badge-pending_review { background: #fff3cd; color: #856404; }
+        .badge-publication_requested { background: #fff3cd; color: #856404; }
         .badge-archived { background: #f0f0f2; color: #5f6368; }
         .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }

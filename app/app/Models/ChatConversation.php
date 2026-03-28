@@ -19,7 +19,7 @@ class ChatConversation extends Model
     use BelongsToWorkspace, HasUuids;
 
     protected $fillable = [
-        'workspace_id', 'knowledge_dataset_id', 'user_id',
+        'workspace_id', 'knowledge_package_id', 'user_id',
     ];
 
     /** Get all messages in this conversation, ordered chronologically. */
@@ -31,8 +31,7 @@ class ChatConversation extends Model
     /** The published knowledge package this conversation queries against. */
     public function knowledgePackage(): BelongsTo
     {
-        // FK column uses legacy 'knowledge_dataset_id' until Phase 3 DB rename
-        return $this->belongsTo(KnowledgePackage::class, 'knowledge_dataset_id');
+        return $this->belongsTo(KnowledgePackage::class, 'knowledge_package_id');
     }
 
     /** The user who initiated this conversation. */

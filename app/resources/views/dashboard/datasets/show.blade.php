@@ -27,7 +27,7 @@
         @endif
 
         <div class="page-header">
-            <h1>{{ $package->name }} <span class="badge badge-{{ $package->status }}">{{ $package->status === 'pending_review' ? __('ui.pending_review') : ucfirst($package->status) }}</span></h1>
+            <h1>{{ $package->name }} <span class="badge badge-{{ $package->status }}">{{ $package->status === 'publication_requested' ? __('ui.publication_requested') : ucfirst($package->status) }}</span></h1>
         </div>
         <p class="subtitle">Version {{ $package->version }} &middot; {{ $package->ku_count }} {{ __('ui.knowledge_units') }} &middot; {{ $package->created_at->format('Y-m-d H:i') }}</p>
 

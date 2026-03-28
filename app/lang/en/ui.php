@@ -497,7 +497,7 @@ return [
 
     // ── Knowledge Package publication workflow ───────────
     'submit_for_review' => 'Request Publication',
-    'pending_review' => 'Publication Requested',
+    'publication_requested' => 'Publication Requested',
     'approve_publish' => 'Authorize Publication',
     'reject_review' => 'Reject Request',
     'review_submitted' => 'Publication requested. Awaiting owner authorization.',
