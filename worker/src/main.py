@@ -57,10 +57,10 @@ def process_message(message_body: dict):
     """
     Dispatch a single SQS message to the appropriate step handler.
 
-    Expected message format (ADR-0005):
+    Expected message format:
     {
         "job_id": 1,
-        "tenant_id": 1,
+        "workspace_id": 1,
         "dataset_id": 1,
         "step": "ping",
         "input_s3_path": null,
@@ -68,7 +68,8 @@ def process_message(message_body: dict):
     }
     """
     job_id = message_body.get("job_id")
-    tenant_id = message_body.get("tenant_id")
+    # Accept both workspace_id (current) and tenant_id (legacy) for compatibility
+    tenant_id = message_body.get("workspace_id") or message_body.get("tenant_id")
     step = message_body.get("step")
 
     # Validate that all required message fields are present
@@ -152,7 +153,7 @@ def run_local(message_body: dict):
     """
     Run a single step locally without SQS, for development and testing.
 
-    Usage: python -m src.main --local '{"job_id":1,"tenant_id":1,"step":"ping"}'
+    Usage: python -m src.main --local '{"job_id":1,"workspace_id":1,"step":"ping"}'
     """
     logger.info("Running in local mode (no SQS)")
     process_message(message_body)

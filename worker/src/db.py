@@ -57,6 +57,8 @@ def get_connection(tenant_id: int = None):
     resolved_tenant = tenant_id or getattr(_thread_local, "tenant_id", None)
     if resolved_tenant is not None:
         with conn.cursor() as cur:
+            # Set both workspace_id (current RLS policies) and tenant_id (legacy)
+            cur.execute("SET app.workspace_id = %s", (str(resolved_tenant),))
             cur.execute("SET app.tenant_id = %s", (str(resolved_tenant),))
         conn.commit()
 
