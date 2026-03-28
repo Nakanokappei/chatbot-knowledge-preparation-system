@@ -30,6 +30,19 @@ use Illuminate\View\View;
 class DatasetWizardController extends Controller
 {
     /**
+     * Guard: system admins have no workspace; redirect to admin dashboard.
+     */
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (auth()->check() && auth()->user()->isSystemAdmin()) {
+                return redirect()->route('admin.index');
+            }
+            return $next($request);
+        });
+    }
+
+    /**
      * Step 1: Accept CSV upload, validate column count consistency,
      * detect encoding, store file, create draft dataset.
      *

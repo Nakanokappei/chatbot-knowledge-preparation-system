@@ -20,14 +20,18 @@ use Illuminate\Support\Facades\DB;
 class KnowledgePackageController extends Controller
 {
     /**
-     * Guard: system admins have no workspace and must not access package pages.
-     * Redirect them to their admin dashboard on every action.
+     * Guard: knowledge packages are owner-only.
+     * - System admins are redirected to their admin dashboard.
+     * - Members (non-owners) receive a 403.
      */
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
             if (auth()->check() && auth()->user()->isSystemAdmin()) {
                 return redirect()->route('admin.index');
+            }
+            if (auth()->check() && !auth()->user()->isOwner()) {
+                abort(403, 'Owner access required.');
             }
             return $next($request);
         });

@@ -16,6 +16,19 @@ use Illuminate\View\View;
 class ApiGuideController extends Controller
 {
     /**
+     * Guard: system admins have no workspace; redirect to admin dashboard.
+     */
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (auth()->check() && auth()->user()->isSystemAdmin()) {
+                return redirect()->route('admin.index');
+            }
+            return $next($request);
+        });
+    }
+
+    /**
      * Display the API guide with the current user's workspace context.
      *
      * Passes only published datasets — non-published datasets cannot be

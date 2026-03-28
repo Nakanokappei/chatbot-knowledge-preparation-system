@@ -24,6 +24,19 @@ use Illuminate\View\View;
 class KnowledgeUnitController extends Controller
 {
     /**
+     * Guard: system admins have no workspace; redirect to admin dashboard.
+     */
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (auth()->check() && auth()->user()->isSystemAdmin()) {
+                return redirect()->route('admin.index');
+            }
+            return $next($request);
+        });
+    }
+
+    /**
      * Allowed review_status transitions.
      */
     private const STATUS_TRANSITIONS = [
@@ -135,6 +148,11 @@ class KnowledgeUnitController extends Controller
      */
     public function review(Request $request, KnowledgeUnit $knowledgeUnit): RedirectResponse
     {
+        // Only owners may approve or reject Knowledge Units
+        if (!auth()->user()->isOwner()) {
+            abort(403, 'Owner access required.');
+        }
+
         $request->validate([
             'new_status' => 'required|string|in:draft,reviewed,approved,rejected',
             'review_comment' => 'nullable|string|max:500',

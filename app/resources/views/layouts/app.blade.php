@@ -125,10 +125,11 @@
                 <a href="{{ route('admin.system') }}" class="{{ request()->routeIs('admin.system') ? 'active' : '' }}">{{ __('ui.nav_system_health') }}</a>
                 <a href="{{ route('admin.settings.index') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
                 @else
-                {{-- Workspace-scoped nav: knowledge packages, usage, and (owners only) settings --}}
+                {{-- Workspace nav: all three links are owner-only.
+                     Members work entirely within the sidebar on the main workspace view. --}}
+                @if(auth()->user()->isOwner())
                 <a href="{{ route('kp.index') }}" class="{{ request()->routeIs('kp.*') || request()->routeIs('knowledge-units.*') ? 'active' : '' }}">{{ __('ui.datasets') }}</a>
                 <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
-                @if(auth()->user()->isOwner())
                 <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
                 @endif
                 @endif
