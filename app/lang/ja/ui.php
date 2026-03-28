@@ -296,22 +296,23 @@ return [
     'running' => '実行中...',
     'evaluation' => '評価',
 
-    // ── Knowledge Datasets ────────────────────────────────
-    'knowledge_datasets' => 'ナレッジデータセット',
-    'new_dataset_btn' => '+ 新規データセット',
-    'no_datasets_hint' => 'データセットがありません。承認済みKUからデータセットを作成してください。',
-    'create_knowledge_dataset' => 'ナレッジデータセット作成',
+    // ── Knowledge Packages ────────────────────────────────
+    'knowledge' => 'ナレッジ',
+    'knowledge_datasets' => 'ナレッジパッケージ',
+    'new_dataset_btn' => '+ 新規ナレッジパッケージ',
+    'no_datasets_hint' => 'ナレッジパッケージがありません。承認済みKUからナレッジパッケージを作成してください。',
+    'create_knowledge_dataset' => 'ナレッジパッケージ作成',
     'description_optional' => '説明（任意）',
     'select_all_btn' => 'すべて選択',
     'deselect_all' => 'すべて解除',
     'selected' => '件選択中',
     'no_approved_kus' => '承認済みKUがありません。先にKUを承認してください。',
-    'create_dataset' => 'データセット作成',
-    'datasets' => 'データセット',
+    'create_dataset' => 'ナレッジパッケージ作成',
+    'datasets' => 'ナレッジパッケージ',
 
     // ── Dataset show ──────────────────────────────────────
     'publish' => '公開',
-    'publish_confirm' => 'データセットを公開しますか？検索可能になります。',
+    'publish_confirm' => 'ナレッジパッケージを公開しますか？検索可能になります。',
     'new_version' => '新バージョン',
     'export_json' => 'JSON出力',
     'knowledge_units' => 'ナレッジユニット',

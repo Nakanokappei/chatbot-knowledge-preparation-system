@@ -1,6 +1,6 @@
 {{-- Knowledge units listing for a pipeline job: stats, bulk approve, export links, and individual KU cards. --}}
 @extends('layouts.app')
-@section('title', 'Job #' . $job->id . ' — ' . __('ui.knowledge_units'))
+@section('title', 'Job #' . $job->id . ' — ' . __('ui.knowledge'))
 
 @section('extra-styles')
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
@@ -30,7 +30,7 @@
         <div style="margin-bottom: 4px; font-size: 13px; color: #5f6368;">
             <a href="{{ route('dashboard.show', $job) }}" style="color: #0071e3; text-decoration: none;">← {{ __('ui.back_to_cluster_results') }}</a>
         </div>
-        <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Job #{{ $job->id }} — {{ __('ui.knowledge_units') }}</h1>
+        <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Job #{{ $job->id }} — {{ __('ui.knowledge') }}</h1>
         <p style="color: #5f6368; font-size: 13px; margin-bottom: 20px;">{{ $job->dataset->name ?? 'Unknown dataset' }} &middot; {{ $knowledgeUnits->count() }} KUs</p>
 
         {{-- Stats --}}

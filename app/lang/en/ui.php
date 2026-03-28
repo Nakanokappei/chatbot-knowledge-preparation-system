@@ -296,22 +296,23 @@ return [
     'running' => 'Running...',
     'evaluation' => 'Evaluation',
 
-    // ── Knowledge Datasets ────────────────────────────────
-    'knowledge_datasets' => 'Knowledge Datasets',
-    'new_dataset_btn' => '+ New Dataset',
-    'no_datasets_hint' => 'No datasets yet. Create one from your approved Knowledge Units.',
-    'create_knowledge_dataset' => 'Create Knowledge Dataset',
+    // ── Knowledge Packages ────────────────────────────────
+    'knowledge' => 'Knowledge',
+    'knowledge_datasets' => 'Knowledge Packages',
+    'new_dataset_btn' => '+ New Knowledge Package',
+    'no_datasets_hint' => 'No knowledge packages yet. Create one from your approved Knowledge Units.',
+    'create_knowledge_dataset' => 'Create Knowledge Package',
     'description_optional' => 'Description (optional)',
     'select_all_btn' => 'Select All',
     'deselect_all' => 'Deselect All',
     'selected' => 'selected',
     'no_approved_kus' => 'No approved Knowledge Units available. Review and approve KUs first.',
-    'create_dataset' => 'Create Dataset',
-    'datasets' => 'Datasets',
+    'create_dataset' => 'Create Knowledge Package',
+    'datasets' => 'Knowledge Packages',
 
     // ── Dataset show ──────────────────────────────────────
     'publish' => 'Publish',
-    'publish_confirm' => 'Publish this dataset? It will become available for retrieval.',
+    'publish_confirm' => 'Publish this knowledge package? It will become available for retrieval.',
     'new_version' => 'New Version',
     'export_json' => 'Export JSON',
     'knowledge_units' => 'Knowledge Units',
