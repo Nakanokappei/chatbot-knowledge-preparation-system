@@ -1,3 +1,7 @@
+# Claude Code
+CLAUDE.md
+.claude/
+
 # Laravel
 app/vendor/
 app/node_modules/
