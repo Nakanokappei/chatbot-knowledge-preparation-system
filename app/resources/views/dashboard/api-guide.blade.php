@@ -178,7 +178,10 @@ const data = await res.json();</pre>
 
                 @if($datasets->isEmpty())
                     <div class="sandbox">
-                        <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">公開済みデータセットがないためサンドボックスは利用できません。</p>
+                        <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">
+                            サンドボックスを利用するには<strong>公開済みデータセット</strong>が必要です。<br>
+                            <a href="{{ route('kd.index') }}" style="color: #0071e3;">データセット管理</a>でデータセットを作成し、承認・公開してください。
+                        </p>
                     </div>
                 @else
                     <div class="sandbox">
@@ -248,7 +251,10 @@ const data = await res.json();</pre>
 
                 @if($datasets->isEmpty())
                     <div class="sandbox">
-                        <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">公開済みデータセットがないためサンドボックスは利用できません。</p>
+                        <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">
+                            サンドボックスを利用するには<strong>公開済みデータセット</strong>が必要です。<br>
+                            <a href="{{ route('kd.index') }}" style="color: #0071e3;">データセット管理</a>でデータセットを作成し、承認・公開してください。
+                        </p>
                     </div>
                 @else
                     <div class="sandbox">
