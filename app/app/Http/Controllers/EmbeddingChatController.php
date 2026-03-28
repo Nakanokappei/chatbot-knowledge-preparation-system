@@ -61,6 +61,9 @@ class EmbeddingChatController extends Controller
                 ? $contextFromDb
                 : $clientContext;
 
+            // Include session state so RagService knows whether to reset slots
+            $inputContext['state'] = $session->state;
+
             $rag = new RagService();
 
             // Process chat with product extraction and multi-stage search

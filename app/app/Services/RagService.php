@@ -263,10 +263,19 @@ PROMPT;
     ): array {
         $modelId = $this->resolveModelId($workspaceId);
 
+        // Determine whether the conversation already answered and this is a new topic.
+        // When the session state is 'answered', treat the next user message as a fresh
+        // conversation — do not carry over the previous primary_filter or question.
+        $sessionState = $existingContext['state'] ?? 'idle';
+        $isNewTopic = $sessionState === 'answered';
+        $contextForExtraction = $isNewTopic ? [] : $existingContext;
+
         // Detect early whether we were waiting for the user to supply the primary filter value.
         // When the bot has already asked "which product?" (question set, filter missing), the user's
         // reply is the filter — not a new support question — so input-gate validation must be skipped.
-        $wasAskingForFilter = !empty($existingContext['question']) && empty($existingContext['primary_filter']);
+        $wasAskingForFilter = !$isNewTopic
+            && !empty($existingContext['question'])
+            && empty($existingContext['primary_filter']);
 
         if ($wasAskingForFilter) {
             // Bypass the LLM extraction entirely: use the raw reply as the primary filter value.
@@ -276,7 +285,7 @@ PROMPT;
             ];
         } else {
             // Step 1: Extract primary filter value and question from user input
-            $extracted = $this->extractPrimaryFilterAndQuestion($userMessage, $existingContext, $modelId);
+            $extracted = $this->extractPrimaryFilterAndQuestion($userMessage, $contextForExtraction, $modelId);
 
             // Step 1.5: Input gate — reject non-support messages and prompt injection
             if (empty($extracted['is_valid'])) {
@@ -290,11 +299,20 @@ PROMPT;
                 ];
             }
 
-            // Step 2: Merge extracted values with existing session context
-            $context = [
-                'primary_filter' => $extracted['primary_filter'] ?? $existingContext['primary_filter'] ?? null,
-                'question' => $extracted['question'] ?? $existingContext['question'] ?? null,
-            ];
+            // Step 2: Merge extracted values with existing session context.
+            // When this is a new topic (after an answer), use only the fresh extraction
+            // to avoid carrying over the previous product/question.
+            if ($isNewTopic) {
+                $context = [
+                    'primary_filter' => $extracted['primary_filter'] ?? null,
+                    'question' => $extracted['question'] ?? null,
+                ];
+            } else {
+                $context = [
+                    'primary_filter' => $extracted['primary_filter'] ?? $existingContext['primary_filter'] ?? null,
+                    'question' => $extracted['question'] ?? $existingContext['question'] ?? null,
+                ];
+            }
         }
 
         // Step 3: If primary filter is still missing, ask the user
