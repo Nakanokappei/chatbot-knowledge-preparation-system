@@ -86,9 +86,10 @@
             </nav>
         </div>
         <div class="topbar-right">
+            {{-- Role badge: static display only, not part of the dropdown trigger --}}
+            <span style="font-size: 11px; color: #86868b; background: #f0f0f2; padding: 1px 8px; border-radius: 8px;">{{ __('ui.role_system_admin') }}</span>
             <div class="user-menu" id="user-menu">
                 <button class="user-btn" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
-                    <span style="color: #7C3AED; font-size: 13px; font-weight: 500; margin-right: 12px;">{{ __('ui.system_admin') }}</span>
                     <span class="user-avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
                     {{ auth()->user()->name }}
                 </button>
