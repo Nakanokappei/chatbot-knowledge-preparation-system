@@ -108,7 +108,7 @@
             </button>
             <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
-                <a href="{{ route('kd.index') }}" class="{{ request()->routeIs('kd.*') || request()->routeIs('knowledge-units.*') ? 'active' : '' }}">{{ __('ui.datasets') }}</a>
+                <a href="{{ route('kp.index') }}" class="{{ request()->routeIs('kp.*') || request()->routeIs('knowledge-units.*') ? 'active' : '' }}">{{ __('ui.datasets') }}</a>
                 <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
                 @if(auth()->user()->isOwner())
                 <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>

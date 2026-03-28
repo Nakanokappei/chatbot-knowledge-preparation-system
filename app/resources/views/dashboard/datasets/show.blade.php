@@ -1,6 +1,6 @@
-{{-- Dataset detail: metadata, lifecycle action buttons, stats card, and included KU table. --}}
+{{-- Knowledge package detail: metadata, lifecycle action buttons, stats card, and included KU table. --}}
 @extends('layouts.app')
-@section('title', $dataset->name . ' v' . $dataset->version)
+@section('title', $package->name . ' v' . $package->version)
 
 @section('extra-styles')
     .page-header { margin-bottom: 4px; }
@@ -27,37 +27,37 @@
         @endif
 
         <div class="page-header">
-            <h1>{{ $dataset->name }} <span class="badge badge-{{ $dataset->status }}">{{ $dataset->status === 'pending_review' ? __('ui.pending_review') : ucfirst($dataset->status) }}</span></h1>
+            <h1>{{ $package->name }} <span class="badge badge-{{ $package->status }}">{{ $package->status === 'pending_review' ? __('ui.pending_review') : ucfirst($package->status) }}</span></h1>
         </div>
-        <p class="subtitle">Version {{ $dataset->version }} &middot; {{ $dataset->ku_count }} {{ __('ui.knowledge_units') }} &middot; {{ $dataset->created_at->format('Y-m-d H:i') }}</p>
+        <p class="subtitle">Version {{ $package->version }} &middot; {{ $package->ku_count }} {{ __('ui.knowledge_units') }} &middot; {{ $package->created_at->format('Y-m-d H:i') }}</p>
 
-        @if($dataset->description)
-            <p style="margin-bottom: 16px; color: #424245; font-size: 14px;">{{ $dataset->description }}</p>
+        @if($package->description)
+            <p style="margin-bottom: 16px; color: #424245; font-size: 14px;">{{ $package->description }}</p>
         @endif
 
         <div class="actions">
-            {{-- Draft: submit for review, or owner can publish directly --}}
-            @if($dataset->isEditable())
-                <form method="POST" action="{{ route('kd.submit-review', $dataset) }}">
+            {{-- Draft: submit for publication request, or owner can publish directly --}}
+            @if($package->isEditable())
+                <form method="POST" action="{{ route('kp.submit-review', $package) }}">
                     @csrf
                     <button type="submit" class="btn btn-primary">{{ __('ui.submit_for_review') }}</button>
                 </form>
                 @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
-                    <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+                    <form method="POST" action="{{ route('kp.publish', $package) }}">
                         @csrf
                         <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.publish_directly') }}</button>
                     </form>
                 @endif
             @endif
 
-            {{-- Pending review: owner approves or rejects --}}
-            @if($dataset->isPendingReview())
+            {{-- Publication requested: owner authorizes or rejects --}}
+            @if($package->isPendingReview())
                 @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
-                    <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+                    <form method="POST" action="{{ route('kp.publish', $package) }}">
                         @csrf
                         <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.approve_publish') }}</button>
                     </form>
-                    <form method="POST" action="{{ route('kd.reject-review', $dataset) }}">
+                    <form method="POST" action="{{ route('kp.reject-review', $package) }}">
                         @csrf
                         <button type="submit" class="btn btn-outline">{{ __('ui.reject_review') }}</button>
                     </form>
@@ -67,14 +67,14 @@
             @endif
 
             {{-- Published: new version, export, chat --}}
-            @if($dataset->isPublished())
-                <form method="POST" action="{{ route('kd.new-version', $dataset) }}">
+            @if($package->isPublished())
+                <form method="POST" action="{{ route('kp.new-version', $package) }}">
                     @csrf
-                    <button type="submit" class="btn btn-primary">{{ __('ui.new_version') }} (v{{ $dataset->version + 1 }})</button>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.new_version') }} (v{{ $package->version + 1 }})</button>
                 </form>
-                <a href="{{ route('kd.export', $dataset) }}" class="btn btn-outline">{{ __('ui.export_json') }}</a>
-                <a href="{{ route('kd.evaluation', $dataset) }}" class="btn btn-outline">{{ __('ui.evaluation') }}</a>
-                <a href="{{ route('kd.chat', $dataset) }}" class="btn btn-primary">{{ __('ui.chat') }}</a>
+                <a href="{{ route('kp.export', $package) }}" class="btn btn-outline">{{ __('ui.export_json') }}</a>
+                <a href="{{ route('kp.evaluation', $package) }}" class="btn btn-outline">{{ __('ui.evaluation') }}</a>
+                <a href="{{ route('kp.chat', $package) }}" class="btn btn-primary">{{ __('ui.chat') }}</a>
             @endif
         </div>
 
@@ -83,19 +83,19 @@
             <div class="meta-grid">
                 <div>
                     <div class="meta-label">{{ __('ui.knowledge_units') }}</div>
-                    <div class="meta-value">{{ $dataset->ku_count }}</div>
+                    <div class="meta-value">{{ $package->ku_count }}</div>
                 </div>
                 <div>
                     <div class="meta-label">{{ __('ui.status') }}</div>
-                    <div class="meta-value" style="font-size: 15px; font-weight: 500;">{{ ucfirst($dataset->status) }}</div>
+                    <div class="meta-value" style="font-size: 15px; font-weight: 500;">{{ ucfirst($package->status) }}</div>
                 </div>
                 <div>
                     <div class="meta-label">{{ __('ui.version') }}</div>
-                    <div class="meta-value">v{{ $dataset->version }}</div>
+                    <div class="meta-value">v{{ $package->version }}</div>
                 </div>
                 <div>
                     <div class="meta-label">{{ __('ui.created_by') }}</div>
-                    <div class="meta-value" style="font-size: 15px; font-weight: 500;">{{ $dataset->creator?->name ?? 'System' }}</div>
+                    <div class="meta-value" style="font-size: 15px; font-weight: 500;">{{ $package->creator?->name ?? 'System' }}</div>
                 </div>
             </div>
         </div>
@@ -115,7 +115,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($dataset->items as $item)
+                    @foreach($package->items as $item)
                         <tr>
                             <td>{{ $item->sort_order + 1 }}</td>
                             <td>

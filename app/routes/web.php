@@ -96,18 +96,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/knowledge-units/{knowledgeUnit}/versions', [KnowledgeUnitController::class, 'versions'])->name('knowledge-units.versions');
     Route::post('/jobs/{pipelineJob}/knowledge-units/bulk-approve', [KnowledgeUnitController::class, 'bulkApprove'])->name('knowledge-units.bulk-approve');
 
-    // Knowledge Datasets
-    Route::get('/knowledge-datasets', [KnowledgeDatasetController::class, 'index'])->name('kd.index');
-    Route::get('/knowledge-datasets/create', [KnowledgeDatasetController::class, 'create'])->name('kd.create');
-    Route::post('/knowledge-datasets', [KnowledgeDatasetController::class, 'store'])->name('kd.store');
-    Route::get('/knowledge-datasets/{dataset}', [KnowledgeDatasetController::class, 'show'])->name('kd.show');
-    Route::post('/knowledge-datasets/{dataset}/submit-review', [KnowledgeDatasetController::class, 'submitForReview'])->name('kd.submit-review');
-    Route::post('/knowledge-datasets/{dataset}/publish', [KnowledgeDatasetController::class, 'publish'])->name('kd.publish');
-    Route::post('/knowledge-datasets/{dataset}/reject-review', [KnowledgeDatasetController::class, 'rejectReview'])->name('kd.reject-review');
-    Route::post('/knowledge-datasets/{dataset}/new-version', [KnowledgeDatasetController::class, 'newVersion'])->name('kd.new-version');
-    Route::get('/knowledge-datasets/{dataset}/export', [KnowledgeDatasetController::class, 'export'])->name('kd.export');
-    Route::get('/knowledge-datasets/{dataset}/chat', [KnowledgeDatasetController::class, 'chat'])->name('kd.chat');
-    Route::get('/knowledge-datasets/{dataset}/evaluation', [KnowledgeDatasetController::class, 'evaluation'])->name('kd.evaluation');
+    // Knowledge Packages
+    Route::get('/knowledge-datasets', [KnowledgeDatasetController::class, 'index'])->name('kp.index');
+    Route::get('/knowledge-datasets/create', [KnowledgeDatasetController::class, 'create'])->name('kp.create');
+    Route::post('/knowledge-datasets', [KnowledgeDatasetController::class, 'store'])->name('kp.store');
+    Route::get('/knowledge-datasets/{package}', [KnowledgeDatasetController::class, 'show'])->name('kp.show');
+    Route::post('/knowledge-datasets/{package}/submit-review', [KnowledgeDatasetController::class, 'submitForReview'])->name('kp.submit-review');
+    Route::post('/knowledge-datasets/{package}/publish', [KnowledgeDatasetController::class, 'publish'])->name('kp.publish');
+    Route::post('/knowledge-datasets/{package}/reject-review', [KnowledgeDatasetController::class, 'rejectReview'])->name('kp.reject-review');
+    Route::post('/knowledge-datasets/{package}/new-version', [KnowledgeDatasetController::class, 'newVersion'])->name('kp.new-version');
+    Route::get('/knowledge-datasets/{package}/export', [KnowledgeDatasetController::class, 'export'])->name('kp.export');
+    Route::get('/knowledge-datasets/{package}/chat', [KnowledgeDatasetController::class, 'chat'])->name('kp.chat');
+    Route::get('/knowledge-datasets/{package}/evaluation', [KnowledgeDatasetController::class, 'evaluation'])->name('kp.evaluation');
 
     // Usage dashboard
     Route::get('/usage', [UsageController::class, 'index'])->name('usage');

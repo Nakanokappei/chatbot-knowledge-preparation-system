@@ -1,6 +1,6 @@
 {{-- RAG Chat interface: full-height chat page for a published dataset with source citations. --}}
 @extends('layouts.app')
-@section('title', 'Chat — ' . $dataset->name)
+@section('title', 'Chat — ' . $package->name)
 
 @section('extra-styles')
     .chat-layout { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff; border-radius: 12px 0 0 0; }
@@ -31,9 +31,9 @@
 @section('body')
 <div class="chat-layout">
     <div class="chat-header">
-        <a href="{{ route('kd.show', $dataset) }}" style="color: #0071e3; text-decoration: none; font-size: 13px;">← {{ __('ui.back') }}</a>
-        <h2>{{ $dataset->name }} v{{ $dataset->version }}</h2>
-        <span class="badge badge-published">{{ $dataset->ku_count }} KUs</span>
+        <a href="{{ route('kp.show', $package) }}" style="color: #0071e3; text-decoration: none; font-size: 13px;">← {{ __('ui.back') }}</a>
+        <h2>{{ $package->name }} v{{ $package->version }}</h2>
+        <span class="badge badge-published">{{ $package->ku_count }} KUs</span>
     </div>
 
     <div class="chat-body" id="chat-container">
@@ -41,7 +41,7 @@
             <div class="empty-state" id="empty-state">
                 <h3>{{ __('ui.rag_chat') }}</h3>
                 <p>{{ __('ui.ask_question_about') }}</p>
-                <p style="font-size: 12px; margin-top: 8px; color: #a0a0a5;">Retrieval + Augmented Generation against {{ $dataset->ku_count }} approved Knowledge Units</p>
+                <p style="font-size: 12px; margin-top: 8px; color: #a0a0a5;">Retrieval + Augmented Generation against {{ $package->ku_count }} approved Knowledge Units</p>
             </div>
         </div>
     </div>
@@ -57,7 +57,7 @@
 @endsection
 
 @section('scripts')
-const datasetId = {{ $dataset->id }};
+const datasetId = {{ $package->id }};
 const csrfToken = '{{ csrf_token() }}';
 let conversationId = null;
 let sending = false;

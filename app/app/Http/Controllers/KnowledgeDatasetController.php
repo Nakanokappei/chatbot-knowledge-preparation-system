@@ -9,28 +9,28 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Manages Knowledge Datasets — versioned collections of approved KUs.
+ * Manages Knowledge Packages — versioned collections of approved KUs.
  *
  * CTO rules:
- * - Only approved KUs can be added to a dataset
- * - Published datasets are immutable
+ * - Only approved KUs can be added to a package
+ * - Published packages are immutable
  * - New version clones items into a fresh draft
  * - Export JSON excludes embeddings
  */
 class KnowledgeDatasetController extends Controller
 {
     /**
-     * List all datasets for the current workspace.
+     * List all packages for the current workspace.
      */
     public function index()
     {
         $workspaceId = auth()->user()->workspace_id;
 
-        $datasets = KnowledgeDataset::where('workspace_id', $workspaceId)
+        $packages = KnowledgeDataset::where('workspace_id', $workspaceId)
             ->orderByDesc('updated_at')
             ->get();
 
-        return view('dashboard.datasets.index', compact('datasets'));
+        return view('dashboard.datasets.index', compact('packages'));
     }
 
     /**
@@ -51,7 +51,7 @@ class KnowledgeDatasetController extends Controller
     }
 
     /**
-     * Store a new dataset from selected approved KUs.
+     * Store a new package from selected approved KUs.
      */
     public function store(Request $request)
     {
@@ -75,9 +75,9 @@ class KnowledgeDatasetController extends Controller
             return back()->withErrors(['knowledge_unit_ids' => 'All selected units must be approved.']);
         }
 
-        $dataset = DB::transaction(function () use ($request, $workspaceId, $selectedKUs) {
-            // Create the dataset
-            $dataset = KnowledgeDataset::create([
+        $package = DB::transaction(function () use ($request, $workspaceId, $selectedKUs) {
+            // Create the package
+            $package = KnowledgeDataset::create([
                 'workspace_id' => $workspaceId,
                 'name' => $request->name,
                 'description' => $request->description,
@@ -90,56 +90,56 @@ class KnowledgeDatasetController extends Controller
             // Add each KU as an item, recording its current version
             foreach ($selectedKUs->values() as $index => $ku) {
                 KnowledgeDatasetItem::create([
-                    'knowledge_dataset_id' => $dataset->id,
+                    'knowledge_dataset_id' => $package->id,
                     'knowledge_unit_id' => $ku->id,
                     'sort_order' => $index,
                     'included_version' => $ku->version,
                 ]);
             }
 
-            return $dataset;
+            return $package;
         });
 
         return redirect()
-            ->route('kd.show', $dataset)
-            ->with('success', "Dataset \"{$dataset->name}\" created with {$dataset->ku_count} units.");
+            ->route('kp.show', $package)
+            ->with('success', "Package \"{$package->name}\" created with {$package->ku_count} units.");
     }
 
     /**
-     * Display dataset detail with its Knowledge Units.
+     * Display package detail with its Knowledge Units.
      */
-    public function show(KnowledgeDataset $dataset)
+    public function show(KnowledgeDataset $package)
     {
-        $dataset->load(['items.knowledgeUnit', 'creator']);
+        $package->load(['items.knowledgeUnit', 'creator']);
 
-        return view('dashboard.datasets.show', compact('dataset'));
+        return view('dashboard.datasets.show', compact('package'));
     }
 
     /**
-     * Submit a draft dataset for owner review (member workflow).
+     * Submit a draft package for owner publication approval (member workflow).
      */
-    public function submitForReview(KnowledgeDataset $dataset)
+    public function submitForReview(KnowledgeDataset $package)
     {
-        if (! $dataset->isSubmittable()) {
+        if (! $package->isSubmittable()) {
             return back()->withErrors(['status' => __('ui.only_drafts_submittable')]);
         }
 
-        $dataset->update(['status' => 'pending_review']);
+        $package->update(['status' => 'pending_review']);
 
         return back()->with('success', __('ui.review_submitted'));
     }
 
     /**
-     * Publish a dataset — owner-only approval step.
+     * Publish a package — owner-only authorization step.
      *
      * Owners can publish from both draft (shortcut) and pending_review states.
      * Members must go through submitForReview first.
      */
-    public function publish(KnowledgeDataset $dataset)
+    public function publish(KnowledgeDataset $package)
     {
         // Owners can publish from draft or pending_review
-        if (! in_array($dataset->status, ['draft', 'pending_review'])) {
-            return back()->withErrors(['status' => 'Only draft or pending review datasets can be published.']);
+        if (! in_array($package->status, ['draft', 'pending_review'])) {
+            return back()->withErrors(['status' => 'Only draft or publication-requested packages can be published.']);
         }
 
         // Non-owners cannot publish directly — they must submit for review
@@ -147,86 +147,86 @@ class KnowledgeDatasetController extends Controller
             return back()->withErrors(['status' => __('ui.owner_approval_required')]);
         }
 
-        // Demote any existing published dataset with the same name to archived
-        KnowledgeDataset::where('workspace_id', $dataset->workspace_id)
-            ->where('name', $dataset->name)
+        // Demote any existing published package with the same name to archived
+        KnowledgeDataset::where('workspace_id', $package->workspace_id)
+            ->where('name', $package->name)
             ->where('status', 'published')
             ->update(['status' => 'archived']);
 
-        $dataset->update(['status' => 'published']);
+        $package->update(['status' => 'published']);
 
-        return back()->with('success', "Dataset \"{$dataset->name}\" v{$dataset->version} is now published.");
+        return back()->with('success', "Package \"{$package->name}\" v{$package->version} is now published.");
     }
 
     /**
-     * Reject a pending review and revert to draft (owner only).
+     * Reject a publication request and revert to draft (owner only).
      */
-    public function rejectReview(KnowledgeDataset $dataset)
+    public function rejectReview(KnowledgeDataset $package)
     {
-        if (! $dataset->isApprovable()) {
-            return back()->withErrors(['status' => 'Only pending review datasets can be rejected.']);
+        if (! $package->isApprovable()) {
+            return back()->withErrors(['status' => 'Only publication-requested packages can be rejected.']);
         }
 
-        $dataset->update(['status' => 'draft']);
+        $package->update(['status' => 'draft']);
 
         return back()->with('success', __('ui.review_rejected'));
     }
 
     /**
-     * Create a new version by cloning items from a published dataset.
+     * Create a new version by cloning items from a published package.
      */
-    public function newVersion(KnowledgeDataset $dataset)
+    public function newVersion(KnowledgeDataset $package)
     {
-        // Only published datasets can spawn new versions
-        if ($dataset->status !== 'published') {
-            return back()->withErrors(['status' => 'Can only create new version from a published dataset.']);
+        // Only published packages can spawn new versions
+        if ($package->status !== 'published') {
+            return back()->withErrors(['status' => 'Can only create new version from a published package.']);
         }
 
-        $newDataset = DB::transaction(function () use ($dataset) {
-            // Clone the dataset with incremented version
-            $newDataset = KnowledgeDataset::create([
-                'workspace_id' => $dataset->workspace_id,
-                'name' => $dataset->name,
-                'description' => $dataset->description,
-                'version' => $dataset->version + 1,
+        $newPackage = DB::transaction(function () use ($package) {
+            // Clone the package with incremented version
+            $newPackage = KnowledgeDataset::create([
+                'workspace_id' => $package->workspace_id,
+                'name' => $package->name,
+                'description' => $package->description,
+                'version' => $package->version + 1,
                 'status' => 'draft',
-                'source_job_ids' => $dataset->source_job_ids,
-                'ku_count' => $dataset->ku_count,
+                'source_job_ids' => $package->source_job_ids,
+                'ku_count' => $package->ku_count,
                 'created_by' => auth()->id(),
             ]);
 
             // Clone all items, refreshing included_version to current KU version
-            foreach ($dataset->items()->with('knowledgeUnit')->get() as $item) {
+            foreach ($package->items()->with('knowledgeUnit')->get() as $item) {
                 KnowledgeDatasetItem::create([
-                    'knowledge_dataset_id' => $newDataset->id,
+                    'knowledge_dataset_id' => $newPackage->id,
                     'knowledge_unit_id' => $item->knowledge_unit_id,
                     'sort_order' => $item->sort_order,
                     'included_version' => $item->knowledgeUnit->version,
                 ]);
             }
 
-            return $newDataset;
+            return $newPackage;
         });
 
         return redirect()
-            ->route('kd.show', $newDataset)
-            ->with('success', "New version v{$newDataset->version} created as draft.");
+            ->route('kp.show', $newPackage)
+            ->with('success', "New version v{$newPackage->version} created as draft.");
     }
 
     /**
-     * Export a published dataset as JSON (no embeddings per CTO directive).
+     * Export a published package as JSON (no embeddings per CTO directive).
      */
-    public function export(KnowledgeDataset $dataset)
+    public function export(KnowledgeDataset $package)
     {
-        $dataset->load(['items.knowledgeUnit']);
+        $package->load(['items.knowledgeUnit']);
 
         $export = [
-            'dataset_id' => $dataset->id,
-            'name' => $dataset->name,
-            'version' => $dataset->version,
-            'status' => $dataset->status,
+            'package_id' => $package->id,
+            'name' => $package->name,
+            'version' => $package->version,
+            'status' => $package->status,
             'exported_at' => now()->toIso8601String(),
-            'knowledge_units' => $dataset->items->map(function ($item) {
+            'knowledge_units' => $package->items->map(function ($item) {
                 $ku = $item->knowledgeUnit;
                 return [
                     'id' => $ku->id,
@@ -244,31 +244,31 @@ class KnowledgeDatasetController extends Controller
             })->values(),
         ];
 
-        $filename = str_replace(' ', '_', $dataset->name) . "_v{$dataset->version}.json";
+        $filename = str_replace(' ', '_', $package->name) . "_v{$package->version}.json";
 
         return response()->json($export)
             ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
     }
 
     /**
-     * Show the RAG chat interface for a published dataset.
+     * Show the RAG chat interface for a published package.
      */
-    public function chat(KnowledgeDataset $dataset)
+    public function chat(KnowledgeDataset $package)
     {
-        // Chat is restricted to published datasets only
-        if (! $dataset->isPublished()) {
-            return redirect()->route('kd.show', $dataset)
-                ->withErrors(['status' => 'Chat is only available for published datasets.']);
+        // Chat is restricted to published packages only
+        if (! $package->isPublished()) {
+            return redirect()->route('kp.show', $package)
+                ->withErrors(['status' => 'Chat is only available for published packages.']);
         }
 
-        return view('dashboard.datasets.chat', compact('dataset'));
+        return view('dashboard.datasets.chat', compact('package'));
     }
 
     /**
-     * Show the retrieval quality evaluation page for a dataset.
+     * Show the retrieval quality evaluation page for a package.
      */
-    public function evaluation(KnowledgeDataset $dataset)
+    public function evaluation(KnowledgeDataset $package)
     {
-        return view('dashboard.datasets.evaluation', compact('dataset'));
+        return view('dashboard.datasets.evaluation', compact('package'));
     }
 }

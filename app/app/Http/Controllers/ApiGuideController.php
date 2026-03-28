@@ -25,12 +25,12 @@ class ApiGuideController extends Controller
     {
         $workspaceId = auth()->user()->workspace_id;
 
-        // Published datasets are queryable; others are not accessible via the API
-        $datasets = KnowledgeDataset::where('workspace_id', $workspaceId)
+        // Published packages are queryable; others are not accessible via the API
+        $packages = KnowledgeDataset::where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('dashboard.api-guide', compact('datasets'));
+        return view('dashboard.api-guide', compact('packages'));
     }
 }

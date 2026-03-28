@@ -1,6 +1,6 @@
 {{-- Retrieval quality evaluation: runs test queries against a dataset and shows hit rate, MRR, similarity, and latency. --}}
 @extends('layouts.app')
-@section('title', __('ui.evaluation') . ' — ' . $dataset->name)
+@section('title', __('ui.evaluation') . ' — ' . $package->name)
 
 @section('extra-styles')
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
@@ -26,7 +26,7 @@
     <div class="page-container">
 
         <div style="margin-bottom: 4px; font-size: 13px; color: #5f6368;">
-            <a href="{{ route('kd.show', $dataset) }}" style="color: #0071e3; text-decoration: none;">{{ $dataset->name }}</a> / {{ __('ui.evaluation') }}
+            <a href="{{ route('kp.show', $package) }}" style="color: #0071e3; text-decoration: none;">{{ $package->name }}</a> / {{ __('ui.evaluation') }}
         </div>
         <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 20px;">{{ __('ui.retrieval_quality_evaluation') }}</h1>
 
@@ -61,7 +61,7 @@
 @endsection
 
 @section('scripts')
-const datasetId = {{ $dataset->id }};
+const datasetId = {{ $package->id }};
 const csrfToken = '{{ csrf_token() }}';
 
 async function runEvaluation() {

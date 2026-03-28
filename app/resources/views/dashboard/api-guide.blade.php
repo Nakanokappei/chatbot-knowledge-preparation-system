@@ -80,8 +80,8 @@
             リクエストはログイン中のワークスペース（<strong>{{ auth()->user()->workspace->name ?? '—' }}</strong>）にのみアクセスできます。
         </div>
 
-        {{-- Published datasets for the sandbox selectors --}}
-        @php $datasetOptions = $datasets->map(fn($d) => ['id' => $d->id, 'name' => $d->name])->toArray(); @endphp
+        {{-- Published packages for the sandbox selectors --}}
+        @php $datasetOptions = $packages->map(fn($p) => ['id' => $p->id, 'name' => $p->name])->toArray(); @endphp
 
         {{-- ── Endpoint 1: GET /datasets ───────────────────────────────────── --}}
         <div class="endpoint-card open" id="ep-datasets">
@@ -176,20 +176,20 @@ const data = await res.json();</pre>
 });
 const data = await res.json();</pre>
 
-                @if($datasets->isEmpty())
+                @if($packages->isEmpty())
                     <div class="sandbox">
                         <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">
-                            サンドボックスを利用するには<strong>公開済みデータセット</strong>が必要です。<br>
-                            <a href="{{ route('kd.index') }}" style="color: #0071e3;">データセット管理</a>でデータセットを作成し、承認・公開してください。
+                            サンドボックスを利用するには<strong>公開済みナレッジパッケージ</strong>が必要です。<br>
+                            <a href="{{ route('kp.index') }}" style="color: #0071e3;">ナレッジパッケージ管理</a>でナレッジパッケージを作成・公開してください。
                         </p>
                     </div>
                 @else
                     <div class="sandbox">
                         <h4>サンドボックス</h4>
-                        <label>データセット</label>
+                        <label>ナレッジパッケージ</label>
                         <select id="retrieve-dataset">
-                            @foreach($datasets as $ds)
-                                <option value="{{ $ds->id }}">{{ $ds->name }} (ID: {{ $ds->id }})</option>
+                            @foreach($packages as $p)
+                                <option value="{{ $p->id }}">{{ $p->name }} (ID: {{ $p->id }})</option>
                             @endforeach
                         </select>
                         <label>クエリ</label>
@@ -249,20 +249,20 @@ const data = await res.json();</pre>
 });
 const data = await res.json();</pre>
 
-                @if($datasets->isEmpty())
+                @if($packages->isEmpty())
                     <div class="sandbox">
                         <p style="font-size: 13px; color: #a0a0a5; text-align: center; padding: 8px 0;">
-                            サンドボックスを利用するには<strong>公開済みデータセット</strong>が必要です。<br>
-                            <a href="{{ route('kd.index') }}" style="color: #0071e3;">データセット管理</a>でデータセットを作成し、承認・公開してください。
+                            サンドボックスを利用するには<strong>公開済みナレッジパッケージ</strong>が必要です。<br>
+                            <a href="{{ route('kp.index') }}" style="color: #0071e3;">ナレッジパッケージ管理</a>でナレッジパッケージを作成・公開してください。
                         </p>
                     </div>
                 @else
                     <div class="sandbox">
                         <h4>サンドボックス</h4>
-                        <label>データセット</label>
+                        <label>ナレッジパッケージ</label>
                         <select id="chat-dataset">
-                            @foreach($datasets as $ds)
-                                <option value="{{ $ds->id }}">{{ $ds->name }} (ID: {{ $ds->id }})</option>
+                            @foreach($packages as $p)
+                                <option value="{{ $p->id }}">{{ $p->name }} (ID: {{ $p->id }})</option>
                             @endforeach
                         </select>
                         <label>メッセージ</label>

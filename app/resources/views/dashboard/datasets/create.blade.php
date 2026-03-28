@@ -25,7 +25,7 @@
         <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 20px;">{{ __('ui.create_knowledge_dataset') }}</h1>
 
         <div class="card">
-            <form method="POST" action="{{ route('kd.store') }}">
+            <form method="POST" action="{{ route('kp.store') }}">
                 @csrf
 
                 <label class="form-label" for="name">{{ __('ui.dataset_name') }}</label>
