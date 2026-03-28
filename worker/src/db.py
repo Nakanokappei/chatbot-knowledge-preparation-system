@@ -164,7 +164,7 @@ def create_or_get_embedding(job_id: int, tenant_id: int, dataset_id: int,
         now = datetime.now(timezone.utc)
         cur.execute(
             """INSERT INTO embeddings
-               (tenant_id, dataset_id, name, column_config_json,
+               (workspace_id, dataset_id, name, column_config_json,
                 embedding_model, status, row_count, created_at, updated_at)
                VALUES (%s, %s, %s, %s, %s, 'processing', 0, %s, %s)
                RETURNING id""",
@@ -232,7 +232,7 @@ def record_token_usage(
             # Insert per-request record
             cur.execute(
                 """INSERT INTO token_usage
-                   (tenant_id, user_id, endpoint, model_id, input_tokens, output_tokens, estimated_cost, created_at)
+                   (workspace_id, user_id, endpoint, model_id, input_tokens, output_tokens, estimated_cost, created_at)
                    VALUES (%s, NULL, %s, %s, %s, %s, %s, %s)""",
                 (tenant_id, endpoint, model_id, input_tokens, output_tokens, cost, now),
             )
@@ -243,9 +243,9 @@ def record_token_usage(
             )
             cur.execute(
                 f"""INSERT INTO daily_cost_summary
-                    (tenant_id, date, {cost_col}, total_cost, total_tokens, request_count, created_at, updated_at)
+                    (workspace_id, date, {cost_col}, total_cost, total_tokens, request_count, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, %s, 1, %s, %s)
-                    ON CONFLICT (tenant_id, date)
+                    ON CONFLICT (workspace_id, date)
                     DO UPDATE SET
                         {cost_col} = daily_cost_summary.{cost_col} + EXCLUDED.{cost_col},
                         total_cost = daily_cost_summary.total_cost + EXCLUDED.total_cost,

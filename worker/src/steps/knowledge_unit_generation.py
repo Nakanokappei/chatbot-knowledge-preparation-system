@@ -293,7 +293,7 @@ def load_analyzed_clusters(job_id: int) -> list[dict]:
         # Fetch clusters with analysis results
         cur.execute(
             """SELECT c.id, c.cluster_label, c.topic_name, c.intent,
-                      c.summary, c.row_count, c.tenant_id
+                      c.summary, c.row_count, c.workspace_id
                FROM clusters c
                WHERE c.pipeline_job_id = %s AND c.topic_name IS NOT NULL
                ORDER BY c.cluster_label""",
@@ -301,7 +301,7 @@ def load_analyzed_clusters(job_id: int) -> list[dict]:
         )
         clusters = [
             {"id": r[0], "cluster_label": r[1], "topic_name": r[2], "intent": r[3],
-             "summary": r[4], "row_count": r[5], "tenant_id": r[6]}
+             "summary": r[4], "row_count": r[5], "workspace_id": r[6]}
             for r in cur.fetchall()
         ]
 
@@ -380,7 +380,7 @@ def create_knowledge_unit(
     with db_cursor() as cur:
         cur.execute(
             """INSERT INTO knowledge_units
-               (tenant_id, dataset_id, pipeline_job_id, cluster_id,
+               (workspace_id, dataset_id, pipeline_job_id, cluster_id,
                 topic, intent, summary, question, symptoms,
                 root_cause, primary_filter, category,
                 typical_cases_json, cause_summary, resolution_summary,
@@ -400,7 +400,7 @@ def create_knowledge_unit(
                        %s, %s)
                RETURNING id""",
             (
-                cluster["tenant_id"], dataset_id, job_id, cluster["id"],
+                cluster["workspace_id"], dataset_id, job_id, cluster["id"],
                 cluster["topic_name"], cluster["intent"], cluster["summary"],
                 extracted_fields.get("question"), extracted_fields.get("symptoms"),
                 extracted_fields.get("root_cause"), extracted_fields.get("primary_filter"), extracted_fields.get("category"),

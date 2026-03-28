@@ -560,7 +560,7 @@ def save_clusters_to_db(
 
                 cur.execute(
                     """INSERT INTO clusters
-                       (pipeline_job_id, tenant_id, cluster_label, row_count, quality_score, created_at, updated_at)
+                       (pipeline_job_id, workspace_id, cluster_label, row_count, quality_score, created_at, updated_at)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                        RETURNING id""",
                     (job_id, tenant_id, int(label), row_count, quality_score, now, now),
