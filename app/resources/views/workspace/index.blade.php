@@ -696,8 +696,8 @@
             </div>
         </div>
 
-        <!-- Input area -->
-        <div style="border-top: 1px solid #e5e5e7; padding: 12px 16px; flex-shrink: 0;">
+        <!-- Input area (hidden while history panel is open) -->
+        <div id="chat-input-area" style="border-top: 1px solid #e5e5e7; padding: 12px 16px; flex-shrink: 0;">
             <form onsubmit="sendChatMessage(event)" style="display: flex; gap: 8px;">
                 <input type="text" id="chat-input" placeholder="Type your question..."
                     style="flex: 1; padding: 10px 14px; border: 1px solid #d2d2d7; border-radius: 20px; font-size: 14px; outline: none;"
@@ -1150,17 +1150,22 @@
         }
 
         // Toggle the history panel visibility and load sessions on first open.
+        // The input area is hidden while the history panel is open to prevent
+        // sending messages that would go unnoticed behind the history view.
         let historyLoaded = false;
         function toggleHistoryPanel() {
             const panel = document.getElementById('chat-history-panel');
             const messages = document.getElementById('chat-messages');
+            const inputArea = document.getElementById('chat-input-area');
             const isOpen = panel.style.display !== 'none';
             if (isOpen) {
                 panel.style.display = 'none';
                 messages.style.display = 'flex';
+                inputArea.style.display = 'block';
             } else {
                 panel.style.display = 'flex';
                 messages.style.display = 'none';
+                inputArea.style.display = 'none';
                 if (!historyLoaded) {
                     loadChatHistory();
                     historyLoaded = true;
