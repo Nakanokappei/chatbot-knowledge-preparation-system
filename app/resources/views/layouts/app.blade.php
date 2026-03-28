@@ -101,11 +101,21 @@
     {{-- Top navigation bar: hamburger menu, app title, nav links, and user dropdown --}}
     <div class="topbar">
         <div class="topbar-left">
+            {{-- System admins have no sidebar on this layout (e.g. /profile): render the
+                 hamburger as a link back to the admin dashboard instead of a sidebar toggle. --}}
+            @if(auth()->user()->isSystemAdmin())
+            <a href="{{ route('admin.index', ['workspace' => 'all']) }}" class="hamburger" title="{{ __('ui.all_workspaces') }}" style="text-decoration: none;">
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/>
+                </svg>
+            </a>
+            @else
             <button class="hamburger" onclick="toggleSidebar()" title="{{ __('ui.toggle_sidebar') }}">
                 <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
                     <line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/>
                 </svg>
             </button>
+            @endif
             <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
                 @if(auth()->user()->isSystemAdmin())
