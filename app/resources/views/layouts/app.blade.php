@@ -159,10 +159,13 @@
             }
         });
 
-        // Toggle sidebar between full and collapsed (icon-only) mode
+        // Toggle sidebar when on a workspace page; navigate to workspace when on other pages
         function toggleSidebar() {
             const sidebar = document.querySelector('.sidebar');
-            if (!sidebar) return;
+            if (!sidebar) {
+                window.location.href = '{{ route('dashboard') }}';
+                return;
+            }
             sidebar.classList.toggle('collapsed');
         }
 
