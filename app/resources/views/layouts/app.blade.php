@@ -77,7 +77,7 @@
 
         @yield('extra-styles')
     </style>
-    {{-- System admin: override topbar and body background to match the admin console theme --}}
+    {{-- System admin: override topbar, body background, and primary buttons to match the admin console theme --}}
     @if(auth()->check() && auth()->user()->isSystemAdmin())
     <style>
         body, .topbar, .user-btn { background: #F0E6FA !important; }
@@ -85,6 +85,8 @@
         .topbar-nav a:hover { background: #E0D0F0 !important; color: #1d1d1f !important; }
         .topbar-nav a.active { background: #7C3AED !important; color: #fff !important; }
         .user-avatar { background: #7C3AED !important; }
+        .btn-primary { background: #7C3AED !important; }
+        .btn-primary:hover { background: #6D28D9 !important; }
     </style>
     @endif
 </head>
