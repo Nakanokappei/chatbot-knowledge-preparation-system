@@ -318,14 +318,18 @@
                 if (v >= 1000)    return (v / 1000).toFixed(0) + 'K';
                 return Math.round(v).toString();
             }
-            // Adaptive decimal places: show enough digits to be meaningful
+            // Adaptive decimal places: strip trailing zeros so ticks look clean (e.g. $0.002 not $0.0020)
             function fmtCost(v) {
-                if (v === 0)      return '$0';
-                if (v >= 1)       return '$' + v.toFixed(2);
-                if (v >= 0.01)    return '$' + v.toFixed(3);
-                if (v >= 0.001)   return '$' + v.toFixed(4);
-                if (v >= 0.0001)  return '$' + v.toFixed(5);
-                return '$' + v.toFixed(6);
+                if (v === 0) return '$0';
+                let s;
+                if (v >= 1)      s = v.toFixed(2);
+                else if (v >= 0.01)   s = v.toFixed(3);
+                else if (v >= 0.001)  s = v.toFixed(4);
+                else if (v >= 0.0001) s = v.toFixed(5);
+                else                  s = v.toFixed(6);
+                // Remove trailing zeros after the decimal point
+                s = s.replace(/(\.\d*[1-9])0+$/, '$1').replace(/\.0+$/, '');
+                return '$' + s;
             }
 
             // ── Chart 1: Daily cost line chart ────────────────────────────────
@@ -343,9 +347,10 @@
                 const cw  = W - pad.left - pad.right;
                 const ch  = H - pad.top  - pad.bottom;
 
-                const maxCost = niceMax(Math.max(...data.map(d => d.cost), 0.0001), 4);
+                const maxCost  = niceMax(Math.max(...data.map(d => d.cost), 0.0001), 4);
+                const costStep = maxCost / 4;
 
-                // Grid lines + left Y-axis labels
+                // Grid lines + left Y-axis labels (step-based to avoid floating-point drift)
                 ctx.strokeStyle = '#f0f0f2';
                 ctx.lineWidth   = 1;
                 ctx.fillStyle   = '#5f6368';
@@ -354,7 +359,7 @@
                 for (let i = 0; i <= 4; i++) {
                     const y = pad.top + ch - (ch * i / 4);
                     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-                    ctx.fillText(fmtCost(maxCost * i / 4), pad.left - 6, y + 4);
+                    ctx.fillText(fmtCost(costStep * i), pad.left - 6, y + 4);
                 }
 
                 // Cost line (purple)
@@ -499,9 +504,12 @@
                     });
                 }
 
-                const maxTotal = niceMax(Math.max(...pipelineData.map(d => d.completed + d.failed), 1), 4);
+                // Integer-aware axis: step is at least 1, maxTotal always a clean multiple of 4
+                const rawMax   = Math.max(...pipelineData.map(d => d.completed + d.failed), 1);
+                const step     = Math.max(1, Math.ceil(rawMax / 4));
+                const maxTotal = step * 4;
 
-                // Grid lines + left Y-axis labels (integer counts)
+                // Grid lines + left Y-axis labels (integer counts, no duplicates)
                 ctx.strokeStyle = '#f0f0f2';
                 ctx.lineWidth   = 1;
                 ctx.fillStyle   = '#5f6368';
@@ -510,7 +518,7 @@
                 for (let i = 0; i <= 4; i++) {
                     const y = pad.top + ch - (ch * i / 4);
                     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-                    ctx.fillText(Math.round(maxTotal * i / 4).toString(), pad.left - 6, y + 4);
+                    ctx.fillText((step * i).toString(), pad.left - 6, y + 4);
                 }
 
                 // Stacked bars: green (completed) on bottom, red (failed) on top

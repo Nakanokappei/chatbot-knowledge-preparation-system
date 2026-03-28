@@ -6,6 +6,7 @@ use Aws\CloudWatch\CloudWatchClient;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Collects system health metrics for the admin dashboard.
@@ -160,6 +161,11 @@ class SystemMetricsService
      */
     private function fetchChatMetrics(): array
     {
+        // Guard: column may not exist yet if migration hasn't run in this environment
+        if (!Schema::hasColumn('chat_turns', 'response_ms')) {
+            return [];
+        }
+
         $rows = DB::table('chat_turns')
             ->where('role', 'assistant')
             ->whereNotNull('response_ms')
