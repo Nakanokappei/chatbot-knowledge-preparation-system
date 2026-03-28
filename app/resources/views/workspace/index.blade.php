@@ -960,49 +960,42 @@
 
             container.appendChild(wrapper);
 
-            // Show sources and meta for assistant messages
+            // Show sources as compact inline chips for assistant messages
             if (!isUser && meta) {
                 if (meta.sources && meta.sources.length > 0) {
                     const sourcesDiv = document.createElement('div');
                     sourcesDiv.style.cssText = 'align-self: flex-start; max-width: 85%; margin-top: 2px;';
-                    const label = document.createElement('div');
-                    label.style.cssText = 'font-size: 11px; color: #aaa; padding: 0 4px 4px; letter-spacing: 0.3px;';
+                    const chips = document.createElement('div');
+                    chips.style.cssText = 'display: flex; flex-wrap: wrap; gap: 4px; align-items: center;';
+                    // Small label before chips
+                    const label = document.createElement('span');
+                    label.style.cssText = 'font-size: 10px; color: #aaa; margin-right: 2px;';
                     label.textContent = '{{ __("ui.sources") }}';
-                    sourcesDiv.appendChild(label);
-                    const cards = document.createElement('div');
-                    cards.style.cssText = 'display: flex; flex-direction: column; gap: 4px;';
+                    chips.appendChild(label);
                     meta.sources.forEach(s => {
-                        const card = document.createElement('a');
-                        card.href = '/knowledge-units/' + s.id;
-                        card.target = '_blank';
-                        card.rel = 'noopener';
-                        card.style.cssText = 'display: flex; align-items: flex-start; gap: 6px; background: #F0F0F0; border-radius: 8px; padding: 6px 10px; text-decoration: none; color: inherit; transition: background 0.15s;';
-                        card.addEventListener('mouseenter', () => card.style.background = '#E4E4E4');
-                        card.addEventListener('mouseleave', () => card.style.background = '#F0F0F0');
-                        // Similarity badge — color by score
+                        const chip = document.createElement('a');
+                        chip.href = '/knowledge-units/' + s.id;
+                        chip.target = '_blank';
+                        chip.rel = 'noopener';
+                        chip.title = s.topic + (s.intent ? ' — ' + s.intent : '');
                         const pct = Math.round(s.similarity * 100);
-                        const badgeColor = pct >= 70 ? '#34a853' : pct >= 40 ? '#fbbc05' : '#aaa';
-                        const badge = document.createElement('span');
-                        badge.style.cssText = `flex-shrink: 0; font-size: 10px; font-weight: 600; color: ${badgeColor}; min-width: 32px; padding-top: 1px;`;
-                        badge.textContent = pct + '%';
-                        // Topic + intent
-                        const text = document.createElement('div');
-                        text.style.cssText = 'flex: 1; min-width: 0;';
-                        const topic = document.createElement('div');
-                        topic.style.cssText = 'font-size: 12px; font-weight: 500; color: #1d1d1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-                        topic.textContent = s.topic;
-                        text.appendChild(topic);
-                        if (s.intent) {
-                            const intent = document.createElement('div');
-                            intent.style.cssText = 'font-size: 11px; color: #5f6368; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-                            intent.textContent = s.intent;
-                            text.appendChild(intent);
-                        }
-                        card.appendChild(badge);
-                        card.appendChild(text);
-                        cards.appendChild(card);
+                        const badgeColor = pct >= 70 ? '#34a853' : pct >= 40 ? '#fbbc05' : '#999';
+                        chip.style.cssText = `display: inline-flex; align-items: center; gap: 3px; background: #f0f0f0; border-radius: 4px; padding: 1px 6px; text-decoration: none; color: #444; font-size: 11px; line-height: 18px; transition: background 0.15s; max-width: 180px;`;
+                        chip.addEventListener('mouseenter', () => chip.style.background = '#e4e4e4');
+                        chip.addEventListener('mouseleave', () => chip.style.background = '#f0f0f0');
+                        // Similarity percentage
+                        const pctSpan = document.createElement('span');
+                        pctSpan.style.cssText = `font-size: 10px; font-weight: 600; color: ${badgeColor};`;
+                        pctSpan.textContent = pct + '%';
+                        chip.appendChild(pctSpan);
+                        // Truncated topic
+                        const topicSpan = document.createElement('span');
+                        topicSpan.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+                        topicSpan.textContent = s.topic;
+                        chip.appendChild(topicSpan);
+                        chips.appendChild(chip);
                     });
-                    sourcesDiv.appendChild(cards);
+                    sourcesDiv.appendChild(chips);
                     container.appendChild(sourcesDiv);
                 }
                 // Feedback row: meta info + upvote/downvote buttons
