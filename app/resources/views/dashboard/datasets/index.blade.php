@@ -1,74 +1,47 @@
-{{-- Knowledge datasets listing page: shows all datasets with their status badges,
-     KU counts, and creation dates. Links to individual dataset detail pages. --}}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ __('ui.knowledge_datasets') }}</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        h1 { margin-bottom: 20px; }
-        .nav { margin-bottom: 20px; display: flex; gap: 12px; align-items: center; }
-        .nav a { color: #2563eb; text-decoration: none; }
-        .nav a:hover { text-decoration: underline; }
-        .btn { display: inline-block; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; cursor: pointer; border: none; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .card-title { font-size: 18px; font-weight: 600; }
-        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-        .badge-draft { background: #fef3c7; color: #92400e; }
-        .badge-published { background: #d1fae5; color: #065f46; }
-        .badge-archived { background: #e5e7eb; color: #374151; }
-        .badge-pending_review { background: #fef3c7; color: #92400e; }
-        .meta { color: #6b7280; font-size: 13px; }
-        .meta span { margin-right: 16px; }
-        .empty { text-align: center; padding: 40px; color: #6b7280; }
-        .success { background: #d1fae5; color: #065f46; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="nav">
-        <a href="{{ route('dashboard') }}">Dashboard</a> /
-        <strong>{{ __('ui.knowledge_datasets') }}</strong>
-        <a href="{{ route('kd.create') }}" class="btn btn-primary" style="margin-left: auto;">{{ __('ui.new_dataset_btn') }}</a>
-    </div>
+{{-- Knowledge datasets listing: shows all datasets with status badges, KU counts, and creation dates. --}}
+@extends('layouts.app')
+@section('title', __('ui.knowledge_datasets'))
 
-    @if(session('success'))
-        <div class="success">{{ session('success') }}</div>
-    @endif
+@section('extra-styles')
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-header h1 { font-size: 20px; font-weight: 600; }
+    .kd-card { display: flex; justify-content: space-between; align-items: flex-start; text-decoration: none; color: inherit; transition: box-shadow 0.15s; }
+    .kd-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .kd-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .kd-meta { font-size: 13px; color: #5f6368; margin-top: 2px; }
+    .flash-success { background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+@endsection
 
-    <h1>{{ __('ui.knowledge_datasets') }}</h1>
-
-    @forelse($datasets as $dataset)
-        <div class="card">
-            <div class="card-header">
-                <a href="{{ route('kd.show', $dataset) }}" class="card-title" style="color: #111; text-decoration: none;">
-                    {{ $dataset->name }}
-                    <span style="font-weight: normal; color: #6b7280;">v{{ $dataset->version }}</span>
-                </a>
-                <span class="badge badge-{{ $dataset->status }}">{{ $dataset->status === 'pending_review' ? __('ui.pending_review') : ucfirst($dataset->status) }}</span>
-            </div>
-            @if($dataset->description)
-                <p style="margin-bottom: 8px; color: #374151;">{{ $dataset->description }}</p>
-            @endif
-            <div class="meta">
-                <span>{{ $dataset->ku_count }} {{ __('ui.knowledge_units') }}</span>
-                <span>Created {{ $dataset->created_at->diffForHumans() }}</span>
-            </div>
-        </div>
-    @empty
-        <div class="card empty">
-            <p>{{ __('ui.no_datasets_hint') }}</p>
-            <br>
+@section('body')
+<div class="page-content">
+    <div class="page-container">
+        <div class="page-header">
+            <h1>{{ __('ui.knowledge_datasets') }}</h1>
             <a href="{{ route('kd.create') }}" class="btn btn-primary">{{ __('ui.new_dataset_btn') }}</a>
         </div>
-    @endforelse
+
+        @if(session('success'))
+            <div class="flash-success">{{ session('success') }}</div>
+        @endif
+
+        @forelse($datasets as $dataset)
+            <a href="{{ route('kd.show', $dataset) }}" class="card kd-card">
+                <div>
+                    <div class="kd-name">{{ $dataset->name }} <span style="font-weight: 400; color: #5f6368; font-size: 14px;">v{{ $dataset->version }}</span></div>
+                    <div class="kd-meta">{{ $dataset->ku_count }} {{ __('ui.knowledge_units') }} · {{ $dataset->created_at->diffForHumans() }}</div>
+                    @if($dataset->description)
+                        <div class="kd-meta">{{ Str::limit($dataset->description, 100) }}</div>
+                    @endif
+                </div>
+                <span class="badge badge-{{ $dataset->status }}">{{ $dataset->status === 'pending_review' ? __('ui.pending_review') : ucfirst($dataset->status) }}</span>
+            </a>
+        @empty
+            <div class="card empty">
+                <p>{{ __('ui.no_datasets_hint') }}</p>
+                <br>
+                <a href="{{ route('kd.create') }}" class="btn btn-primary">{{ __('ui.new_dataset_btn') }}</a>
+            </div>
+        @endforelse
+    </div>
 </div>
-</body>
-</html>
+@endsection

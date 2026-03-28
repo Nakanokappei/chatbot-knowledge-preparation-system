@@ -1,167 +1,138 @@
-{{-- Dataset detail page: shows a single knowledge dataset with metadata, action buttons
-     (publish, new version, export, chat), summary stats, and a table of included KUs. --}}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $dataset->name }} v{{ $dataset->version }}</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .nav { margin-bottom: 20px; }
-        .nav a { color: #2563eb; text-decoration: none; }
-        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        h1 { margin-bottom: 4px; }
-        .subtitle { color: #6b7280; margin-bottom: 20px; }
-        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-        .badge-draft { background: #fef3c7; color: #92400e; }
-        .badge-published { background: #d1fae5; color: #065f46; }
-        .badge-archived { background: #e5e7eb; color: #374151; }
-        .badge-pending_review { background: #fef3c7; color: #92400e; }
-        .btn { display: inline-block; padding: 8px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; border: none; text-decoration: none; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-success { background: #059669; color: white; }
-        .btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; }
-        .btn:hover { opacity: 0.9; }
-        .actions { display: flex; gap: 8px; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 10px 12px; background: #f9fafb; font-size: 13px; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
-        td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-        .meta-item { }
-        .meta-label { font-size: 12px; color: #6b7280; text-transform: uppercase; }
-        .meta-value { font-size: 18px; font-weight: 600; }
-        .success { background: #d1fae5; color: #065f46; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
-        .error { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
-    </style>
-</head>
-<body>
-<div class="container">
-    <div class="nav">
-        <a href="{{ route('dashboard') }}">Dashboard</a> /
-        <a href="{{ route('kd.index') }}">Datasets</a> /
-        <strong>{{ $dataset->name }}</strong>
-    </div>
+{{-- Dataset detail: metadata, lifecycle action buttons, stats card, and included KU table. --}}
+@extends('layouts.app')
+@section('title', $dataset->name . ' v' . $dataset->version)
 
-    @if(session('success'))
-        <div class="success">{{ session('success') }}</div>
-    @endif
+@section('extra-styles')
+    .page-header { margin-bottom: 4px; }
+    .page-header h1 { font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .subtitle { color: #5f6368; font-size: 13px; margin-bottom: 16px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+    .meta-label { font-size: 11px; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .meta-value { font-size: 20px; font-weight: 600; }
+    .flash-success { background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+    .flash-error { background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px; }
+    .pending-note { font-size: 13px; color: #5f6368; align-self: center; }
+@endsection
 
-    @if($errors->any())
-        <div class="error">{{ $errors->first() }}</div>
-    @endif
+@section('body')
+<div class="page-content">
+    <div class="page-container">
 
-    <h1>{{ $dataset->name }} <span class="badge badge-{{ $dataset->status }}">{{ $dataset->status === 'pending_review' ? __('ui.pending_review') : ucfirst($dataset->status) }}</span></h1>
-    <p class="subtitle">Version {{ $dataset->version }} | {{ $dataset->ku_count }} Knowledge Units | Created {{ $dataset->created_at->format('Y-m-d H:i') }}</p>
+        @if(session('success'))
+            <div class="flash-success">{{ session('success') }}</div>
+        @endif
+        @if($errors->any())
+            <div class="flash-error">{{ $errors->first() }}</div>
+        @endif
 
-    @if($dataset->description)
-        <p style="margin-bottom: 16px;">{{ $dataset->description }}</p>
-    @endif
+        <div class="page-header">
+            <h1>{{ $dataset->name }} <span class="badge badge-{{ $dataset->status }}">{{ $dataset->status === 'pending_review' ? __('ui.pending_review') : ucfirst($dataset->status) }}</span></h1>
+        </div>
+        <p class="subtitle">Version {{ $dataset->version }} &middot; {{ $dataset->ku_count }} {{ __('ui.knowledge_units') }} &middot; {{ $dataset->created_at->format('Y-m-d H:i') }}</p>
 
-    <div class="actions">
-        {{-- Draft: members can submit for review, owners can publish directly --}}
-        @if($dataset->isEditable())
-            <form method="POST" action="{{ route('kd.submit-review', $dataset) }}">
-                @csrf
-                <button type="submit" class="btn btn-primary">{{ __('ui.submit_for_review') }}</button>
-            </form>
-            @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
-                <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+        @if($dataset->description)
+            <p style="margin-bottom: 16px; color: #424245; font-size: 14px;">{{ $dataset->description }}</p>
+        @endif
+
+        <div class="actions">
+            {{-- Draft: submit for review, or owner can publish directly --}}
+            @if($dataset->isEditable())
+                <form method="POST" action="{{ route('kd.submit-review', $dataset) }}">
                     @csrf
-                    <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">
-                        {{ __('ui.publish_directly') }}
-                    </button>
+                    <button type="submit" class="btn btn-primary">{{ __('ui.submit_for_review') }}</button>
                 </form>
+                @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
+                    <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.publish_directly') }}</button>
+                    </form>
+                @endif
             @endif
-        @endif
 
-        {{-- Pending review: owners can approve or reject --}}
-        @if($dataset->isPendingReview())
-            @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
-                <form method="POST" action="{{ route('kd.publish', $dataset) }}">
-                    @csrf
-                    <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">
-                        {{ __('ui.approve_publish') }}
-                    </button>
-                </form>
-                <form method="POST" action="{{ route('kd.reject-review', $dataset) }}">
-                    @csrf
-                    <button type="submit" class="btn btn-outline">{{ __('ui.reject_review') }}</button>
-                </form>
-            @else
-                <span style="color: #6b7280; font-size: 14px;">{{ __('ui.owner_approval_required') }}</span>
+            {{-- Pending review: owner approves or rejects --}}
+            @if($dataset->isPendingReview())
+                @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
+                    <form method="POST" action="{{ route('kd.publish', $dataset) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.approve_publish') }}</button>
+                    </form>
+                    <form method="POST" action="{{ route('kd.reject-review', $dataset) }}">
+                        @csrf
+                        <button type="submit" class="btn btn-outline">{{ __('ui.reject_review') }}</button>
+                    </form>
+                @else
+                    <span class="pending-note">{{ __('ui.owner_approval_required') }}</span>
+                @endif
             @endif
-        @endif
 
-        {{-- Published: new version, export, chat --}}
-        @if($dataset->isPublished())
-            <form method="POST" action="{{ route('kd.new-version', $dataset) }}">
-                @csrf
-                <button type="submit" class="btn btn-primary">{{ __('ui.new_version') }} (v{{ $dataset->version + 1 }})</button>
-            </form>
+            {{-- Published: new version, export, chat --}}
+            @if($dataset->isPublished())
+                <form method="POST" action="{{ route('kd.new-version', $dataset) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-primary">{{ __('ui.new_version') }} (v{{ $dataset->version + 1 }})</button>
+                </form>
+                <a href="{{ route('kd.export', $dataset) }}" class="btn btn-outline">{{ __('ui.export_json') }}</a>
+                <a href="{{ route('kd.evaluation', $dataset) }}" class="btn btn-outline">{{ __('ui.evaluation') }}</a>
+                <a href="{{ route('kd.chat', $dataset) }}" class="btn btn-primary">{{ __('ui.chat') }}</a>
+            @endif
+        </div>
 
-            <a href="{{ route('kd.export', $dataset) }}" class="btn btn-outline">{{ __('ui.export_json') }}</a>
-
-            <a href="{{ route('kd.chat', $dataset) }}" class="btn btn-primary">{{ __('ui.chat') }}</a>
-        @endif
-    </div>
-
-    {{-- Stats card: KU count, status, version, and creator --}}
-    <div class="card">
-        <div class="meta-grid">
-            <div class="meta-item">
-                <div class="meta-label">{{ __('ui.knowledge_units') }}</div>
-                <div class="meta-value">{{ $dataset->ku_count }}</div>
-            </div>
-            <div class="meta-item">
-                <div class="meta-label">{{ __('ui.status') }}</div>
-                <div class="meta-value">{{ ucfirst($dataset->status) }}</div>
-            </div>
-            <div class="meta-item">
-                <div class="meta-label">{{ __('ui.version') }}</div>
-                <div class="meta-value">v{{ $dataset->version }}</div>
-            </div>
-            <div class="meta-item">
-                <div class="meta-label">{{ __('ui.created_by') }}</div>
-                <div class="meta-value">{{ $dataset->creator?->name ?? 'System' }}</div>
+        {{-- Stats --}}
+        <div class="card">
+            <div class="meta-grid">
+                <div>
+                    <div class="meta-label">{{ __('ui.knowledge_units') }}</div>
+                    <div class="meta-value">{{ $dataset->ku_count }}</div>
+                </div>
+                <div>
+                    <div class="meta-label">{{ __('ui.status') }}</div>
+                    <div class="meta-value" style="font-size: 15px; font-weight: 500;">{{ ucfirst($dataset->status) }}</div>
+                </div>
+                <div>
+                    <div class="meta-label">{{ __('ui.version') }}</div>
+                    <div class="meta-value">v{{ $dataset->version }}</div>
+                </div>
+                <div>
+                    <div class="meta-label">{{ __('ui.created_by') }}</div>
+                    <div class="meta-value" style="font-size: 15px; font-weight: 500;">{{ $dataset->creator?->name ?? 'System' }}</div>
+                </div>
             </div>
         </div>
-    </div>
 
-    {{-- KU items table: lists each knowledge unit with topic, intent, row count, and version --}}
-    <div class="card">
-        <h2 style="margin-bottom: 12px;">{{ __('ui.knowledge_units') }}</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>{{ __('ui.topic') }}</th>
-                    <th>{{ __('ui.intent') }}</th>
-                    <th>{{ __('ui.rows') }}</th>
-                    <th>{{ __('ui.confidence') }}</th>
-                    <th>{{ __('ui.ku_version') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($dataset->items as $item)
+        {{-- KU items table --}}
+        <div class="card">
+            <h2>{{ __('ui.knowledge_units') }}</h2>
+            <table>
+                <thead>
                     <tr>
-                        <td>{{ $item->sort_order + 1 }}</td>
-                        <td>
-                            <a href="{{ route('knowledge-units.show', $item->knowledge_unit_id) }}" style="color: #2563eb; text-decoration: none;">
-                                {{ $item->knowledgeUnit->topic }}
-                            </a>
-                        </td>
-                        <td>{{ $item->knowledgeUnit->intent }}</td>
-                        <td>{{ $item->knowledgeUnit->row_count }}</td>
-                        <td>{{ number_format($item->knowledgeUnit->confidence * 100) }}%</td>
-                        <td>v{{ $item->included_version }}</td>
+                        <th>#</th>
+                        <th>{{ __('ui.topic') }}</th>
+                        <th>{{ __('ui.intent') }}</th>
+                        <th>{{ __('ui.rows') }}</th>
+                        <th>{{ __('ui.confidence') }}</th>
+                        <th>{{ __('ui.ku_version') }}</th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach($dataset->items as $item)
+                        <tr>
+                            <td>{{ $item->sort_order + 1 }}</td>
+                            <td>
+                                <a href="{{ route('knowledge-units.show', $item->knowledge_unit_id) }}" style="color: #0071e3; text-decoration: none;">
+                                    {{ $item->knowledgeUnit->topic }}
+                                </a>
+                            </td>
+                            <td style="color: #5f6368; font-size: 13px;">{{ $item->knowledgeUnit->intent }}</td>
+                            <td>{{ $item->knowledgeUnit->row_count }}</td>
+                            <td>{{ number_format($item->knowledgeUnit->confidence * 100) }}%</td>
+                            <td>v{{ $item->included_version }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
     </div>
 </div>
-</body>
-</html>
+@endsection

@@ -1,57 +1,40 @@
-{{-- Knowledge units listing for a pipeline job: displays all KUs generated from clustering.
-     Includes summary stats, bulk approve action, export links, and individual KU cards
-     with topic, intent, summary, keywords, and typical cases. --}}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job #{{ $job->id }} — Knowledge Units</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
-        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
-        h1 { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
-        .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
-        a { color: #0071e3; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .back { font-size: 14px; margin-bottom: 16px; display: inline-block; }
-        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
-        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
-        .stat-card { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .stat-value { font-size: 28px; font-weight: 700; }
-        .stat-label { font-size: 12px; color: #5f6368; margin-top: 4px; }
-        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-        .badge-draft { background: #fff3cd; color: #856404; }
-        .badge-reviewed { background: #cce5ff; color: #004085; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .badge-rejected { background: #f8d7da; color: #721c24; }
-        .btn { display: inline-block; padding: 6px 14px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; }
-        .btn-outline { background: transparent; border: 1px solid #d2d2d7; color: #1d1d1f; }
-        .btn-outline:hover { background: #f5f5f7; text-decoration: none; }
-        .ku-card { border: 1px solid #e5e5e7; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-        .ku-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-        .ku-topic { font-size: 17px; font-weight: 600; }
-        .ku-intent { font-size: 13px; color: #5f6368; margin-top: 2px; }
-        .ku-summary { font-size: 14px; line-height: 1.6; color: #424245; margin-bottom: 12px; }
-        .ku-meta { display: flex; gap: 20px; font-size: 12px; color: #5f6368; flex-wrap: wrap; }
-        .ku-meta strong { color: #1d1d1f; }
-        .keywords { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-        .keyword { background: #f0f0f2; padding: 2px 8px; border-radius: 6px; font-size: 11px; color: #424245; }
-        .typical-case { background: #f5f5f7; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 13px; color: #424245; line-height: 1.5; }
-        .typical-case-label { font-size: 11px; font-weight: 600; color: #5f6368; margin-bottom: 6px; }
-        .export-bar { display: flex; gap: 8px; align-items: center; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="{{ route('dashboard.show', $job) }}" class="back">&larr; {{ __('ui.back_to_cluster_results') }}</a>
-        <h1>Job #{{ $job->id }} — {{ __('ui.knowledge_units') }}</h1>
-        <p class="subtitle">{{ $job->dataset->name ?? 'Unknown dataset' }} &middot; {{ $knowledgeUnits->count() }} Knowledge Units &middot; review_status: draft</p>
+{{-- Knowledge units listing for a pipeline job: stats, bulk approve, export links, and individual KU cards. --}}
+@extends('layouts.app')
+@section('title', 'Job #' . $job->id . ' — ' . __('ui.knowledge_units'))
 
-        {{-- Stats grid: total KUs, total rows, draft count, and approved count --}}
-        <div class="stats">
+@section('extra-styles')
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .stat-value { font-size: 26px; font-weight: 700; }
+    .stat-label { font-size: 11px; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .ku-card { border: 1px solid #e5e5e7; border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+    .ku-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .ku-topic { font-size: 16px; font-weight: 600; color: #1d1d1f; text-decoration: none; }
+    .ku-topic:hover { text-decoration: underline; }
+    .ku-intent { font-size: 13px; color: #5f6368; margin-top: 2px; }
+    .ku-summary { font-size: 14px; line-height: 1.6; color: #424245; margin-bottom: 12px; }
+    .ku-meta { display: flex; gap: 16px; font-size: 12px; color: #5f6368; flex-wrap: wrap; }
+    .ku-meta strong { color: #1d1d1f; }
+    .keywords { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .keyword { background: #f0f0f2; padding: 2px 8px; border-radius: 6px; font-size: 11px; color: #424245; }
+    .typical-case { background: #f5f5f7; border-radius: 8px; padding: 10px 14px; margin-top: 8px; font-size: 13px; color: #424245; line-height: 1.5; }
+    .typical-case-label { font-size: 11px; font-weight: 600; color: #5f6368; margin-bottom: 4px; }
+    .card-actions { display: flex; justify-content: space-between; align-items: center; }
+    .export-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+@endsection
+
+@section('body')
+<div class="page-content">
+    <div class="page-container">
+
+        <div style="margin-bottom: 4px; font-size: 13px; color: #5f6368;">
+            <a href="{{ route('dashboard.show', $job) }}" style="color: #0071e3; text-decoration: none;">← {{ __('ui.back_to_cluster_results') }}</a>
+        </div>
+        <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">Job #{{ $job->id }} — {{ __('ui.knowledge_units') }}</h1>
+        <p style="color: #5f6368; font-size: 13px; margin-bottom: 20px;">{{ $job->dataset->name ?? 'Unknown dataset' }} &middot; {{ $knowledgeUnits->count() }} KUs</p>
+
+        {{-- Stats --}}
+        <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-value" style="color: #0071e3;">{{ $knowledgeUnits->count() }}</div>
                 <div class="stat-label">{{ __('ui.knowledge_units') }}</div>
@@ -70,52 +53,46 @@
             </div>
         </div>
 
-        {{-- Bulk actions: approve all draft/reviewed KUs at once --}}
-        @if($knowledgeUnits->where('review_status', 'draft')->count() > 0 || $knowledgeUnits->where('review_status', 'reviewed')->count() > 0)
+        {{-- Bulk actions --}}
+        @if($knowledgeUnits->whereIn('review_status', ['draft', 'reviewed'])->count() > 0)
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="card-actions">
                 <h2 style="margin-bottom: 0;">{{ __('ui.bulk_actions') }}</h2>
-                <div style="display: flex; gap: 8px;">
-                    @if($knowledgeUnits->where('review_status', 'draft')->count() > 0)
-                    <form method="POST" action="{{ route('knowledge-units.bulk-approve', $job) }}" style="display: inline;">
-                        @csrf
-                        <button type="submit" class="btn" style="background: #34c759; color: white;"
-                                onclick="return confirm('Approve all {{ $knowledgeUnits->where('review_status', 'draft')->count() + $knowledgeUnits->where('review_status', 'reviewed')->count() }} Knowledge Units?')">
-                            {{ __('ui.approve_all') }} ({{ $knowledgeUnits->where('review_status', '!=', 'approved')->where('review_status', '!=', 'rejected')->count() }})
-                        </button>
-                    </form>
-                    @endif
-                </div>
+                <form method="POST" action="{{ route('knowledge-units.bulk-approve', $job) }}">
+                    @csrf
+                    <button type="submit" class="btn btn-green"
+                            onclick="return confirm('{{ __('ui.approve_confirm') }}')">
+                        {{ __('ui.approve_all') }} ({{ $knowledgeUnits->whereIn('review_status', ['draft', 'reviewed'])->count() }})
+                    </button>
+                </form>
             </div>
         </div>
         @endif
 
-        {{-- Export section: JSON/CSV download links for approved or all KUs --}}
+        {{-- Export --}}
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="card-actions">
                 <h2 style="margin-bottom: 0;">{{ __('ui.export') }}</h2>
                 <div class="export-bar">
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'approved']) }}" class="btn btn-outline">JSON (Approved)</a>
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'approved']) }}" class="btn btn-outline">CSV (Approved)</a>
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'all']) }}" class="btn btn-outline" style="opacity: 0.6;">JSON (All)</a>
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'all']) }}" class="btn btn-outline" style="opacity: 0.6;">CSV (All)</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'approved']) }}" class="btn btn-outline btn-sm">JSON (Approved)</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'approved']) }}" class="btn btn-outline btn-sm">CSV (Approved)</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'all']) }}" class="btn btn-outline btn-sm" style="opacity: 0.65;">JSON (All)</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'all']) }}" class="btn btn-outline btn-sm" style="opacity: 0.65;">CSV (All)</a>
                 </div>
             </div>
         </div>
 
-        {{-- Individual KU cards: topic, intent, summary, metadata, keywords, and typical cases --}}
+        {{-- Individual KU cards --}}
         @foreach($knowledgeUnits as $ku)
             <div class="ku-card">
                 <div class="ku-header">
                     <div>
-                        <a href="{{ route('knowledge-units.show', $ku) }}" style="text-decoration: none; color: inherit;">
-                            <div class="ku-topic">{{ $ku->topic }}</div>
-                        </a>
+                        <a href="{{ route('knowledge-units.show', $ku) }}" class="ku-topic">{{ $ku->topic }}</a>
                         <div class="ku-intent">{{ __('ui.intent') }}: {{ $ku->intent }}</div>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <span class="badge badge-{{ $ku->review_status }}">{{ $ku->review_status }}</span>
-                        <a href="{{ route('knowledge-units.show', $ku) }}" class="btn btn-sm btn-outline" style="text-decoration: none; font-size: 12px; padding: 3px 10px;">{{ __('ui.edit_review') }}</a>
+                        <a href="{{ route('knowledge-units.show', $ku) }}" class="btn btn-sm btn-outline">{{ __('ui.edit_review') }}</a>
                     </div>
                 </div>
 
@@ -125,7 +102,7 @@
                     <div><strong>{{ $ku->row_count }}</strong> {{ __('ui.rows') }}</div>
                     <div>{{ __('ui.version') }} <strong>{{ $ku->version }}</strong></div>
                     <div>{{ __('ui.cluster') }} <strong>{{ $ku->cluster_id }}</strong></div>
-                    <div>{{ __('ui.created') }} <strong>{{ $ku->created_at->format('m/d H:i') }}</strong></div>
+                    <div>{{ $ku->created_at->format('m/d H:i') }}</div>
                 </div>
 
                 @if($ku->keywords_json)
@@ -144,6 +121,7 @@
                 @endif
             </div>
         @endforeach
+
     </div>
-</body>
-</html>
+</div>
+@endsection

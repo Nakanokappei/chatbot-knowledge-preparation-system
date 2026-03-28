@@ -51,12 +51,19 @@
         .btn-outline { background: transparent; border: 1px solid #d2d2d7; color: #1d1d1f; }
         .btn-outline:hover { background: #f5f5f7; }
         .btn-danger { background: #ff3b30; color: #fff; }
+        .btn-green { background: #30d158; color: #fff; }
+        .btn-green:hover { background: #28b84c; }
+        .btn-orange { background: #ff9500; color: #fff; }
+        .btn-orange:hover { background: #e68600; }
         .btn-sm { padding: 4px 10px; font-size: 12px; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
         .badge-draft { background: #f0f0f2; color: #5f6368; }
-        .badge-reviewed { background: #fff3cd; color: #856404; }
+        .badge-reviewed { background: #cce5ff; color: #004085; }
         .badge-approved { background: #d4edda; color: #155724; }
         .badge-rejected { background: #f8d7da; color: #721c24; }
+        .badge-published { background: #d4edda; color: #155724; }
+        .badge-pending_review { background: #fff3cd; color: #856404; }
+        .badge-archived { background: #f0f0f2; color: #5f6368; }
         .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
         table { width: 100%; border-collapse: collapse; font-size: 15px; }
@@ -101,6 +108,7 @@
             </button>
             <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
+                <a href="{{ route('kd.index') }}" class="{{ request()->routeIs('kd.*') || request()->routeIs('knowledge-units.*') ? 'active' : '' }}">{{ __('ui.datasets') }}</a>
                 <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
                 @if(auth()->user()->isOwner())
                 <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>

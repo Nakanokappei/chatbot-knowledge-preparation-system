@@ -1,69 +1,39 @@
-{{-- Knowledge unit detail/edit page: displays a single KU with review workflow actions,
-     editable fields (topic, intent, summary, cause/resolution, notes), metadata, keywords,
-     and typical cases. Approved KUs are locked from editing. --}}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KU #{{ $ku->id }} — {{ $ku->topic }}</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1d1d1f; }
-        .container { max-width: 960px; margin: 0 auto; padding: 24px; }
-        h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-        .subtitle { color: #5f6368; font-size: 14px; margin-bottom: 24px; }
-        a { color: #0071e3; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        .back { font-size: 14px; margin-bottom: 16px; display: inline-block; }
-        .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-        .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
-        .badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; }
-        .badge-draft { background: #fff3cd; color: #856404; }
-        .badge-reviewed { background: #cce5ff; color: #004085; }
-        .badge-approved { background: #d4edda; color: #155724; }
-        .badge-rejected { background: #f8d7da; color: #721c24; }
-        .btn { display: inline-block; padding: 8px 18px; border-radius: 8px; border: none; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; }
-        .btn-primary { background: #0071e3; color: #fff; }
-        .btn-primary:hover { background: #0077ed; }
-        .btn-green { background: #30d158; color: #fff; }
-        .btn-green:hover { background: #28b84c; }
-        .btn-orange { background: #ff9500; color: #fff; }
-        .btn-orange:hover { background: #e68600; }
-        .btn-danger { background: #ff3b30; color: #fff; }
-        .btn-danger:hover { background: #e0352b; }
-        .btn-outline { background: transparent; border: 1px solid #d2d2d7; color: #1d1d1f; }
-        .btn-outline:hover { background: #f5f5f7; text-decoration: none; }
-        .btn-sm { padding: 5px 14px; font-size: 13px; }
-        label { display: block; font-size: 13px; color: #5f6368; font-weight: 500; margin-bottom: 4px; }
-        input[type="text"], textarea { width: 100%; padding: 10px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; font-family: inherit; }
-        textarea { resize: vertical; min-height: 80px; }
-        .form-group { margin-bottom: 16px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .meta { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: #5f6368; margin-bottom: 16px; }
-        .meta strong { color: #1d1d1f; }
-        .keywords { display: flex; gap: 6px; flex-wrap: wrap; }
-        .keyword { background: #f0f0f2; padding: 2px 8px; border-radius: 6px; font-size: 12px; color: #424245; }
-        .review-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .typical-case { background: #f5f5f7; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #424245; line-height: 1.5; margin-bottom: 8px; }
-        .locked-notice { background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
-        .flash-success { background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-        .flash-error { background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="{{ route('dashboard.knowledge-units', $ku->pipeline_job_id) }}" class="back">&larr; {{ __('ui.back_to_knowledge_units') }}</a>
+{{-- Knowledge unit detail/edit: review workflow buttons, editable fields, metadata, and typical cases. --}}
+@extends('layouts.app')
+@section('title', 'KU #' . $ku->id . ' — ' . $ku->topic)
 
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-            <h1>KU #{{ $ku->id }} — {{ $ku->topic }}</h1>
-            <span class="badge badge-{{ $ku->review_status }}">{{ $ku->review_status }}</span>
+@section('extra-styles')
+    .form-label { display: block; font-size: 13px; font-weight: 500; color: #5f6368; margin-bottom: 4px; }
+    .form-input { width: 100%; padding: 9px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .form-input:focus { outline: none; border-color: #0071e3; }
+    textarea.form-input { resize: vertical; min-height: 80px; }
+    .form-group { margin-bottom: 16px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .review-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .ku-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: #5f6368; margin-bottom: 16px; }
+    .ku-meta strong { color: #1d1d1f; }
+    .keywords { display: flex; gap: 6px; flex-wrap: wrap; }
+    .keyword { background: #f0f0f2; padding: 2px 8px; border-radius: 6px; font-size: 12px; color: #424245; }
+    .typical-case { background: #f5f5f7; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #424245; line-height: 1.5; margin-bottom: 8px; }
+    .locked-notice { background: #fff3cd; color: #856404; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+    .flash-success { background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+    .flash-error { background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+@endsection
+
+@section('body')
+<div class="page-content">
+    <div class="page-container">
+
+        <div style="margin-bottom: 4px; font-size: 13px;">
+            <a href="{{ route('dashboard.knowledge-units', $ku->pipeline_job_id) }}" style="color: #0071e3; text-decoration: none;">← {{ __('ui.back_to_knowledge_units') }}</a>
         </div>
-        <p class="subtitle">
-            Intent: {{ $ku->intent }} &middot;
-            Version {{ $ku->version }} &middot;
-            {{ $ku->row_count }} rows &middot;
-            Cluster #{{ $ku->cluster_id }}
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+            <h1 style="font-size: 20px; font-weight: 600;">KU #{{ $ku->id }} — {{ $ku->topic }}</h1>
+            <span class="badge badge-{{ $ku->review_status }}" style="font-size: 12px; padding: 3px 10px;">{{ $ku->review_status }}</span>
+        </div>
+        <p style="color: #5f6368; font-size: 13px; margin-bottom: 20px;">
+            {{ $ku->intent }} &middot; v{{ $ku->version }} &middot; {{ $ku->row_count }} rows &middot; Cluster #{{ $ku->cluster_id }}
         </p>
 
         @if(session('success'))
@@ -73,7 +43,7 @@
             <div class="flash-error">&#10007; {{ session('error') }}</div>
         @endif
 
-        {{-- Review actions: status transition buttons (approve, review, reject, revert) --}}
+        {{-- Review actions --}}
         @if(count($allowedTransitions) > 0)
             <div class="card">
                 <h2>{{ __('ui.review') }}</h2>
@@ -106,14 +76,12 @@
             </div>
         @endif
 
-        {{-- Edit form: editable fields with version bump on save; disabled when KU is approved --}}
+        {{-- Edit form --}}
         <div class="card">
             <h2>{{ __('ui.edit') }}</h2>
 
             @if(!$ku->isEditable())
-                <div class="locked-notice">
-                    {{ __('ui.ku_locked_hint') }}
-                </div>
+                <div class="locked-notice">{{ __('ui.ku_locked_hint') }}</div>
             @endif
 
             <form method="POST" action="{{ route('knowledge-units.update', $ku) }}">
@@ -122,38 +90,34 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="topic">{{ __('ui.topic') }}</label>
-                        <input type="text" id="topic" name="topic" value="{{ $ku->topic }}" @if(!$ku->isEditable()) disabled @endif>
+                        <label class="form-label" for="topic">{{ __('ui.topic') }}</label>
+                        <input class="form-input" type="text" id="topic" name="topic" value="{{ $ku->topic }}" @if(!$ku->isEditable()) disabled @endif>
                     </div>
                     <div class="form-group">
-                        <label for="intent">{{ __('ui.intent') }}</label>
-                        <input type="text" id="intent" name="intent" value="{{ $ku->intent }}" @if(!$ku->isEditable()) disabled @endif>
+                        <label class="form-label" for="intent">{{ __('ui.intent') }}</label>
+                        <input class="form-input" type="text" id="intent" name="intent" value="{{ $ku->intent }}" @if(!$ku->isEditable()) disabled @endif>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="summary">{{ __('ui.summary') }}</label>
-                    <textarea id="summary" name="summary" rows="3" @if(!$ku->isEditable()) disabled @endif>{{ $ku->summary }}</textarea>
+                    <label class="form-label" for="summary">{{ __('ui.summary') }}</label>
+                    <textarea class="form-input" id="summary" name="summary" rows="3" @if(!$ku->isEditable()) disabled @endif>{{ $ku->summary }}</textarea>
                 </div>
-
                 <div class="form-group">
-                    <label for="cause_summary">{{ __('ui.cause_summary') }}</label>
-                    <textarea id="cause_summary" name="cause_summary" rows="3" placeholder="Describe the root cause of this issue pattern..." @if(!$ku->isEditable()) disabled @endif>{{ $ku->cause_summary }}</textarea>
+                    <label class="form-label" for="cause_summary">{{ __('ui.cause_summary') }}</label>
+                    <textarea class="form-input" id="cause_summary" name="cause_summary" rows="3" @if(!$ku->isEditable()) disabled @endif>{{ $ku->cause_summary }}</textarea>
                 </div>
-
                 <div class="form-group">
-                    <label for="resolution_summary">{{ __('ui.resolution_summary') }}</label>
-                    <textarea id="resolution_summary" name="resolution_summary" rows="3" placeholder="Describe how to resolve this issue..." @if(!$ku->isEditable()) disabled @endif>{{ $ku->resolution_summary }}</textarea>
+                    <label class="form-label" for="resolution_summary">{{ __('ui.resolution_summary') }}</label>
+                    <textarea class="form-input" id="resolution_summary" name="resolution_summary" rows="3" @if(!$ku->isEditable()) disabled @endif>{{ $ku->resolution_summary }}</textarea>
                 </div>
-
                 <div class="form-group">
-                    <label for="notes">{{ __('ui.notes') }}</label>
-                    <textarea id="notes" name="notes" rows="2" placeholder="Internal notes..." @if(!$ku->isEditable()) disabled @endif>{{ $ku->notes }}</textarea>
+                    <label class="form-label" for="notes">{{ __('ui.notes') }}</label>
+                    <textarea class="form-input" id="notes" name="notes" rows="2" @if(!$ku->isEditable()) disabled @endif>{{ $ku->notes }}</textarea>
                 </div>
-
                 <div class="form-group">
-                    <label for="edit_comment">{{ __('ui.edit_comment') }}</label>
-                    <input type="text" id="edit_comment" name="edit_comment" placeholder="What did you change?" @if(!$ku->isEditable()) disabled @endif>
+                    <label class="form-label" for="edit_comment">{{ __('ui.edit_comment') }}</label>
+                    <input class="form-input" type="text" id="edit_comment" name="edit_comment" placeholder="What did you change?" @if(!$ku->isEditable()) disabled @endif>
                 </div>
 
                 @if($ku->isEditable())
@@ -162,10 +126,10 @@
             </form>
         </div>
 
-        {{-- Metadata card: row count, confidence score, version, pipeline job, and keyword tags --}}
+        {{-- Metadata --}}
         <div class="card">
             <h2>{{ __('ui.metadata') }}</h2>
-            <div class="meta">
+            <div class="ku-meta">
                 <div>{{ __('ui.row_count') }}: <strong>{{ $ku->row_count }}</strong></div>
                 <div>{{ __('ui.confidence') }}: <strong>{{ $ku->confidence }}</strong></div>
                 <div>{{ __('ui.version') }}: <strong>{{ $ku->version }}</strong></div>
@@ -175,9 +139,8 @@
                     <div>{{ __('ui.last_edited') }}: <strong>{{ $ku->edited_at->format('Y-m-d H:i') }}</strong></div>
                 @endif
             </div>
-
             @if($ku->keywords_json)
-                <label style="margin-bottom: 8px;">{{ __('ui.keywords') }}</label>
+                <label class="form-label" style="margin-bottom: 8px;">{{ __('ui.keywords') }}</label>
                 <div class="keywords">
                     @foreach($ku->keywords_json as $kw)
                         <span class="keyword">{{ $kw }}</span>
@@ -186,7 +149,7 @@
             @endif
         </div>
 
-        {{-- Typical cases: representative example texts extracted from the cluster --}}
+        {{-- Typical cases --}}
         @if($ku->typical_cases_json && count($ku->typical_cases_json) > 0)
             <div class="card">
                 <h2>{{ __('ui.typical_cases') }}</h2>
@@ -198,6 +161,7 @@
                 @endforeach
             </div>
         @endif
+
     </div>
-</body>
-</html>
+</div>
+@endsection

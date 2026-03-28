@@ -41,38 +41,42 @@
             {{-- Add LLM model form --}}
             <div class="card">
                 <h2>{{ __('ui.add_model') }}</h2>
-                <form method="POST" action="{{ route('settings.store') }}">
-                    @csrf
-                    @if($systemLlmModels->isNotEmpty())
-                    {{-- System templates available: restrict selection to approved models only --}}
-                    <div class="form-row">
-                        <div class="form-group" style="flex: 2;">
-                            <label for="model_id">{{ __('ui.select_model') }}</label>
-                            <select id="model_id" name="model_id" required
-                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                onchange="updateDisplayName(this)">
-                                <option value="">{{ __('ui.select_from_system_models') }}</option>
-                                @foreach($systemLlmModels as $sysModel)
-                                    @if(!$models->contains('model_id', $sysModel->model_id))
-                                    <option value="{{ $sysModel->model_id }}"
-                                        data-display="{{ $sysModel->display_name }}">
-                                        {{ $sysModel->display_name }}
-                                    </option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="display_name">{{ __('ui.display_name_auto') }}</label>
-                            <input type="text" id="display_name" name="display_name" placeholder="Auto-generated from selection">
-                        </div>
-                        <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
-                    </div>
-                    @else
-                    {{-- No system templates defined: show notice instead of form --}}
+                @php
+                    $availableLlmModels = $systemLlmModels->filter(fn($m) => !$models->contains('model_id', $m->model_id));
+                @endphp
+                @if($systemLlmModels->isEmpty())
+                    {{-- Admin has registered no models at all --}}
                     <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.no_system_models_hint') }}</p>
-                    @endif
-                </form>
+                @elseif($availableLlmModels->isEmpty())
+                    {{-- All registered models already added to this workspace --}}
+                    <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.all_models_added') }}</p>
+                @else
+                    {{-- System templates available: restrict selection to approved models only --}}
+                    <form method="POST" action="{{ route('settings.store') }}">
+                        @csrf
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 2;">
+                                <label for="model_id">{{ __('ui.select_model') }}</label>
+                                <select id="model_id" name="model_id" required
+                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
+                                    onchange="updateDisplayName(this)">
+                                    <option value="">{{ __('ui.select_from_system_models') }}</option>
+                                    @foreach($availableLlmModels as $sysModel)
+                                        <option value="{{ $sysModel->model_id }}"
+                                            data-display="{{ $sysModel->display_name }}">
+                                            {{ $sysModel->display_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="display_name">{{ __('ui.display_name_auto') }}</label>
+                                <input type="text" id="display_name" name="display_name" placeholder="Auto-generated from selection">
+                            </div>
+                            <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
+                        </div>
+                    </form>
+                @endif
             </div>
 
             {{-- Registered LLM models table: editable pricing, status toggle, set default --}}
@@ -122,46 +126,50 @@
 
             <div class="card">
                 <h2>{{ __('ui.add_embedding_model') }}</h2>
-                @if($systemEmbeddingModels->isNotEmpty())
-                {{-- System templates available: restrict to approved embedding models only --}}
-                <form method="POST" action="{{ route('settings.embedding.store') }}">
-                    @csrf
-                    <div class="form-row">
-                        <div class="form-group" style="flex: 2;">
-                            <label for="emb_model_id">{{ __('ui.select_model') }}</label>
-                            <select id="emb_model_id" name="model_id" required
-                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                onchange="updateEmbDisplayName(this)">
-                                <option value="">{{ __('ui.select_from_system_models') }}</option>
-                                @foreach($systemEmbeddingModels as $sysEmb)
-                                    @if(!$embeddingModels->contains('model_id', $sysEmb->model_id))
-                                    <option value="{{ $sysEmb->model_id }}"
-                                        data-display="{{ $sysEmb->display_name }}"
-                                        data-dimension="{{ $sysEmb->dimension }}">
-                                        {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
-                                    </option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="emb_display_name">{{ __('ui.display_name') }}</label>
-                            <input type="text" id="emb_display_name" name="display_name" placeholder="Auto-generated">
-                        </div>
-                        <div class="form-group" style="width: 90px; flex: none;">
-                            <label for="emb_dimension">{{ __('ui.dimension') }}</label>
-                            {{-- Dimension is auto-filled from the template and locked; JS sets the value on selection. --}}
-                            <input type="number" id="emb_dimension" name="dimension"
-                                value="" min="1" max="8192" readonly
-                                placeholder="Auto"
-                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%; background: #f0f0f2; cursor: not-allowed;">
-                        </div>
-                        <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
-                    </div>
-                </form>
+                @php
+                    $availableEmbModels = $systemEmbeddingModels->filter(fn($m) => !$embeddingModels->contains('model_id', $m->model_id));
+                @endphp
+                @if($systemEmbeddingModels->isEmpty())
+                    {{-- Admin has registered no embedding models at all --}}
+                    <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.no_system_models_hint') }}</p>
+                @elseif($availableEmbModels->isEmpty())
+                    {{-- All registered embedding models already added to this workspace --}}
+                    <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.all_models_added') }}</p>
                 @else
-                {{-- No system templates defined: show notice instead of form --}}
-                <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.no_system_models_hint') }}</p>
+                    {{-- System templates available: restrict to approved embedding models only --}}
+                    <form method="POST" action="{{ route('settings.embedding.store') }}">
+                        @csrf
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 2;">
+                                <label for="emb_model_id">{{ __('ui.select_model') }}</label>
+                                <select id="emb_model_id" name="model_id" required
+                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
+                                    onchange="updateEmbDisplayName(this)">
+                                    <option value="">{{ __('ui.select_from_system_models') }}</option>
+                                    @foreach($availableEmbModels as $sysEmb)
+                                        <option value="{{ $sysEmb->model_id }}"
+                                            data-display="{{ $sysEmb->display_name }}"
+                                            data-dimension="{{ $sysEmb->dimension }}">
+                                            {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="emb_display_name">{{ __('ui.display_name') }}</label>
+                                <input type="text" id="emb_display_name" name="display_name" placeholder="Auto-generated">
+                            </div>
+                            <div class="form-group" style="width: 90px; flex: none;">
+                                <label for="emb_dimension">{{ __('ui.dimension') }}</label>
+                                {{-- Dimension is auto-filled from the template and locked; JS sets the value on selection. --}}
+                                <input type="number" id="emb_dimension" name="dimension"
+                                    value="" min="1" max="8192" readonly
+                                    placeholder="Auto"
+                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%; background: #f0f0f2; cursor: not-allowed;">
+                            </div>
+                            <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
+                        </div>
+                    </form>
                 @endif
             </div>
 
