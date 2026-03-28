@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\KnowledgeDataset;
+use App\Models\KnowledgePackage;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -26,7 +26,7 @@ class ApiGuideController extends Controller
         $workspaceId = auth()->user()->workspace_id;
 
         // Published packages are queryable; others are not accessible via the API
-        $packages = KnowledgeDataset::where('workspace_id', $workspaceId)
+        $packages = KnowledgePackage::where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->orderBy('name')
             ->get(['id', 'name']);

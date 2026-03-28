@@ -11,12 +11,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * A versioned collection of approved Knowledge Units for chatbot consumption.
  *
  * Lifecycle: draft → pending_review → published (→ archived when superseded).
- * Published datasets are immutable — use newVersion() to create an editable copy.
- * Retrieval is only performed against published datasets.
+ * Published packages are immutable — use newVersion() to create an editable copy.
+ * Retrieval is only performed against published packages.
+ *
+ * DB table: knowledge_datasets (renamed in Phase 3)
  */
-class KnowledgeDataset extends Model
+class KnowledgePackage extends Model
 {
     use BelongsToWorkspace;
+
+    // Explicit table name until Phase 3 DB rename
+    protected $table = 'knowledge_datasets';
 
     protected $fillable = [
         'workspace_id', 'name', 'description', 'version', 'status',
@@ -28,7 +33,7 @@ class KnowledgeDataset extends Model
     ];
 
     /**
-     * Only published datasets are available for retrieval/chat.
+     * Only published packages are available for retrieval/chat.
      */
     public function isPublished(): bool
     {
@@ -36,7 +41,7 @@ class KnowledgeDataset extends Model
     }
 
     /**
-     * Check if the dataset is awaiting owner approval.
+     * Check if the package is awaiting publication authorization.
      */
     public function isPendingReview(): bool
     {
@@ -52,7 +57,7 @@ class KnowledgeDataset extends Model
     }
 
     /**
-     * Check if this dataset can be submitted for review (must be draft).
+     * Check if this package can be submitted for publication (must be draft).
      */
     public function isSubmittable(): bool
     {
@@ -60,20 +65,21 @@ class KnowledgeDataset extends Model
     }
 
     /**
-     * Check if this dataset can be approved by an owner (must be pending_review).
+     * Check if this package can be authorized for publication by an owner (must be pending_review).
      */
     public function isApprovable(): bool
     {
         return $this->status === 'pending_review';
     }
 
-    /** The KU items included in this dataset, ordered by sort position. */
+    /** The KU items included in this package, ordered by sort position. */
     public function items(): HasMany
     {
-        return $this->hasMany(KnowledgeDatasetItem::class)->orderBy('sort_order');
+        // FK column name uses legacy 'knowledge_dataset_id' until Phase 3 DB rename
+        return $this->hasMany(KnowledgePackageItem::class, 'knowledge_dataset_id')->orderBy('sort_order');
     }
 
-    /** The user who created this dataset. */
+    /** The user who created this package. */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

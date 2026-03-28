@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * A chat conversation scoped to a published Knowledge Dataset.
+ * A chat conversation scoped to a published Knowledge Package.
  *
  * Minimal implementation per CTO directive — Phase 4 is a RAG verification API,
  * not a full conversational UI.
@@ -28,10 +28,11 @@ class ChatConversation extends Model
         return $this->hasMany(ChatMessage::class, 'conversation_id')->orderBy('created_at');
     }
 
-    /** The published knowledge dataset this conversation queries against. */
-    public function knowledgeDataset(): BelongsTo
+    /** The published knowledge package this conversation queries against. */
+    public function knowledgePackage(): BelongsTo
     {
-        return $this->belongsTo(KnowledgeDataset::class);
+        // FK column uses legacy 'knowledge_dataset_id' until Phase 3 DB rename
+        return $this->belongsTo(KnowledgePackage::class, 'knowledge_dataset_id');
     }
 
     /** The user who initiated this conversation. */

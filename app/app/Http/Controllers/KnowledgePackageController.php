@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\KnowledgeDataset;
-use App\Models\KnowledgeDatasetItem;
+use App\Models\KnowledgePackage;
+use App\Models\KnowledgePackageItem;
 use App\Models\KnowledgeUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
  * - New version clones items into a fresh draft
  * - Export JSON excludes embeddings
  */
-class KnowledgeDatasetController extends Controller
+class KnowledgePackageController extends Controller
 {
     /**
      * List all packages for the current workspace.
@@ -26,7 +26,7 @@ class KnowledgeDatasetController extends Controller
     {
         $workspaceId = auth()->user()->workspace_id;
 
-        $packages = KnowledgeDataset::where('workspace_id', $workspaceId)
+        $packages = KnowledgePackage::where('workspace_id', $workspaceId)
             ->orderByDesc('updated_at')
             ->get();
 
@@ -77,7 +77,7 @@ class KnowledgeDatasetController extends Controller
 
         $package = DB::transaction(function () use ($request, $workspaceId, $selectedKUs) {
             // Create the package
-            $package = KnowledgeDataset::create([
+            $package = KnowledgePackage::create([
                 'workspace_id' => $workspaceId,
                 'name' => $request->name,
                 'description' => $request->description,
@@ -89,7 +89,7 @@ class KnowledgeDatasetController extends Controller
 
             // Add each KU as an item, recording its current version
             foreach ($selectedKUs->values() as $index => $ku) {
-                KnowledgeDatasetItem::create([
+                KnowledgePackageItem::create([
                     'knowledge_dataset_id' => $package->id,
                     'knowledge_unit_id' => $ku->id,
                     'sort_order' => $index,
@@ -108,7 +108,7 @@ class KnowledgeDatasetController extends Controller
     /**
      * Display package detail with its Knowledge Units.
      */
-    public function show(KnowledgeDataset $package)
+    public function show(KnowledgePackage $package)
     {
         $package->load(['items.knowledgeUnit', 'creator']);
 
@@ -116,9 +116,9 @@ class KnowledgeDatasetController extends Controller
     }
 
     /**
-     * Submit a draft package for owner publication approval (member workflow).
+     * Submit a draft package for owner publication authorization (member workflow).
      */
-    public function submitForReview(KnowledgeDataset $package)
+    public function submitForReview(KnowledgePackage $package)
     {
         if (! $package->isSubmittable()) {
             return back()->withErrors(['status' => __('ui.only_drafts_submittable')]);
@@ -135,7 +135,7 @@ class KnowledgeDatasetController extends Controller
      * Owners can publish from both draft (shortcut) and pending_review states.
      * Members must go through submitForReview first.
      */
-    public function publish(KnowledgeDataset $package)
+    public function publish(KnowledgePackage $package)
     {
         // Owners can publish from draft or pending_review
         if (! in_array($package->status, ['draft', 'pending_review'])) {
@@ -148,7 +148,7 @@ class KnowledgeDatasetController extends Controller
         }
 
         // Demote any existing published package with the same name to archived
-        KnowledgeDataset::where('workspace_id', $package->workspace_id)
+        KnowledgePackage::where('workspace_id', $package->workspace_id)
             ->where('name', $package->name)
             ->where('status', 'published')
             ->update(['status' => 'archived']);
@@ -161,7 +161,7 @@ class KnowledgeDatasetController extends Controller
     /**
      * Reject a publication request and revert to draft (owner only).
      */
-    public function rejectReview(KnowledgeDataset $package)
+    public function rejectReview(KnowledgePackage $package)
     {
         if (! $package->isApprovable()) {
             return back()->withErrors(['status' => 'Only publication-requested packages can be rejected.']);
@@ -175,7 +175,7 @@ class KnowledgeDatasetController extends Controller
     /**
      * Create a new version by cloning items from a published package.
      */
-    public function newVersion(KnowledgeDataset $package)
+    public function newVersion(KnowledgePackage $package)
     {
         // Only published packages can spawn new versions
         if ($package->status !== 'published') {
@@ -184,7 +184,7 @@ class KnowledgeDatasetController extends Controller
 
         $newPackage = DB::transaction(function () use ($package) {
             // Clone the package with incremented version
-            $newPackage = KnowledgeDataset::create([
+            $newPackage = KnowledgePackage::create([
                 'workspace_id' => $package->workspace_id,
                 'name' => $package->name,
                 'description' => $package->description,
@@ -197,7 +197,7 @@ class KnowledgeDatasetController extends Controller
 
             // Clone all items, refreshing included_version to current KU version
             foreach ($package->items()->with('knowledgeUnit')->get() as $item) {
-                KnowledgeDatasetItem::create([
+                KnowledgePackageItem::create([
                     'knowledge_dataset_id' => $newPackage->id,
                     'knowledge_unit_id' => $item->knowledge_unit_id,
                     'sort_order' => $item->sort_order,
@@ -216,7 +216,7 @@ class KnowledgeDatasetController extends Controller
     /**
      * Export a published package as JSON (no embeddings per CTO directive).
      */
-    public function export(KnowledgeDataset $package)
+    public function export(KnowledgePackage $package)
     {
         $package->load(['items.knowledgeUnit']);
 
@@ -253,7 +253,7 @@ class KnowledgeDatasetController extends Controller
     /**
      * Show the RAG chat interface for a published package.
      */
-    public function chat(KnowledgeDataset $package)
+    public function chat(KnowledgePackage $package)
     {
         // Chat is restricted to published packages only
         if (! $package->isPublished()) {
@@ -267,7 +267,7 @@ class KnowledgeDatasetController extends Controller
     /**
      * Show the retrieval quality evaluation page for a package.
      */
-    public function evaluation(KnowledgeDataset $package)
+    public function evaluation(KnowledgePackage $package)
     {
         return view('dashboard.datasets.evaluation', compact('package'));
     }

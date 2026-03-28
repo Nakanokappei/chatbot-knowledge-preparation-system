@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
-use App\Models\KnowledgeDataset;
+use App\Models\KnowledgePackage;
 use App\Models\LlmModel;
 use App\Services\BedrockService;
 use App\Services\CostTrackingService;
@@ -40,21 +40,21 @@ class ChatController extends Controller
         $workspaceId = $request->user()->workspace_id;
         $topK = $request->input('top_k', 5);
 
-        // Verify dataset is published
-        $dataset = KnowledgeDataset::where('id', $request->dataset_id)
+        // Verify package is published
+        $package = KnowledgePackage::where('id', $request->dataset_id)
             ->where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->first();
 
-        if (! $dataset) {
-            return response()->json(['error' => 'Dataset not found or not published.'], 404);
+        if (! $package) {
+            return response()->json(['error' => 'Package not found or not published.'], 404);
         }
 
         $rag = new \App\Services\RagService();
         $bedrock = new BedrockService();
 
         // Step 1: Two-stage vector search (precise → broad fallback)
-        $searchResult = $rag->searchDatasetKnowledgeUnits($request->message, $dataset->id, $topK);
+        $searchResult = $rag->searchPackageKnowledgeUnits($request->message, $package->id, $topK);
         $retrievedKUs = $searchResult['results'];
 
         if (empty($retrievedKUs)) {

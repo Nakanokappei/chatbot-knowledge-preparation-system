@@ -97,21 +97,22 @@ class RagService
     }
 
     /**
-     * Two-stage vector search for published KnowledgeDataset (API chat).
+     * Two-stage vector search for published KnowledgePackage (API chat).
      *
-     * Searches KUs linked to a dataset via knowledge_dataset_items JOIN.
+     * Searches KUs linked to a package via knowledge_dataset_items JOIN.
+     * JOIN table uses legacy name until Phase 3 DB rename.
      */
-    public function searchDatasetKnowledgeUnits(
+    public function searchPackageKnowledgeUnits(
         string $queryText,
-        int $datasetId,
+        int $packageId,
         int $topK = self::TOP_K,
     ): array {
         $queryEmbedding = $this->bedrock->generateEmbedding($queryText);
         $vectorString = '[' . implode(',', $queryEmbedding) . ']';
 
         // Stage 1: Precise search
-        $results = $this->datasetVectorSearch(
-            $vectorString, $datasetId, 'search_embedding',
+        $results = $this->packageVectorSearch(
+            $vectorString, $packageId, 'search_embedding',
             self::PRECISE_THRESHOLD, $topK,
         );
 
@@ -120,8 +121,8 @@ class RagService
         }
 
         // Stage 2: Broad fallback
-        $results = $this->datasetVectorSearch(
-            $vectorString, $datasetId, 'broad_embedding',
+        $results = $this->packageVectorSearch(
+            $vectorString, $packageId, 'broad_embedding',
             self::BROAD_THRESHOLD, $topK,
         );
 
@@ -133,11 +134,12 @@ class RagService
     }
 
     /**
-     * Vector search against KUs linked to a knowledge dataset.
+     * Vector search against KUs linked to a knowledge package.
+     * Table/column names use legacy values until Phase 3 DB rename.
      */
-    private function datasetVectorSearch(
+    private function packageVectorSearch(
         string $vectorString,
-        int $datasetId,
+        int $packageId,
         string $embeddingColumn,
         float $threshold,
         int $topK,
@@ -159,7 +161,7 @@ class RagService
               AND 1 - (ku.{$embeddingColumn} <=> ?::vector) >= ?
             ORDER BY ku.{$embeddingColumn} <=> ?::vector
             LIMIT ?
-        ", [$vectorString, $datasetId, $vectorString, $threshold, $vectorString, $topK]);
+        ", [$vectorString, $packageId, $vectorString, $threshold, $vectorString, $topK]);
     }
 
     /**

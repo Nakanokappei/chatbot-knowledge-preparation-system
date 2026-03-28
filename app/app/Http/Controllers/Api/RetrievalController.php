@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\KnowledgeDataset;
+use App\Models\KnowledgePackage;
 use App\Services\BedrockService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,15 +34,15 @@ class RetrievalController extends Controller
         $minSimilarity = $request->input('min_similarity', 0.0);
         $startTime = microtime(true);
 
-        // Verify dataset is published and belongs to this workspace
-        $dataset = KnowledgeDataset::where('id', $request->dataset_id)
+        // Verify package is published and belongs to this workspace
+        $package = KnowledgePackage::where('id', $request->dataset_id)
             ->where('workspace_id', $workspaceId)
             ->where('status', 'published')
             ->first();
 
-        if (! $dataset) {
+        if (! $package) {
             return response()->json([
-                'error' => 'Dataset not found or not published.',
+                'error' => 'Package not found or not published.',
             ], 404);
         }
 
@@ -69,7 +69,7 @@ class RetrievalController extends Controller
               AND ku.search_embedding IS NOT NULL
             ORDER BY ku.search_embedding <=> ?::vector
             LIMIT ?
-        ", [$vectorString, $dataset->id, $vectorString, $topK]);
+        ", [$vectorString, $package->id, $vectorString, $topK]);
 
         // Filter by minimum similarity if specified
         $filtered = array_values(array_filter($results, function ($row) use ($minSimilarity) {
@@ -93,7 +93,7 @@ class RetrievalController extends Controller
 
         return response()->json([
             'query' => $request->input('query'),
-            'dataset_id' => $dataset->id,
+            'dataset_id' => $package->id,
             'results' => $formattedResults,
             'latency_ms' => $latencyMs,
         ]);
