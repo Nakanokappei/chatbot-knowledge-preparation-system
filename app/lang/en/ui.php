@@ -31,6 +31,7 @@ return [
     // ── Top navigation ──────────────────────────────────
     'nav_workspace' => 'Workspace',
     'nav_settings' => 'Settings',
+    'nav_dashboard' => 'Dashboard',
     'nav_system_health' => 'System Load',
     'api_guide_link' => 'View API Guide & Sandbox →',
     'nav_profile' => 'Profile',

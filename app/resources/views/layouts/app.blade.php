@@ -108,10 +108,19 @@
             </button>
             <h1><a href="{{ route('workspace.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
+                @if(auth()->user()->isSystemAdmin())
+                {{-- System admins only reach this layout on cross-role pages (e.g. /profile).
+                     Show admin nav links so they can navigate back to their dashboard. --}}
+                <a href="{{ route('admin.index') }}" class="{{ request()->routeIs('admin.index') ? 'active' : '' }}">{{ __('ui.nav_dashboard') }}</a>
+                <a href="{{ route('admin.system') }}" class="{{ request()->routeIs('admin.system') ? 'active' : '' }}">{{ __('ui.nav_system_health') }}</a>
+                <a href="{{ route('admin.settings.index') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
+                @else
+                {{-- Workspace-scoped nav: knowledge packages, usage, and (owners only) settings --}}
                 <a href="{{ route('kp.index') }}" class="{{ request()->routeIs('kp.*') || request()->routeIs('knowledge-units.*') ? 'active' : '' }}">{{ __('ui.datasets') }}</a>
                 <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
                 @if(auth()->user()->isOwner())
                 <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
+                @endif
                 @endif
             </nav>
         </div>
@@ -133,8 +142,12 @@
                     <span style="color: #5f6368; font-size: 13px;">{{ auth()->user()->workspace->name }}</span>
                 @endif
             @endif
-            {{-- Role badge: static display only, not part of the dropdown trigger --}}
+            {{-- Role badge: purple for system admin, grey for workspace roles --}}
+            @if(auth()->user()->isSystemAdmin())
+            <span style="font-size: 11px; color: #fff; background: #7C3AED; padding: 2px 10px; border-radius: 8px; font-weight: 500;">{{ $roleLabel }}</span>
+            @else
             <span style="font-size: 11px; color: #86868b; background: #f0f0f2; padding: 1px 8px; border-radius: 8px;">{{ $roleLabel }}</span>
+            @endif
             <div class="user-menu" id="user-menu">
                 <button class="user-btn" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
                     <span class="user-avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>

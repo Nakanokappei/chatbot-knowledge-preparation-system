@@ -20,6 +20,20 @@ use Illuminate\Support\Facades\DB;
 class KnowledgePackageController extends Controller
 {
     /**
+     * Guard: system admins have no workspace and must not access package pages.
+     * Redirect them to their admin dashboard on every action.
+     */
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            if (auth()->check() && auth()->user()->isSystemAdmin()) {
+                return redirect()->route('admin.index');
+            }
+            return $next($request);
+        });
+    }
+
+    /**
      * List all packages for the current workspace.
      */
     public function index()

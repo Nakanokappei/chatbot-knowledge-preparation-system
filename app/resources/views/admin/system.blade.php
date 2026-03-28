@@ -98,18 +98,27 @@
     // ── 24-hour skeleton builder ──────────────────────────────────────────────
     // Builds an array of 24 slots (oldest → newest) in Asia/Tokyo time.
     // Each slot: { key: 'YYYY-MM-DD HH', label: 'HH:00' }
+    // Uses Intl.DateTimeFormat.formatToParts() to avoid NaN from browser-dependent
+    // toLocaleString() string parsing.
     function buildSkeleton() {
-        const tz = 'Asia/Tokyo';
+        const tz  = 'Asia/Tokyo';
+        const fmt = new Intl.DateTimeFormat('en-CA', {
+            timeZone: tz,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', hour12: false,
+        });
         const slots = [];
-        const now = new Date();
+        const now   = new Date();
         for (let i = 23; i >= 0; i--) {
-            const d = new Date(now.getTime() - i * 3600000);
-            const jst = new Date(d.toLocaleString('en-CA', { timeZone: tz }));
-            const y   = jst.getFullYear();
-            const m   = String(jst.getMonth() + 1).padStart(2, '0');
-            const day = String(jst.getDate()).padStart(2, '0');
-            const h   = String(jst.getHours()).padStart(2, '0');
-            slots.push({ key: `${y}-${m}-${day} ${h}`, label: `${h}:00` });
+            const d     = new Date(now.getTime() - i * 3600000);
+            const parts = Object.fromEntries(
+                fmt.formatToParts(d)
+                   .filter(p => p.type !== 'literal')
+                   .map(p => [p.type, p.value])
+            );
+            // Intl may return '24' for midnight in some environments; normalise to '00'
+            const h = parts.hour === '24' ? '00' : parts.hour;
+            slots.push({ key: `${parts.year}-${parts.month}-${parts.day} ${h}`, label: `${h}:00` });
         }
         return slots;
     }
@@ -256,9 +265,10 @@
             [{ values: cpuVals, color: '#7C3AED' }, { values: memVals, color: '#0071e3' }],
             ecsPeak, v => fmtNum(v) + '%');
 
-        // Chart 2: RDS Connections (line chart)
+        // Chart 2: RDS Connections (line chart).
+        // Enforce a minimum ceiling of 4 so Y-axis steps are always ≥1 (integer, no duplicates).
         const connVals  = fillSeries(sk, rawRds.connections || [], 'value');
-        const connPeak  = niceMax(Math.max(...connVals, 1), 4);
+        const connPeak  = niceMax(Math.max(...connVals, 4), 4);
         drawLineChart('rdsChart', sk,
             [{ values: connVals, color: '#ff9500' }],
             connPeak, v => Math.round(v).toString());
