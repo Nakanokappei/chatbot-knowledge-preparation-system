@@ -32,6 +32,7 @@ return [
     'nav_workspace' => 'ワークスペース',
     'nav_settings' => '設定',
     'nav_system_health' => 'システム負荷',
+    'api_guide_link' => 'APIの利用方法とサンドボックスを見る →',
     'nav_profile' => 'プロフィール',
 
     // ── Sidebar: Tree view ──────────────────────────────

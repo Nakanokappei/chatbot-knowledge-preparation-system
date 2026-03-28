@@ -77,6 +77,16 @@
 
         @yield('extra-styles')
     </style>
+    {{-- System admin: override topbar and body background to match the admin console theme --}}
+    @if(auth()->check() && auth()->user()->isSystemAdmin())
+    <style>
+        body, .topbar, .user-btn { background: #F0E6FA !important; }
+        .hamburger:hover { background: #E0D0F0 !important; }
+        .topbar-nav a:hover { background: #E0D0F0 !important; color: #1d1d1f !important; }
+        .topbar-nav a.active { background: #7C3AED !important; color: #fff !important; }
+        .user-avatar { background: #7C3AED !important; }
+    </style>
+    @endif
 </head>
 <body>
     {{-- Top navigation bar: hamburger menu, app title, nav links, and user dropdown --}}
@@ -104,10 +114,9 @@
                     default => auth()->user()->role,
                 };
             @endphp
-            {{-- Workspace name: standalone link/label, clicking it does not open the user dropdown --}}
-            @if(auth()->user()->isSystemAdmin())
-                <span style="color: #5f6368; font-size: 13px;">{{ __('ui.system_admin') }}</span>
-            @elseif(auth()->user()->workspace)
+            {{-- Workspace name: standalone link/label, clicking it does not open the user dropdown.
+                 System admin has no workspace; show nothing here (role badge already shows the role). --}}
+            @if(auth()->user()->workspace)
                 @if(auth()->user()->isOwner())
                     <a href="{{ route('workspace.settings') }}" style="color: #5f6368; font-size: 13px; text-decoration: none;" onmouseover="this.style.color='#0071e3'" onmouseout="this.style.color='#5f6368'">{{ auth()->user()->workspace->name }}</a>
                 @else

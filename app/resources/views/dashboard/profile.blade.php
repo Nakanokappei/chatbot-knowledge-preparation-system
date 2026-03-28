@@ -33,7 +33,10 @@
         <div class="page-container" style="max-width: 600px;">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.profile_settings') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">
-                {{ __('ui.profile_workspace') }}: {{ $user->workspace->name ?? 'N/A' }} · {{ __('ui.profile_joined') }}: {{ $user->created_at->format('Y-m-d') }}
+                @if(!auth()->user()->isSystemAdmin() && $user->workspace)
+                    {{ __('ui.profile_workspace') }}: {{ $user->workspace->name }} ·
+                @endif
+                {{ __('ui.profile_joined') }}: {{ $user->created_at->format('Y-m-d') }}
             </p>
 
             @if(session('success'))
@@ -70,9 +73,16 @@
             </div>
 
             {{-- API Token management section --}}
+            @if(!auth()->user()->isSystemAdmin())
             <div class="card">
                 <h2>{{ __('ui.api_tokens') }}</h2>
-                <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.api_tokens_desc') }}</p>
+                <p style="color: #5f6368; font-size: 13px; margin-bottom: 12px;">{{ __('ui.api_tokens_desc') }}</p>
+                <p style="font-size: 13px; margin-bottom: 16px;">
+                    <a href="{{ route('api.guide') }}" style="color: #0071e3; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/><line x1="7" y1="4.5" x2="7" y2="7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="9.5" r=".7" fill="currentColor"/></svg>
+                        {{ __('ui.api_guide_link') }}
+                    </a>
+                </p>
 
                 {{-- Token creation form --}}
                 <form id="token-form" onsubmit="return createToken(event)">
@@ -112,6 +122,7 @@
                 {{-- Existing tokens table --}}
                 <div id="tokens-list" style="margin-top: 20px;"></div>
             </div>
+            @endif {{-- !isSystemAdmin --}}
 
         </div>
     </div>

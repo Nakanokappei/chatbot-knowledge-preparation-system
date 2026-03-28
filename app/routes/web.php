@@ -116,6 +116,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
     Route::post('/web-api/chat', [\App\Http\Controllers\Api\ChatController::class, 'chat'])->name('web.chat');
 
+    // API guide: documentation and interactive sandbox (session auth, no token required)
+    Route::get('/api-guide', [\App\Http\Controllers\ApiGuideController::class, 'index'])->name('api.guide');
+
     // Profile: user settings, password change, API tokens
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
