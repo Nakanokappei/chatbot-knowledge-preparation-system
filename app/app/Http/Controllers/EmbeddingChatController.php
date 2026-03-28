@@ -169,6 +169,7 @@ class EmbeddingChatController extends Controller
             $this->persistTurns(
                 $session, $request->message, $llmResult['content'],
                 $action, $context, $sources, $searchMode,
+                (int) ($llmResult['latency_ms'] ?? 0),
             );
 
             return response()->json([
@@ -236,6 +237,7 @@ class EmbeddingChatController extends Controller
         array $context,
         array $sources,
         string $searchMode = 'none',
+        int $responseMs = 0,
     ): void {
         try {
             // Build extracted slots snapshot from the context at this turn
@@ -256,7 +258,7 @@ class EmbeddingChatController extends Controller
                 'extracted_slots' => $extractedSlots,
             ]);
 
-            // Save assistant turn with full retrieval metadata
+            // Save assistant turn with full retrieval metadata and LLM latency
             ChatTurn::create([
                 'session_id'      => $session->id,
                 'role'            => 'assistant',
@@ -266,6 +268,7 @@ class EmbeddingChatController extends Controller
                 'sources'         => $sources,
                 'search_mode'     => $searchMode,
                 'extracted_slots' => $extractedSlots,
+                'response_ms'     => $responseMs > 0 ? $responseMs : null,
             ]);
 
         } catch (\Exception $e) {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PipelineJob;
 use App\Models\Workspace;
 use App\Services\CostTrackingService;
+use App\Services\SystemMetricsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,20 @@ class AdminController extends Controller
     }
 
     /**
+     * System health dashboard: infrastructure and application metrics (past 24 hours).
+     *
+     * Fetches ECS CPU/memory and RDS connections from CloudWatch, and
+     * chat latency, pipeline duration, error rate from the database.
+     */
+    public function systemHealth(): View
+    {
+        $metricsService = new SystemMetricsService();
+        $metrics = $metricsService->getLast24Hours();
+
+        return view('admin.system', compact('metrics'));
+    }
+
+    /**
      * Cancel a pipeline job from the admin dashboard.
      */
     public function cancelJob(PipelineJob $pipelineJob): RedirectResponse
@@ -127,9 +142,12 @@ class AdminController extends Controller
             ->orderBy('date')
             ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count', 'chat_answers', 'upvotes', 'downvotes']);
 
+        $pipelineDailyStats = $this->getPipelineDailyStats(workspaceId: $workspaceId);
+
         return [
             'monthly' => $monthly,
             'dailyTrend' => $dailyTrend,
+            'pipelineDailyStats' => $pipelineDailyStats,
         ];
     }
 
@@ -168,6 +186,8 @@ class AdminController extends Controller
             ->orderBy('date')
             ->get();
 
+        $pipelineDailyStats = $this->getPipelineDailyStats();
+
         return [
             'monthly' => [
                 'tokens' => (int) $monthly->tokens,
@@ -175,6 +195,32 @@ class AdminController extends Controller
                 'requests' => (int) $monthly->requests,
             ],
             'dailyTrend' => $dailyTrend,
+            'pipelineDailyStats' => $pipelineDailyStats,
         ];
+    }
+
+    /**
+     * Count completed and failed pipeline jobs per day for the last 30 days.
+     *
+     * Used to render the stacked bar chart on the admin usage panel.
+     * When workspace_id is given, scopes to that workspace; otherwise all.
+     */
+    private function getPipelineDailyStats(?int $workspaceId = null): \Illuminate\Support\Collection
+    {
+        $query = DB::table('pipeline_jobs')
+            ->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw("
+                DATE(created_at AT TIME ZONE 'Asia/Tokyo') as date,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status IN ('failed', 'cancelled') THEN 1 ELSE 0 END) as failed
+            ")
+            ->groupBy(DB::raw("DATE(created_at AT TIME ZONE 'Asia/Tokyo')"))
+            ->orderBy('date');
+
+        if ($workspaceId !== null) {
+            $query->where('workspace_id', $workspaceId);
+        }
+
+        return $query->get();
     }
 }

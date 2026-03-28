@@ -31,6 +31,7 @@ return [
     // ── Top navigation ──────────────────────────────────
     'nav_workspace' => 'ワークスペース',
     'nav_settings' => '設定',
+    'nav_system_health' => 'システム負荷',
     'nav_profile' => 'プロフィール',
 
     // ── Sidebar: Tree view ──────────────────────────────
@@ -253,6 +254,20 @@ return [
     'daily_tokens' => '日別トークン',
     'daily_cost' => '日別コスト',
     'daily_trend' => '日別推移',
+
+    // ── System Health Dashboard ──────────────────────────────
+    'system_health'          => 'システム負荷',
+    'system_health_subtitle' => '過去24時間（1時間単位）',
+    'ecs_cpu_memory'         => 'ECS CPU / メモリ使用率',
+    'rds_connections'        => 'DBコネクション数',
+    'chat_response_time'     => 'チャット応答時間',
+    'pipeline_duration'      => 'パイプライン処理時間',
+    'error_rate'             => 'エラー率',
+    'cpu_utilization'        => 'CPU使用率',
+    'memory_utilization'     => 'メモリ使用率',
+    'avg_ms'                 => '平均 ms',
+    'avg_seconds'            => '平均 秒',
+    'no_data_available'      => 'データなし（CloudWatch未設定）',
     'cost_by_endpoint' => 'エンドポイント別コスト',
     'cost_by_model' => 'モデル別コスト',
     'endpoint' => 'エンドポイント',

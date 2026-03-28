@@ -259,6 +259,22 @@
                         </span>
                     </div>
                 </div>
+
+                {{-- Chart 3: Pipeline jobs stacked bar chart (completed / failed) --}}
+                <div class="card">
+                    <h2>{{ __('ui.pipeline') }} — {{ __('ui.daily_trend') }}</h2>
+                    <div class="chart-container" style="height: 200px;"><canvas id="pipelineChart"></canvas></div>
+                    <div style="display: flex; gap: 16px; justify-content: center; margin-top: 8px; font-size: 12px; color: #5f6368;">
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #34c759;"></span>
+                            {{ __('ui.completed') }}
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #ff3b30;"></span>
+                            {{ __('ui.failed') }}
+                        </span>
+                    </div>
+                </div>
             @endif
         </div>
     </div>
@@ -302,7 +318,15 @@
                 if (v >= 1000)    return (v / 1000).toFixed(0) + 'K';
                 return Math.round(v).toString();
             }
-            function fmtCost(v) { return '$' + v.toFixed(4); }
+            // Adaptive decimal places: show enough digits to be meaningful
+            function fmtCost(v) {
+                if (v === 0)      return '$0';
+                if (v >= 1)       return '$' + v.toFixed(2);
+                if (v >= 0.01)    return '$' + v.toFixed(3);
+                if (v >= 0.001)   return '$' + v.toFixed(4);
+                if (v >= 0.0001)  return '$' + v.toFixed(5);
+                return '$' + v.toFixed(6);
+            }
 
             // ── Chart 1: Daily cost line chart ────────────────────────────────
             function drawCostChart() {
@@ -444,9 +468,87 @@
                 });
             }
 
+            // ── Chart 3: Pipeline stacked bar chart (completed / failed) ────
+            const rawPipelineData = @json($usageData['pipelineDailyStats'] ?? []);
+            function drawPipelineChart() {
+                const canvas = document.getElementById('pipelineChart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const dpr  = window.devicePixelRatio || 1;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width  = rect.width  * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                const W = rect.width, H = rect.height;
+                const pad = { top: 20, right: 20, bottom: 32, left: 40 };
+                const cw  = W - pad.left - pad.right;
+                const ch  = H - pad.top  - pad.bottom;
+
+                // Build 30-day pipeline data aligned with the same date range
+                const pipelineData = [];
+                const today = new Date();
+                for (let i = 29; i >= 0; i--) {
+                    const d = new Date(today);
+                    d.setDate(d.getDate() - i);
+                    const dateStr = d.toISOString().slice(0, 10);
+                    const found = rawPipelineData.find(r => r.date === dateStr);
+                    pipelineData.push({
+                        date:      dateStr,
+                        completed: found ? Number(found.completed) : 0,
+                        failed:    found ? Number(found.failed)    : 0,
+                    });
+                }
+
+                const maxTotal = niceMax(Math.max(...pipelineData.map(d => d.completed + d.failed), 1), 4);
+
+                // Grid lines + left Y-axis labels (integer counts)
+                ctx.strokeStyle = '#f0f0f2';
+                ctx.lineWidth   = 1;
+                ctx.fillStyle   = '#5f6368';
+                ctx.font        = '11px -apple-system, sans-serif';
+                ctx.textAlign   = 'right';
+                for (let i = 0; i <= 4; i++) {
+                    const y = pad.top + ch - (ch * i / 4);
+                    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+                    ctx.fillText(Math.round(maxTotal * i / 4).toString(), pad.left - 6, y + 4);
+                }
+
+                // Stacked bars: green (completed) on bottom, red (failed) on top
+                const barW = Math.max(2, (cw / pipelineData.length) - 2);
+                const gap  = (cw - barW * pipelineData.length) / pipelineData.length;
+                pipelineData.forEach((d, i) => {
+                    const x = pad.left + i * (barW + gap) + gap / 2;
+                    // Completed bar (green, bottom segment)
+                    const hCompleted = maxTotal > 0 ? (d.completed / maxTotal) * ch : 0;
+                    if (hCompleted > 0) {
+                        ctx.fillStyle = '#34c759';
+                        ctx.beginPath();
+                        ctx.roundRect(x, pad.top + ch - hCompleted, barW, hCompleted, [2, 2, 0, 0]);
+                        ctx.fill();
+                    }
+                    // Failed bar (red, stacked on top of completed)
+                    const hFailed = maxTotal > 0 ? (d.failed / maxTotal) * ch : 0;
+                    if (hFailed > 0) {
+                        ctx.fillStyle = '#ff3b30';
+                        const yFailed = pad.top + ch - hCompleted - hFailed;
+                        ctx.beginPath();
+                        ctx.roundRect(x, yFailed, barW, hFailed, [2, 2, 0, 0]);
+                        ctx.fill();
+                    }
+                    // X-axis date labels every 5 days
+                    if (i % 5 === 0 || i === pipelineData.length - 1) {
+                        ctx.fillStyle = '#5f6368';
+                        ctx.font      = '10px -apple-system, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(d.date.slice(5), x + barW / 2, H - pad.bottom + 14);
+                    }
+                });
+            }
+
             drawCostChart();
             drawCombinedChart();
-            window.addEventListener('resize', () => { drawCostChart(); drawCombinedChart(); });
+            drawPipelineChart();
+            window.addEventListener('resize', () => { drawCostChart(); drawCombinedChart(); drawPipelineChart(); });
         })();
         @endif
 @endsection

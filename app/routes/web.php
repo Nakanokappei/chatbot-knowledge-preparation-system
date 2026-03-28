@@ -130,6 +130,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/workspaces/create', [AdminController::class, 'createWorkspace'])->name('admin.workspaces.create');
         Route::post('/workspaces', [AdminController::class, 'storeWorkspace'])->name('admin.workspaces.store');
         Route::post('/jobs/{pipelineJob}/cancel', [AdminController::class, 'cancelJob'])->name('admin.cancel-pipeline');
+        Route::get('/system', [AdminController::class, 'systemHealth'])->name('admin.system');
 
         // Admin usage: aggregate and per-workspace
         Route::get('/usage', [AdminUsageController::class, 'index'])->name('admin.usage');

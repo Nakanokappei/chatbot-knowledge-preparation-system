@@ -39,4 +39,11 @@ return [
         'region' => env('AWS_BEDROCK_REGION', 'ap-northeast-1'),
     ],
 
+    // System health metrics: CloudWatch ECS + RDS identifiers
+    'system_metrics' => [
+        'ecs_cluster'  => env('AWS_ECS_CLUSTER',  'kps-dev-cluster'),
+        'ecs_service'  => env('AWS_ECS_SERVICE',  'kps-dev-app'),
+        'rds_instance' => env('AWS_RDS_INSTANCE', 'kps-dev-postgres'),
+    ],
+
 ];

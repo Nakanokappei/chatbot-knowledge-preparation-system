@@ -31,6 +31,7 @@ return [
     // ── Top navigation ──────────────────────────────────
     'nav_workspace' => 'Workspace',
     'nav_settings' => 'Settings',
+    'nav_system_health' => 'System Load',
     'nav_profile' => 'Profile',
 
     // ── Sidebar: Tree view ──────────────────────────────
@@ -253,6 +254,20 @@ return [
     'daily_tokens' => 'Daily Tokens',
     'daily_cost' => 'Daily Cost',
     'daily_trend' => 'Daily Trend',
+
+    // ── System Health Dashboard ──────────────────────────────
+    'system_health'          => 'System Load',
+    'system_health_subtitle' => 'Past 24 hours (1-hour intervals)',
+    'ecs_cpu_memory'         => 'ECS CPU / Memory Utilization',
+    'rds_connections'        => 'DB Connections',
+    'chat_response_time'     => 'Chat Response Time',
+    'pipeline_duration'      => 'Pipeline Processing Time',
+    'error_rate'             => 'Error Rate',
+    'cpu_utilization'        => 'CPU',
+    'memory_utilization'     => 'Memory',
+    'avg_ms'                 => 'Avg ms',
+    'avg_seconds'            => 'Avg seconds',
+    'no_data_available'      => 'No data (CloudWatch not configured)',
     'cost_by_endpoint' => 'Cost by Endpoint',
     'cost_by_model' => 'Cost by Model',
     'endpoint' => 'Endpoint',
