@@ -140,6 +140,14 @@ resource "aws_iam_role_policy" "app_task_permissions" {
           "bedrock:GetFoundationModel"
         ]
         Resource = "*"
+      },
+      # The App reads CloudWatch metrics (ECS CPU/Memory, RDS connections)
+      # to render the system health dashboard for system administrators.
+      {
+        Sid    = "CloudWatchRead"
+        Effect = "Allow"
+        Action = ["cloudwatch:GetMetricData"]
+        Resource = "*"
       }
     ]
   })
