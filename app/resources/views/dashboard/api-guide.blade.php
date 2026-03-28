@@ -373,18 +373,19 @@ async function runRequest(responseId, method, path, body = null) {
     }
 }
 
-// Retrieve sandbox
+// Retrieve sandbox — calls /web-api/retrieve (session auth) instead of /api/retrieve (token auth)
 async function runRetrieve() {
     const query     = document.getElementById('retrieve-query').value.trim();
     const datasetId = parseInt(document.getElementById('retrieve-dataset').value);
     const topK      = parseInt(document.getElementById('retrieve-topk').value) || 5;
     if (!query) { alert('クエリを入力してください'); return; }
-    await runRequest('retrieve-response', 'POST', '/api/retrieve', {
+    await runRequest('retrieve-response', 'POST', '/web-api/retrieve', {
         query, package_id: datasetId, top_k: topK,
     });
 }
 
 // Chat sandbox (LLM call — may take several seconds)
+// Calls /web-api/chat (session auth) instead of /api/chat (token auth)
 async function runChat() {
     const message   = document.getElementById('chat-message').value.trim();
     const datasetId = parseInt(document.getElementById('chat-dataset').value);
@@ -392,7 +393,7 @@ async function runChat() {
     const btn = document.getElementById('chat-run-btn');
     btn.disabled = true;
     btn.textContent = 'LLM生成中...';
-    await runRequest('chat-response', 'POST', '/api/chat', {
+    await runRequest('chat-response', 'POST', '/web-api/chat', {
         message, package_id: datasetId,
     });
     btn.disabled = false;
