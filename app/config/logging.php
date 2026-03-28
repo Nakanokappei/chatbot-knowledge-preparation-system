@@ -94,6 +94,9 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        // ECS/CloudWatch-compatible channel: writes JSON to stderr so the
+        // container log driver picks it up as structured log events.
+        // Set LOG_CHANNEL=stderr in the ECS task definition to activate this.
         'stderr' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
@@ -101,7 +104,8 @@ return [
             'handler_with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
+            // Default to JSON for CloudWatch; override via LOG_STDERR_FORMATTER for local dev
+            'formatter' => env('LOG_STDERR_FORMATTER', \Monolog\Formatter\JsonFormatter::class),
             'processors' => [PsrLogMessageProcessor::class],
         ],
 

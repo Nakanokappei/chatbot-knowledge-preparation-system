@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Session\TokenMismatchException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -41,5 +43,37 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Log CSRF token mismatches with full request diagnostics.
+        // These failures can be caused by: session cookie domain mismatch,
+        // HTTP/HTTPS scheme inconsistency behind ALB, cookie SameSite policy,
+        // expired sessions, or connection pool RLS state pollution.
+        $exceptions->report(function (TokenMismatchException $e) {
+            $request = app('request');
+
+            // Attempt to read session ID safely — session may not be started
+            try {
+                $sessionId = $request->session()->getId();
+            } catch (\Throwable) {
+                $sessionId = null;
+            }
+
+            Log::warning('csrf.token_mismatch', [
+                'url'            => $request->fullUrl(),
+                'method'         => $request->method(),
+                'ip'             => $request->ip(),
+                'user_agent'     => $request->userAgent(),
+                'session_id'     => $sessionId,
+                'origin'         => $request->header('Origin'),
+                'referer'        => $request->header('Referer'),
+                'x_forwarded_proto' => $request->header('X-Forwarded-Proto'),
+                'is_secure'      => $request->isSecure(),
+                'app_url'        => config('app.url'),
+                'session_domain' => config('session.domain'),
+                'secure_cookie'  => config('session.secure'),
+                'auth_id'        => auth()->id(),
+            ]);
+
+            // Return false to allow Laravel's default CSRF response (419) to proceed
+            return false;
+        });
     })->create();
