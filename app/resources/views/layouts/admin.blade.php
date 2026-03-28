@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F6F6F6; color: #1d1d1f; height: 100vh; display: flex; flex-direction: column; font-size: 15px; line-height: 22px; }
+        body { font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F0E6FA; color: #1d1d1f; height: 100vh; display: flex; flex-direction: column; font-size: 15px; line-height: 22px; }
 
         /* Top navigation bar — light purple for system admin */
         .topbar { background: #F0E6FA; border-bottom: none; padding: 0 24px; height: 48px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
@@ -64,8 +64,8 @@
         .status-failed { background: #f8d7da; color: #721c24; }
         .empty { text-align: center; padding: 40px; color: #5f6368; }
 
-        /* Page content area */
-        .page-content { flex: 1; overflow-y: auto; padding: 24px; background: #fff; border-radius: 12px 0 0 0; }
+        /* Page content area (admin pages without a sidebar: round both top corners) */
+        .page-content { flex: 1; overflow-y: auto; padding: 24px; background: #fff; border-radius: 12px 12px 0 0; }
         .page-container { max-width: 960px; margin: 0 auto; }
 
         @yield('extra-styles')
