@@ -252,6 +252,7 @@ return [
     'requests_30days' => 'Requests (30 days)',
     'daily_tokens' => 'Daily Tokens',
     'daily_cost' => 'Daily Cost',
+    'daily_trend' => 'Daily Trend',
     'cost_by_endpoint' => 'Cost by Endpoint',
     'cost_by_model' => 'Cost by Model',
     'endpoint' => 'Endpoint',

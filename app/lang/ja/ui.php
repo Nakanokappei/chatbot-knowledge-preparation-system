@@ -252,6 +252,7 @@ return [
     'requests_30days' => 'リクエスト（30日）',
     'daily_tokens' => '日別トークン',
     'daily_cost' => '日別コスト',
+    'daily_trend' => '日別推移',
     'cost_by_endpoint' => 'エンドポイント別コスト',
     'cost_by_model' => 'モデル別コスト',
     'endpoint' => 'エンドポイント',
@@ -515,5 +516,5 @@ return [
     // ── ロールラベル ──────────────────────────────────────
     'role_owner' => 'オーナー',
     'role_member' => 'メンバー',
-    'role_system_admin' => '管理者',
+    'role_system_admin' => 'システム管理者',
 ];

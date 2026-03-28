@@ -209,25 +209,47 @@
                 </h2>
                 <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.usage_30days') }}</p>
 
+                {{-- Summary badges: Cost → Requests → Tokens --}}
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-value">${{ number_format($usageData['monthly']['cost'], 4) }}</div>
                         <div class="stat-label">{{ __('ui.cost_30days') }}</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">{{ number_format($usageData['monthly']['tokens']) }}</div>
-                        <div class="stat-label">{{ __('ui.tokens_30days') }}</div>
-                    </div>
-                    <div class="stat-card">
                         <div class="stat-value">{{ number_format($usageData['monthly']['requests']) }}</div>
                         <div class="stat-label">{{ __('ui.requests_30days') }}</div>
                     </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ number_format($usageData['monthly']['tokens']) }}</div>
+                        <div class="stat-label">{{ __('ui.tokens_30days') }}</div>
+                    </div>
                 </div>
 
+                {{-- Chart 1: Daily cost line chart --}}
                 <div class="card">
-                    <h2>{{ __('ui.daily_trend') }}</h2>
-                    <div class="chart-container">
-                        <canvas id="dailyChart" height="200"></canvas>
+                    <h2>{{ __('ui.daily_cost') }}</h2>
+                    <div class="chart-container" style="height: 200px;"><canvas id="costChart"></canvas></div>
+                    <div style="display: flex; gap: 16px; justify-content: center; margin-top: 8px; font-size: 12px; color: #5f6368;">
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                            <span style="display: inline-block; width: 14px; height: 2px; background: #7C3AED; border-radius: 1px;"></span>
+                            {{ __('ui.cost') }}
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Chart 2: Daily tokens (bars) + requests (orange line) --}}
+                <div class="card">
+                    <h2>{{ __('ui.daily_tokens') }} / {{ __('ui.requests') }}</h2>
+                    <div class="chart-container" style="height: 200px;"><canvas id="combinedChart"></canvas></div>
+                    <div style="display: flex; gap: 16px; justify-content: center; margin-top: 8px; font-size: 12px; color: #5f6368;">
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: #0071e3;"></span>
+                            {{ __('ui.tokens') }}
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                            <span style="display: inline-block; width: 14px; height: 2px; background: #ff9500; border-radius: 1px;"></span>
+                            {{ __('ui.requests') }}
+                        </span>
                     </div>
                 </div>
             @endif
@@ -237,14 +259,9 @@
 
 @section('scripts')
         @if(!$pipelineView)
-        // Daily trend chart (tokens only — simple bar chart)
+        // Build 30-day date range with zero-fills
         (function() {
-            const canvas = document.getElementById('dailyChart');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
             const rawData = @json($usageData['dailyTrend']);
-
-            // Build 30-day date range with zero-fills
             const data = [];
             const today = new Date();
             for (let i = 29; i >= 0; i--) {
@@ -254,71 +271,175 @@
                 const found = rawData.find(r => r.date === dateStr);
                 data.push({
                     date: dateStr,
-                    tokens: found ? Number(found.total_tokens) : 0,
-                    cost: found ? Number(found.total_cost) : 0,
+                    tokens:   found ? Number(found.total_tokens)  : 0,
+                    cost:     found ? Number(found.total_cost)     : 0,
+                    requests: found ? Number(found.request_count)  : 0,
                 });
             }
 
-            const maxTokens = Math.max(...data.map(d => d.tokens), 1);
+            // Round up to a nice number for axis ticks (e.g. 1234 → 2000 with 4 steps)
+            function niceMax(value, steps) {
+                if (value <= 0) return steps;
+                const rawStep  = value / steps;
+                const mag      = Math.pow(10, Math.floor(Math.log10(rawStep)));
+                const residual = rawStep / mag;
+                const niceStep = residual <= 1 ? mag
+                               : residual <= 2 ? 2 * mag
+                               : residual <= 5 ? 5 * mag
+                               : 10 * mag;
+                return niceStep * steps;
+            }
 
-            function draw() {
-                const w = canvas.parentElement.clientWidth;
-                const h = 200;
-                canvas.width = w * 2;
-                canvas.height = h * 2;
-                canvas.style.width = w + 'px';
-                canvas.style.height = h + 'px';
-                ctx.scale(2, 2);
+            function fmtTokens(v) {
+                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+                if (v >= 1000)    return (v / 1000).toFixed(0) + 'K';
+                return Math.round(v).toString();
+            }
+            function fmtCost(v) { return '$' + v.toFixed(4); }
 
-                const pad = { top: 20, right: 20, bottom: 30, left: 60 };
-                const cw = w - pad.left - pad.right;
-                const ch = h - pad.top - pad.bottom;
-                const barW = Math.max(cw / data.length - 2, 2);
+            // ── Chart 1: Daily cost line chart ────────────────────────────────
+            function drawCostChart() {
+                const canvas = document.getElementById('costChart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const dpr  = window.devicePixelRatio || 1;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width  = rect.width  * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                const W = rect.width, H = rect.height;
+                const pad = { top: 20, right: 20, bottom: 32, left: 60 };
+                const cw  = W - pad.left - pad.right;
+                const ch  = H - pad.top  - pad.bottom;
 
-                ctx.clearRect(0, 0, w, h);
+                const maxCost = niceMax(Math.max(...data.map(d => d.cost), 0.0001), 4);
 
-                // Grid
+                // Grid lines + left Y-axis labels
                 ctx.strokeStyle = '#f0f0f2';
-                ctx.lineWidth = 0.5;
+                ctx.lineWidth   = 1;
+                ctx.fillStyle   = '#5f6368';
+                ctx.font        = '11px -apple-system, sans-serif';
+                ctx.textAlign   = 'right';
                 for (let i = 0; i <= 4; i++) {
-                    const y = pad.top + ch * (1 - i / 4);
-                    ctx.beginPath();
-                    ctx.moveTo(pad.left, y);
-                    ctx.lineTo(w - pad.right, y);
-                    ctx.stroke();
+                    const y = pad.top + ch - (ch * i / 4);
+                    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+                    ctx.fillText(fmtCost(maxCost * i / 4), pad.left - 6, y + 4);
                 }
 
-                // Y axis labels
-                ctx.fillStyle = '#8e8e93';
-                ctx.font = '10px Roboto';
-                ctx.textAlign = 'right';
-                for (let i = 0; i <= 4; i++) {
-                    const y = pad.top + ch * (1 - i / 4);
-                    const val = (maxTokens * i / 4);
-                    ctx.fillText(val >= 1000 ? (val / 1000).toFixed(0) + 'K' : val.toFixed(0), pad.left - 8, y + 3);
-                }
-
-                // Bars (tokens)
+                // Cost line (purple)
+                const barW = Math.max(2, (cw / data.length) - 2);
+                const gap  = (cw - barW * data.length) / data.length;
+                ctx.beginPath();
+                ctx.strokeStyle = '#7C3AED';
+                ctx.lineWidth   = 2;
+                ctx.lineJoin    = 'round';
                 data.forEach((d, i) => {
-                    const x = pad.left + (cw / data.length) * i + 1;
-                    const barH = (d.tokens / maxTokens) * ch;
-                    ctx.fillStyle = '#7C3AED';
-                    ctx.fillRect(x, pad.top + ch - barH, barW, barH);
+                    const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                    const y = pad.top + ch - (maxCost > 0 ? (d.cost / maxCost) * ch : 0);
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Data points
+                ctx.fillStyle = '#7C3AED';
+                data.forEach((d, i) => {
+                    if (d.cost > 0) {
+                        const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                        const y = pad.top + ch - (maxCost > 0 ? (d.cost / maxCost) * ch : 0);
+                        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+                    }
                 });
 
-                // X axis labels (every 5 days)
-                ctx.fillStyle = '#8e8e93';
+                // X-axis date labels
+                ctx.fillStyle = '#5f6368';
+                ctx.font      = '10px -apple-system, sans-serif';
                 ctx.textAlign = 'center';
                 data.forEach((d, i) => {
-                    if (i % 5 === 0) {
-                        const x = pad.left + (cw / data.length) * i + barW / 2;
-                        ctx.fillText(d.date.slice(5), x, h - 8);
+                    if (i % 5 === 0 || i === data.length - 1) {
+                        const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                        ctx.fillText(d.date.slice(5), x, H - pad.bottom + 14);
                     }
                 });
             }
 
-            draw();
-            window.addEventListener('resize', draw);
+            // ── Chart 2: Tokens bars + Requests line (same as user view) ─────
+            function drawCombinedChart() {
+                const canvas = document.getElementById('combinedChart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const dpr  = window.devicePixelRatio || 1;
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width  = rect.width  * dpr;
+                canvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                const W = rect.width, H = rect.height;
+                const pad = { top: 20, right: 56, bottom: 32, left: 52 };
+                const cw  = W - pad.left - pad.right;
+                const ch  = H - pad.top  - pad.bottom;
+
+                const maxTokens   = niceMax(Math.max(...data.map(d => d.tokens),   1), 4);
+                const maxRequests = niceMax(Math.max(...data.map(d => d.requests), 1), 4);
+
+                // Grid lines + left Y-axis (tokens)
+                ctx.strokeStyle = '#f0f0f2';
+                ctx.lineWidth   = 1;
+                ctx.fillStyle   = '#5f6368';
+                ctx.font        = '11px -apple-system, sans-serif';
+                for (let i = 0; i <= 4; i++) {
+                    const y = pad.top + ch - (ch * i / 4);
+                    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+                    ctx.textAlign = 'right';
+                    ctx.fillText(fmtTokens(maxTokens * i / 4), pad.left - 6, y + 4);
+                    // Right Y-axis (requests)
+                    ctx.textAlign = 'left';
+                    ctx.fillText(Math.round(maxRequests * i / 4).toString(), W - pad.right + 6, y + 4);
+                }
+
+                // Token bars (blue)
+                const barW = Math.max(2, (cw / data.length) - 2);
+                const gap  = (cw - barW * data.length) / data.length;
+                data.forEach((d, i) => {
+                    const x = pad.left + i * (barW + gap) + gap / 2;
+                    const h = maxTokens > 0 ? (d.tokens / maxTokens) * ch : 0;
+                    ctx.fillStyle = '#0071e3';
+                    ctx.beginPath();
+                    ctx.roundRect(x, pad.top + ch - h, barW, Math.max(h, h > 0 ? 1 : 0), [2, 2, 0, 0]);
+                    ctx.fill();
+                    // X-axis date labels
+                    if (i % 5 === 0 || i === data.length - 1) {
+                        ctx.fillStyle = '#5f6368';
+                        ctx.font      = '10px -apple-system, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(d.date.slice(5), x + barW / 2, H - pad.bottom + 14);
+                    }
+                });
+
+                // Request count line (orange)
+                ctx.beginPath();
+                ctx.strokeStyle = '#ff9500';
+                ctx.lineWidth   = 2;
+                ctx.lineJoin    = 'round';
+                data.forEach((d, i) => {
+                    const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                    const y = pad.top + ch - (maxRequests > 0 ? (d.requests / maxRequests) * ch : 0);
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Request data points
+                ctx.fillStyle = '#ff9500';
+                data.forEach((d, i) => {
+                    if (d.requests > 0) {
+                        const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                        const y = pad.top + ch - (maxRequests > 0 ? (d.requests / maxRequests) * ch : 0);
+                        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+                    }
+                });
+            }
+
+            drawCostChart();
+            drawCombinedChart();
+            window.addEventListener('resize', () => { drawCostChart(); drawCombinedChart(); });
         })();
         @endif
 @endsection

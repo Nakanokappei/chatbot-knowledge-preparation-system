@@ -75,11 +75,20 @@
     {{-- Top navigation bar: hamburger, app title, settings link, user dropdown --}}
     <div class="topbar">
         <div class="topbar-left">
+            {{-- On pages with a sidebar (admin index): toggle it; on others (settings): navigate to usage overview --}}
+            @if(request()->routeIs('admin.settings.*'))
+            <a href="{{ route('admin.index', ['workspace' => 'all']) }}" class="hamburger" title="{{ __('ui.all_workspaces') }}" style="text-decoration: none;">
+            @else
             <button class="hamburger" onclick="toggleSidebar()" title="{{ __('ui.toggle_sidebar') }}">
+            @endif
                 <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
                     <line x1="2" y1="4" x2="16" y2="4"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="14" x2="16" y2="14"/>
                 </svg>
+            @if(request()->routeIs('admin.settings.*'))
+            </a>
+            @else
             </button>
+            @endif
             <h1><a href="{{ route('admin.index') }}">KPS</a></h1>
             <nav class="topbar-nav">
                 <a href="{{ route('admin.settings.index') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
