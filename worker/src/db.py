@@ -70,12 +70,19 @@ def get_connection(tenant_id: int = None):
 
     # Resolve tenant_id from parameter or thread-local context
     resolved_tenant = tenant_id or getattr(_thread_local, "tenant_id", None)
-    if resolved_tenant is not None:
-        with conn.cursor() as cur:
+
+    with conn.cursor() as cur:
+        # Always reset RLS control variables first (CTO directive: Reset → Set order).
+        # Even though each call creates a fresh connection, explicit resets make the
+        # intent clear and guard against future connection-pool refactoring.
+        cur.execute("SET app.workspace_id = ''")
+        cur.execute("SET app.is_system_admin = 'false'")
+
+        if resolved_tenant is not None:
             # Set both workspace_id (current RLS policies) and tenant_id (legacy)
             cur.execute("SET app.workspace_id = %s", (str(resolved_tenant),))
             cur.execute("SET app.tenant_id = %s", (str(resolved_tenant),))
-        conn.commit()
+    conn.commit()
 
     return conn
 

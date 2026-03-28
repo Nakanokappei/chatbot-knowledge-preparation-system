@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Set PostgreSQL RLS workspace scope after authentication
         $middleware->appendToGroup('web', \App\Http\Middleware\SetWorkspaceScope::class);
 
+        // Emit an audit log entry for every request made by a system_admin user
+        $middleware->appendToGroup('web', \App\Http\Middleware\LogSystemAdminAction::class);
+
         // Enable Sanctum session-based auth for same-origin requests (used by the sandbox)
         $middleware->prependToGroup('api', \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class);
 
