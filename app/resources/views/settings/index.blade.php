@@ -43,48 +43,24 @@
                 <h2>{{ __('ui.add_model') }}</h2>
                 <form method="POST" action="{{ route('settings.store') }}">
                     @csrf
+                    @if($systemLlmModels->isNotEmpty())
+                    {{-- System templates available: restrict selection to approved models only --}}
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
                             <label for="model_id">{{ __('ui.select_model') }}</label>
-                            @if($systemLlmModels->isNotEmpty())
-                                {{-- System templates available: select from those only --}}
-                                <select id="model_id" name="model_id" required
-                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                    onchange="updateDisplayName(this)">
-                                    <option value="">{{ __('ui.select_from_system_models') }}</option>
-                                    @foreach($systemLlmModels as $sysModel)
-                                        @if(!$models->contains('model_id', $sysModel->model_id))
-                                        <option value="{{ $sysModel->model_id }}"
-                                            data-display="{{ $sysModel->display_name }}">
-                                            {{ $sysModel->display_name }}
-                                        </option>
-                                        @endif
-                                    @endforeach
-                                </select>
-                            @else
-                                {{-- No system templates: fall back to Bedrock API --}}
-                                <select id="model_id" name="model_id" required
-                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                    onchange="updateDisplayName(this)">
-                                    <option value="">{{ __('ui.choose_model') }}</option>
-                                    @php $prevProvider = ''; @endphp
-                                    @foreach($bedrockModels as $bedrockModel)
-                                        @if($bedrockModel['provider'] !== $prevProvider)
-                                            @if($prevProvider !== '') </optgroup> @endif
-                                            <optgroup label="{{ $bedrockModel['provider'] }}">
-                                            @php $prevProvider = $bedrockModel['provider']; @endphp
-                                        @endif
-                                        @if(!$models->contains('model_id', $bedrockModel['model_id']))
-                                        @php $modelPricing = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bedrockModel['model_id']); @endphp
-                                        <option value="{{ $bedrockModel['model_id'] }}"
-                                            data-display="{{ $bedrockModel['provider'] }} {{ $bedrockModel['display_name'] }}">
-                                            {{ $bedrockModel['display_name'] }}@if($modelPricing) — In: ${{ number_format($modelPricing['input'], 6) }} / Out: ${{ number_format($modelPricing['output'] ?? 0, 6) }} per {{ $modelPricing['unit'] ?? '1K tokens' }}@endif
-                                        </option>
-                                        @endif
-                                    @endforeach
-                                    @if($prevProvider !== '') </optgroup> @endif
-                                </select>
-                            @endif
+                            <select id="model_id" name="model_id" required
+                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
+                                onchange="updateDisplayName(this)">
+                                <option value="">{{ __('ui.select_from_system_models') }}</option>
+                                @foreach($systemLlmModels as $sysModel)
+                                    @if(!$models->contains('model_id', $sysModel->model_id))
+                                    <option value="{{ $sysModel->model_id }}"
+                                        data-display="{{ $sysModel->display_name }}">
+                                        {{ $sysModel->display_name }}
+                                    </option>
+                                    @endif
+                                @endforeach
+                            </select>
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label for="display_name">{{ __('ui.display_name_auto') }}</label>
@@ -92,6 +68,10 @@
                         </div>
                         <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
                     </div>
+                    @else
+                    {{-- No system templates defined: show notice instead of form --}}
+                    <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.no_system_models_hint') }}</p>
+                    @endif
                 </form>
             </div>
 
@@ -142,49 +122,27 @@
 
             <div class="card">
                 <h2>{{ __('ui.add_embedding_model') }}</h2>
+                @if($systemEmbeddingModels->isNotEmpty())
+                {{-- System templates available: restrict to approved embedding models only --}}
                 <form method="POST" action="{{ route('settings.embedding.store') }}">
                     @csrf
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
                             <label for="emb_model_id">{{ __('ui.select_model') }}</label>
-                            @if($systemEmbeddingModels->isNotEmpty())
-                                <select id="emb_model_id" name="model_id" required
-                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                    onchange="updateEmbDisplayName(this)">
-                                    <option value="">{{ __('ui.select_from_system_models') }}</option>
-                                    @foreach($systemEmbeddingModels as $sysEmb)
-                                        @if(!$embeddingModels->contains('model_id', $sysEmb->model_id))
-                                        <option value="{{ $sysEmb->model_id }}"
-                                            data-display="{{ $sysEmb->display_name }}"
-                                            data-dimension="{{ $sysEmb->dimension }}">
-                                            {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
-                                        </option>
-                                        @endif
-                                    @endforeach
-                                </select>
-                            @else
-                                <select id="emb_model_id" name="model_id" required
-                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                    onchange="updateEmbDisplayName(this)">
-                                    <option value="">{{ __('ui.choose_embedding_model') }}</option>
-                                    @php $prevEmbProvider = ''; @endphp
-                                    @foreach($bedrockEmbeddingModels as $bm)
-                                        @if($bm['provider'] !== $prevEmbProvider)
-                                            @if($prevEmbProvider !== '') </optgroup> @endif
-                                            <optgroup label="{{ $bm['provider'] }}">
-                                            @php $prevEmbProvider = $bm['provider']; @endphp
-                                        @endif
-                                        @if(!$embeddingModels->contains('model_id', $bm['model_id']))
-                                        @php $ep = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bm['model_id']); @endphp
-                                        <option value="{{ $bm['model_id'] }}"
-                                            data-display="{{ $bm['provider'] }} {{ $bm['display_name'] }}">
-                                            {{ $bm['display_name'] }}@if($ep && $ep['input']) — ${{ number_format($ep['input'], 6) }} per {{ $ep['unit'] ?? '1K tokens' }}@endif
-                                        </option>
-                                        @endif
-                                    @endforeach
-                                    @if($prevEmbProvider !== '') </optgroup> @endif
-                                </select>
-                            @endif
+                            <select id="emb_model_id" name="model_id" required
+                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
+                                onchange="updateEmbDisplayName(this)">
+                                <option value="">{{ __('ui.select_from_system_models') }}</option>
+                                @foreach($systemEmbeddingModels as $sysEmb)
+                                    @if(!$embeddingModels->contains('model_id', $sysEmb->model_id))
+                                    <option value="{{ $sysEmb->model_id }}"
+                                        data-display="{{ $sysEmb->display_name }}"
+                                        data-dimension="{{ $sysEmb->dimension }}">
+                                        {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
+                                    </option>
+                                    @endif
+                                @endforeach
+                            </select>
                         </div>
                         <div class="form-group" style="flex: 1;">
                             <label for="emb_display_name">{{ __('ui.display_name') }}</label>
@@ -192,12 +150,19 @@
                         </div>
                         <div class="form-group" style="width: 90px; flex: none;">
                             <label for="emb_dimension">{{ __('ui.dimension') }}</label>
-                            <input type="number" id="emb_dimension" name="dimension" value="1024" min="1" max="8192"
-                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
+                            {{-- Dimension is auto-filled from the template and locked; JS sets the value on selection. --}}
+                            <input type="number" id="emb_dimension" name="dimension"
+                                value="" min="1" max="8192" readonly
+                                placeholder="Auto"
+                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%; background: #f0f0f2; cursor: not-allowed;">
                         </div>
                         <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
                     </div>
                 </form>
+                @else
+                {{-- No system templates defined: show notice instead of form --}}
+                <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.no_system_models_hint') }}</p>
+                @endif
             </div>
 
             <div class="card">

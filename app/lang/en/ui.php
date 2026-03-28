@@ -246,7 +246,7 @@ return [
     'reject' => 'Reject',
 
     // ── Usage / Cost dashboard ────────────────────────────
-    'usage_description' => 'Token usage (last 30 days)',
+    'usage_description' => 'Requests and token usage (last 30 days)',
     'cost_30days' => 'Cost (30 days)',
     'tokens_30days' => 'Tokens (30 days)',
     'requests_30days' => 'Requests (30 days)',
@@ -466,6 +466,7 @@ return [
     'system_models_desc' => 'Manage global model templates available to all workspaces.',
     'select_from_system_models' => 'Select from system models',
     'model_not_in_system_templates' => 'This model is not available. Please select from the system templates.',
+    'no_system_models_hint' => 'No models have been configured by the system administrator. Please contact your admin.',
     'invite_role' => 'Role',
     'usage_by_endpoint' => 'Usage by Endpoint',
     'usage_by_model' => 'Usage by Model',

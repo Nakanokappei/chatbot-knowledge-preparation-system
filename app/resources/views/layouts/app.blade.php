@@ -96,26 +96,28 @@
             </nav>
         </div>
         <div class="topbar-right">
+            @php
+                $roleLabel = match(auth()->user()->role) {
+                    'owner' => __('ui.role_owner'),
+                    'member' => __('ui.role_member'),
+                    'system_admin' => __('ui.role_system_admin'),
+                    default => auth()->user()->role,
+                };
+            @endphp
+            {{-- Workspace name: standalone link/label, clicking it does not open the user dropdown --}}
+            @if(auth()->user()->isSystemAdmin())
+                <span style="color: #5f6368; font-size: 13px;">{{ __('ui.system_admin') }}</span>
+            @elseif(auth()->user()->workspace)
+                @if(auth()->user()->isOwner())
+                    <a href="{{ route('workspace.settings') }}" style="color: #5f6368; font-size: 13px; text-decoration: none;" onmouseover="this.style.color='#0071e3'" onmouseout="this.style.color='#5f6368'">{{ auth()->user()->workspace->name }}</a>
+                @else
+                    <span style="color: #5f6368; font-size: 13px;">{{ auth()->user()->workspace->name }}</span>
+                @endif
+            @endif
+            {{-- Role badge: static display only, not part of the dropdown trigger --}}
+            <span style="font-size: 11px; color: #86868b; background: #f0f0f2; padding: 1px 8px; border-radius: 8px;">{{ $roleLabel }}</span>
             <div class="user-menu" id="user-menu">
-                @php
-                    $roleLabel = match(auth()->user()->role) {
-                        'owner' => __('ui.role_owner'),
-                        'member' => __('ui.role_member'),
-                        'system_admin' => __('ui.role_system_admin'),
-                        default => auth()->user()->role,
-                    };
-                @endphp
                 <button class="user-btn" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
-                    @if(auth()->user()->isSystemAdmin())
-                        <span style="color: #5f6368; font-size: 13px; margin-right: 12px;">{{ __('ui.system_admin') }}</span>
-                    @elseif(auth()->user()->workspace)
-                        @if(auth()->user()->isOwner())
-                            <a href="{{ route('workspace.settings') }}" style="color: #5f6368; font-size: 13px; text-decoration: none; margin-right: 12px;" onmouseover="this.style.color='#0071e3'" onmouseout="this.style.color='#5f6368'">{{ auth()->user()->workspace->name }}</a>
-                        @else
-                            <span style="color: #5f6368; font-size: 13px; margin-right: 12px;">{{ auth()->user()->workspace->name }}</span>
-                        @endif
-                    @endif
-                    <span style="font-size: 11px; color: #86868b; background: #f0f0f2; padding: 1px 8px; border-radius: 8px; margin-right: 4px;">{{ $roleLabel }}</span>
                     <span class="user-avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
                     {{ auth()->user()->name }}
                 </button>

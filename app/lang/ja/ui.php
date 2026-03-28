@@ -246,7 +246,7 @@ return [
     'reject' => '却下',
 
     // ── Usage / Cost dashboard ────────────────────────────
-    'usage_description' => 'トークン使用量（過去30日）',
+    'usage_description' => 'リクエスト数とトークン使用量（過去30日）',
     'cost_30days' => 'コスト（30日）',
     'tokens_30days' => 'トークン（30日）',
     'requests_30days' => 'リクエスト（30日）',
@@ -466,6 +466,7 @@ return [
     'system_models_desc' => '全ワークスペースで使用可能なモデルテンプレートを管理します。',
     'select_from_system_models' => 'システムモデルから選択',
     'model_not_in_system_templates' => 'このモデルは使用できません。システムテンプレートから選択してください。',
+    'no_system_models_hint' => 'システム管理者がモデルを登録していません。管理者にお問い合わせください。',
     'invite_role' => 'ロール',
     'usage_by_endpoint' => 'エンドポイント別使用状況',
     'usage_by_model' => 'モデル別使用状況',

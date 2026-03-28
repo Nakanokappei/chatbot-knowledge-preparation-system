@@ -50,7 +50,7 @@
                         <span style="--c: #8e8e93;">─ {{ __('ui.tokens') }}</span>
                         @else
                         <span style="--c: #0071e3;">{{ __('ui.tokens') }}</span>
-                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 14px; height: 2px; background: #ea4335; border-radius: 1px;"></span> {{ __('ui.requests') }}</span>
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 14px; height: 2px; background: #ff9500; border-radius: 1px;"></span> {{ __('ui.requests') }}</span>
                         @endif
                     </div>
                 </div>
@@ -268,7 +268,7 @@
 
             // Draw request line
             ctx.beginPath();
-            ctx.strokeStyle = '#ea4335';
+            ctx.strokeStyle = '#ff9500';
             ctx.lineWidth = 2;
             ctx.lineJoin = 'round';
             days.forEach((day, i) => {
@@ -281,7 +281,7 @@
             ctx.stroke();
 
             // Draw request data points
-            ctx.fillStyle = '#ea4335';
+            ctx.fillStyle = '#ff9500';
             days.forEach((day, i) => {
                 const requests = Number(day.request_count) || 0;
                 if (requests > 0) {
