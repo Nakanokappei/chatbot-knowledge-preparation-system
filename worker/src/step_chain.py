@@ -46,6 +46,7 @@ def dispatch_next_step(
     # Check if there is a next step
     if idx + 1 >= len(STEP_SEQUENCE):
         logger.info("Pipeline complete for job %d (last step: %s)", job_id, current_step)
+        dispatch_queued_job(tenant_id)
         return None
 
     next_step = STEP_SEQUENCE[idx + 1]
@@ -76,3 +77,51 @@ def dispatch_next_step(
     )
 
     return next_step
+
+
+def dispatch_queued_job(tenant_id: int):
+    """Check for queued pipeline jobs in the workspace and dispatch the first one."""
+    from src.db import db_cursor
+
+    with db_cursor(tenant_id=tenant_id) as cur:
+        cur.execute("""
+            SELECT id, workspace_id, dataset_id
+            FROM pipeline_jobs
+            WHERE workspace_id = %s AND status = 'queued'
+            ORDER BY created_at ASC
+            LIMIT 1
+        """, (tenant_id,))
+        row = cur.fetchone()
+
+    if not row:
+        return
+
+    job_id, workspace_id, dataset_id = row
+
+    # Read pipeline config from the job
+    with db_cursor(tenant_id=tenant_id) as cur:
+        cur.execute("SELECT pipeline_config_snapshot_json FROM pipeline_jobs WHERE id = %s", (job_id,))
+        config_row = cur.fetchone()
+
+    if not config_row or not config_row[0]:
+        return
+
+    pipeline_config = config_row[0] if isinstance(config_row[0], dict) else json.loads(config_row[0])
+
+    # Update status to submitted
+    from src.db import update_job_status
+    update_job_status(job_id, status="submitted")
+
+    # Send first step to SQS
+    message = {
+        "job_id": job_id,
+        "workspace_id": workspace_id,
+        "dataset_id": dataset_id,
+        "step": "preprocess",
+        "input_s3_path": None,
+        "pipeline_config": pipeline_config,
+    }
+
+    sqs = boto3.client("sqs", region_name=SQS_REGION)
+    sqs.send_message(QueueUrl=SQS_QUEUE_URL, MessageBody=json.dumps(message))
+    logger.info("Dispatched queued job %d for workspace %d", job_id, workspace_id)

@@ -480,6 +480,17 @@ class SettingsController extends Controller
         $workspaceId = auth()->user()->workspace_id;
         $modelId = $request->input('model_id');
 
+        // If system templates exist, only allow models from those templates
+        $systemTemplates = EmbeddingModel::whereNull('workspace_id')->where('is_active', true)->get();
+        $template = null;
+        if ($systemTemplates->isNotEmpty()) {
+            $template = $systemTemplates->firstWhere('model_id', $modelId);
+            if (!$template) {
+                return redirect()->route('settings.index')
+                    ->with('error', __('ui.model_not_in_system_templates'));
+            }
+        }
+
         $exists = EmbeddingModel::where('workspace_id', $workspaceId)
             ->where('model_id', $modelId)
             ->exists();
@@ -489,7 +500,11 @@ class SettingsController extends Controller
                 ->with('error', 'This embedding model is already registered.');
         }
 
+        // Use system template display_name if available
         $displayName = $request->input('display_name');
+        if (!$displayName && $template) {
+            $displayName = $template->display_name;
+        }
         if (!$displayName) {
             $bedrockModels = $this->fetchBedrockEmbeddingModels();
             foreach ($bedrockModels as $bm) {
@@ -503,6 +518,9 @@ class SettingsController extends Controller
             $displayName = $modelId;
         }
 
+        // Use dimension from system template when available, otherwise from request
+        $dimension = $template ? $template->dimension : $request->input('dimension', 1024);
+
         $maxSort = EmbeddingModel::where('workspace_id', $workspaceId)->max('sort_order') ?? -1;
         $isFirst = EmbeddingModel::where('workspace_id', $workspaceId)->count() === 0;
 
@@ -510,10 +528,11 @@ class SettingsController extends Controller
             'workspace_id' => $workspaceId,
             'display_name' => $displayName,
             'model_id' => $modelId,
-            'dimension' => $request->input('dimension', 1024),
+            'dimension' => $dimension,
             'is_default' => $isFirst,
             'sort_order' => $maxSort + 1,
             'is_active' => true,
+            'input_price_per_1m' => $template ? $template->input_price_per_1m : null,
         ]);
 
         $suffix = $isFirst ? ' (set as default)' : '';

@@ -482,7 +482,12 @@
                         <div style="margin-top: 12px; width: 200px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden;">
                             <div style="width: {{ $embeddingJob->progress }}%; height: 100%; background: #ff9500; border-radius: 2px; transition: width 0.3s;"></div>
                         </div>
-                        <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">{{ $embeddingJob->progress }}%</div>
+                        <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">
+                            {{ $embeddingJob->progress }}%
+                            @if($embeddingJob->status && !in_array($embeddingJob->status, ['submitted', 'completed', 'failed', 'queued']))
+                                <span style="margin-left: 4px; text-transform: capitalize;">{{ str_replace('_', ' ', $embeddingJob->status) }}</span>
+                            @endif
+                        </div>
                     </div>
                 @elseif($knowledgeUnits->isEmpty())
                     <div class="empty">
@@ -1070,16 +1075,12 @@
             // Show user message
             appendChatMessage('user', message);
 
-            // Show typing indicator — if we were asking for primary filter, show filter-specific message
+            // Show typing indicator with generic thinking message
             const container = document.getElementById('chat-messages');
             const typing = document.createElement('div');
             typing.id = 'typing-indicator';
             typing.style.cssText = 'align-self: flex-start; background: #F6F6F6; padding: 10px 14px; border-radius: 16px 16px 16px 4px; font-size: 14px; color: #5f6368;';
-            const wasAskingFilter = chatContext.question && !chatContext.primary_filter;
-            const searchingTemplate = '{{ __("ui.chat_searching_for", ["name" => ":name"]) }}';
-            typing.textContent = wasAskingFilter
-                ? searchingTemplate.replace(':name', message)
-                : (chatContext.primary_filter ? searchingTemplate.replace(':name', chatContext.primary_filter) : '{{ __("ui.thinking") }}');
+            typing.textContent = '{{ __("ui.thinking") }}';
             container.appendChild(typing);
             container.scrollTop = container.scrollHeight;
 

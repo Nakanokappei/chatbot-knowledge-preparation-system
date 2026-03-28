@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\KnowledgeUnit;
 use App\Services\CostTrackingService;
 use Illuminate\Support\Facades\DB;
 
@@ -54,8 +55,15 @@ class UsageController extends Controller
             ->orderByDesc('cost')
             ->get();
 
+        // Top searched Knowledge Units by usage_count
+        $topKUs = KnowledgeUnit::where('workspace_id', $workspaceId)
+            ->where('usage_count', '>', 0)
+            ->orderByDesc('usage_count')
+            ->limit(10)
+            ->get(['id', 'topic', 'intent', 'usage_count']);
+
         return view('dashboard.usage', compact(
-            'monthly', 'dailyTrend', 'byEndpoint', 'byModel'
+            'monthly', 'dailyTrend', 'byEndpoint', 'byModel', 'topKUs'
         ));
     }
 }

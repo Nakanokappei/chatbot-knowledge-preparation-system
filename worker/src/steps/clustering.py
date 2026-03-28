@@ -25,7 +25,7 @@ import numpy as np
 from sklearn.metrics import silhouette_score
 
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs, link_clusters_to_embedding
+from src.db import get_connection, update_job_status, update_job_step_outputs, link_clusters_to_embedding, global_progress
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -649,7 +649,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         pipeline_config = {}
 
     logger.info("Clustering step started for job %d", job_id)
-    update_job_status(job_id, status="clustering", progress=10)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 10))
 
     # Step 1: Load embeddings and row_id mapping
     embeddings = download_npy_from_s3(input_s3_path)
@@ -660,7 +660,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     row_ids = download_json_from_s3(row_ids_path)
     logger.info("Loaded %d row_ids", len(row_ids))
 
-    update_job_status(job_id, status="clustering", progress=20)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 20))
 
     # Step 1.5: Language direction removal (optional, enabled by default)
     remove_lang_bias = pipeline_config.get("remove_language_bias", True)
@@ -680,18 +680,18 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         embeddings, method=clustering_method, params=clustering_params,
     )
 
-    update_job_status(job_id, status="clustering", progress=40)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 40))
 
     # Step 3: Compute centroids
     centroids = compute_centroids(embeddings, labels)
     logger.info("Computed %d cluster centroids", len(centroids))
 
-    update_job_status(job_id, status="clustering", progress=50)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 50))
 
     # Step 4: Find representative rows
     representatives = find_representatives(embeddings, labels, centroids, row_ids)
 
-    update_job_status(job_id, status="clustering", progress=60)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 60))
 
     # Step 5: Compute quality metrics
     n_clusters = len(centroids)
@@ -710,7 +710,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         except Exception as e:
             logger.warning("Failed to compute silhouette score: %s", e)
 
-    update_job_status(job_id, status="clustering", progress=70)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 70))
 
     # Step 6: Save to RDS
     save_clusters_to_db(
@@ -743,7 +743,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         finally:
             conn.close()
 
-    update_job_status(job_id, status="clustering", progress=85)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 85))
 
     # Step 7: Save results JSON to S3
     cluster_summary = []
@@ -778,7 +778,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         ContentType="application/json",
     )
 
-    update_job_status(job_id, status="clustering", progress=95)
+    update_job_status(job_id, status="clustering", progress=global_progress("clustering", 95))
 
     # Step 8: Record step metadata
     update_job_step_outputs(job_id, "clustering", {

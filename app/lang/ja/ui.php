@@ -141,6 +141,9 @@ return [
     'remove_language_bias' => '言語バイアスを除去（多言語データ推奨）',
     'start_pipeline' => 'パイプライン開始',
     'test_pipeline' => 'テスト処理（最大500件）',
+    'queue_pipeline' => 'パイプライン予約',
+    'queue_test' => 'テスト予約',
+    'pipeline_queued' => 'パイプラインを予約しました。現在のパイプライン完了後に開始します。',
     'new_cluster' => '新規クラスター',
     'create_cluster' => 'クラスター作成',
     'test_cluster' => 'クラスター試作（最大500件）',
@@ -243,7 +246,7 @@ return [
     'reject' => '却下',
 
     // ── Usage / Cost dashboard ────────────────────────────
-    'usage_description' => 'トークン使用量と推定コスト（過去30日）',
+    'usage_description' => 'トークン使用量（過去30日）',
     'cost_30days' => 'コスト（30日）',
     'tokens_30days' => 'トークン（30日）',
     'requests_30days' => 'リクエスト（30日）',
@@ -469,6 +472,8 @@ return [
     'create' => '作成',
     'cancel' => 'キャンセル',
     'usage_30days' => '過去30日間の使用状況統計。',
+    'top_searched_kus' => 'よく検索されたナレッジユニット',
+    'search_count' => '検索回数',
 
     // ── ナレッジデータセット承認フロー
     'submit_for_review' => 'レビューに提出',
@@ -505,4 +510,9 @@ return [
     'confirm_revoke_token' => 'このトークンを削除しますか？使用中のアプリケーションはアクセスできなくなります。',
     'copy_token' => 'コピー',
     'token_copied' => 'コピーしました',
+
+    // ── ロールラベル ──────────────────────────────────────
+    'role_owner' => 'オーナー',
+    'role_member' => 'メンバー',
+    'role_system_admin' => '管理者',
 ];

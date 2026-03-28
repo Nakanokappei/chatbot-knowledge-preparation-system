@@ -368,12 +368,22 @@
                         style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 2px solid #0071e3; border-radius: 8px; cursor: pointer;">
                         {{ __('ui.test_cluster') }}
                     </button>
+                    @elseif($hasRunningPipeline)
+                    <button type="submit" class="btn btn-primary" id="start-btn" disabled
+                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+                        {{ __('ui.queue_pipeline') }}
+                    </button>
+                    <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
+                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer;">
+                        {{ __('ui.queue_test') }}
+                    </button>
                     @else
-                    <button type="submit" class="btn btn-success" id="start-btn" disabled style="padding: 10px 24px; font-size: 14px; white-space: nowrap;">
+                    <button type="submit" class="btn btn-primary" id="start-btn" disabled
+                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
                         {{ __('ui.start_pipeline') }}
                     </button>
                     <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
-                        style="padding: 10px 24px; font-size: 14px; background: #ff9500; color: #fff; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer;">
                         {{ __('ui.test_pipeline') }}
                     </button>
                     @endif

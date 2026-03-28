@@ -251,11 +251,23 @@
             document.getElementById('display_name').value = displayName;
         }
 
-        // Auto-fill display name for embedding model dropdown
+        // Auto-fill display name and dimension for embedding model dropdown
         function updateEmbDisplayName(select) {
             const option = select.options[select.selectedIndex];
             const displayName = option.getAttribute('data-display') || '';
             document.getElementById('emb_display_name').value = displayName;
+
+            // Auto-fill dimension from system template data attribute
+            const dimension = option.getAttribute('data-dimension');
+            const dimInput = document.getElementById('emb_dimension');
+            if (dimension) {
+                dimInput.value = dimension;
+                dimInput.readOnly = true;
+                dimInput.style.backgroundColor = '#f0f0f2';
+            } else {
+                dimInput.readOnly = false;
+                dimInput.style.backgroundColor = '';
+            }
         }
 
         // Save pricing via AJAX without page reload

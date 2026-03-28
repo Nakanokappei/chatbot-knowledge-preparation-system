@@ -149,9 +149,14 @@ class DatasetWizardController extends Controller
         }
         fclose($handle);
 
-        // Auto-generate dataset metadata using LLM
+        // Auto-generate dataset metadata using the workspace's default LLM model
+        $defaultModel = LlmModel::where('workspace_id', $workspaceId)
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->first();
         $llmMetadata = $this->generateDatasetMetadata(
-            $file->getClientOriginalName(), $headerCols, $sampleRows
+            $file->getClientOriginalName(), $headerCols, $sampleRows,
+            $defaultModel?->model_id,
         );
 
         // Prefer the LLM-generated name over the raw filename
@@ -251,6 +256,11 @@ class DatasetWizardController extends Controller
         // Detect reconfigure mode: dataset already has embeddings from a previous run
         $isReconfigure = Embedding::where('dataset_id', $dataset->id)->exists();
 
+        // Check if a pipeline is already running in this workspace
+        $hasRunningPipeline = \App\Models\PipelineJob::where('workspace_id', $workspaceId)
+            ->whereIn('status', ['submitted', 'processing', 'preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
+            ->exists();
+
         return view('dataset.configure', [
             'dataset' => $dataset,
             'columns' => $columns,
@@ -260,6 +270,7 @@ class DatasetWizardController extends Controller
             'llmModels' => $llmModels,
             'embeddingModels' => $embeddingModels,
             'isReconfigure' => $isReconfigure,
+            'hasRunningPipeline' => $hasRunningPipeline,
         ]);
     }
 
@@ -530,11 +541,16 @@ class DatasetWizardController extends Controller
             }
             $dataset->update(['knowledge_mapping_json' => $knowledgeMapping]);
 
-            // Dispatch pipeline
+            // Check if a pipeline is already running in this workspace
+            $hasRunningPipeline = \App\Models\PipelineJob::where('workspace_id', $workspaceId)
+                ->whereIn('status', ['submitted', 'processing', 'preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
+                ->exists();
+
+            // Dispatch pipeline (queued if another is running)
             $pipelineJob = \App\Models\PipelineJob::create([
                 'workspace_id' => $workspaceId,
                 'dataset_id' => $dataset->id,
-                'status' => 'submitted',
+                'status' => $hasRunningPipeline ? 'queued' : 'submitted',
                 'progress' => 0,
             ]);
 
@@ -564,45 +580,53 @@ class DatasetWizardController extends Controller
             // Persist pipeline config snapshot for reproducibility
             $pipelineJob->update(['pipeline_config_snapshot_json' => $pipelineConfig]);
 
-            // Send to SQS
-            $sqsUrl = env('SQS_QUEUE_URL');
-            if (!$sqsUrl) {
-                // Build URL from prefix + queue name as fallback
-                $prefix = env('SQS_PREFIX', '');
-                $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
-                if ($prefix) {
-                    $sqsUrl = $prefix . '/' . $queue;
+            // Only send to SQS if not queued (queued jobs are dispatched by the worker)
+            if (!$hasRunningPipeline) {
+                $sqsUrl = env('SQS_QUEUE_URL');
+                if (!$sqsUrl) {
+                    // Build URL from prefix + queue name as fallback
+                    $prefix = env('SQS_PREFIX', '');
+                    $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
+                    if ($prefix) {
+                        $sqsUrl = $prefix . '/' . $queue;
+                    }
                 }
-            }
 
-            if ($sqsUrl) {
-                $sqs = new SqsClient([
-                    'region' => env('SQS_REGION', 'ap-northeast-1'),
-                    'version' => 'latest',
-                ]);
+                if ($sqsUrl) {
+                    $sqs = new SqsClient([
+                        'region' => env('SQS_REGION', 'ap-northeast-1'),
+                        'version' => 'latest',
+                    ]);
 
-                $sqs->sendMessage([
-                    'QueueUrl' => $sqsUrl,
-                    'MessageBody' => json_encode([
-                        'job_id' => $pipelineJob->id,
-                        'workspace_id' => $workspaceId,
-                        'dataset_id' => $dataset->id,
-                        'step' => 'preprocess',
-                        'pipeline_config' => $pipelineConfig,
-                    ]),
-                ]);
+                    $sqs->sendMessage([
+                        'QueueUrl' => $sqsUrl,
+                        'MessageBody' => json_encode([
+                            'job_id' => $pipelineJob->id,
+                            'workspace_id' => $workspaceId,
+                            'dataset_id' => $dataset->id,
+                            'step' => 'preprocess',
+                            'pipeline_config' => $pipelineConfig,
+                        ]),
+                    ]);
 
-                Log::info("Pipeline job {$pipelineJob->id} dispatched to SQS");
+                    Log::info("Pipeline job {$pipelineJob->id} dispatched to SQS");
+                } else {
+                    Log::warning("SQS not configured — job {$pipelineJob->id} created but not dispatched");
+                }
             } else {
-                Log::warning("SQS not configured — job {$pipelineJob->id} created but not dispatched");
+                Log::info("Pipeline job {$pipelineJob->id} queued (another pipeline is running)");
             }
 
             DB::commit();
 
             // Keep CSV file for reconfiguration (stored in persistent volume)
 
+            $successMessage = $hasRunningPipeline
+                ? __('ui.pipeline_queued')
+                : "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). Pipeline Job #{$pipelineJob->id} dispatched.";
+
             return redirect()->route('dashboard')
-                ->with('success', "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). Pipeline Job #{$pipelineJob->id} dispatched.");
+                ->with('success', $successMessage);
 
         } catch (\Exception $e) {
             if (isset($handle) && is_resource($handle)) fclose($handle);

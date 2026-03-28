@@ -141,6 +141,9 @@ return [
     'remove_language_bias' => 'Remove language bias (recommended for multilingual data)',
     'start_pipeline' => 'Start Pipeline',
     'test_pipeline' => 'Test (max 500 rows)',
+    'queue_pipeline' => 'Queue Pipeline',
+    'queue_test' => 'Queue Test',
+    'pipeline_queued' => 'Pipeline queued. It will start when the current pipeline completes.',
     'new_cluster' => 'New Cluster',
     'create_cluster' => 'Create Cluster',
     'test_cluster' => 'Test Cluster (max 500 rows)',
@@ -243,7 +246,7 @@ return [
     'reject' => 'Reject',
 
     // ── Usage / Cost dashboard ────────────────────────────
-    'usage_description' => 'Token usage and estimated costs (last 30 days)',
+    'usage_description' => 'Token usage (last 30 days)',
     'cost_30days' => 'Cost (30 days)',
     'tokens_30days' => 'Tokens (30 days)',
     'requests_30days' => 'Requests (30 days)',
@@ -469,6 +472,8 @@ return [
     'create' => 'Create',
     'cancel' => 'Cancel',
     'usage_30days' => 'Last 30 days usage statistics.',
+    'top_searched_kus' => 'Frequently Retrieved Knowledge Units',
+    'search_count' => 'Retrieval Count',
 
     // ── Knowledge Dataset approval workflow ─────────────
     'submit_for_review' => 'Submit for Review',
@@ -505,4 +510,9 @@ return [
     'confirm_revoke_token' => 'Revoke this token? Any applications using it will lose access.',
     'copy_token' => 'Copy',
     'token_copied' => 'Copied!',
+
+    // ── Role labels ──────────────────────────────────────
+    'role_owner' => 'Owner',
+    'role_member' => 'Member',
+    'role_system_admin' => 'Admin',
 ];

@@ -234,6 +234,12 @@ class DashboardController extends Controller
 
         $workspaceId = auth()->user()->workspace_id;
 
+        // Check if a pipeline is already running in this workspace
+        $runningStatuses = ['submitted', 'processing', 'preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'];
+        $hasRunningPipeline = PipelineJob::where('workspace_id', $workspaceId)
+            ->whereIn('status', $runningStatuses)
+            ->exists();
+
         // Resolve the default LLM model from the database registry
         $defaultModel = LlmModel::where('workspace_id', $workspaceId)
             ->where('is_default', true)
@@ -267,22 +273,38 @@ class DashboardController extends Controller
         $dataset = Dataset::find($request->input('dataset_id'));
         $datasetName = $dataset ? $dataset->name : "Dataset {$request->input('dataset_id')}";
 
+        $pipelineConfig = [
+            'phase' => '2',
+            'llm_model_id' => $request->input('llm_model_id', $defaultLlmModel),
+            'embedding_model' => 'amazon.titan-embed-text-v2:0',
+            'embedding_dimension' => 1024,
+            'clustering_method' => $clusteringMethod,
+            'clustering_params' => $clusteringParams,
+            'remove_language_bias' => $request->has('remove_language_bias'),
+            'dataset_name' => $datasetName,
+        ];
+
+        // If another pipeline is running, queue this job instead of dispatching
+        if ($hasRunningPipeline) {
+            $job = PipelineJob::create([
+                'workspace_id' => $workspaceId,
+                'dataset_id' => $request->input('dataset_id'),
+                'status' => 'queued',
+                'progress' => 0,
+                'pipeline_config_snapshot_json' => $pipelineConfig,
+            ]);
+
+            return redirect()->route('dashboard')
+                ->with('success', __('ui.pipeline_queued'));
+        }
+
         // Create the job record for a full pipeline run
         $job = PipelineJob::create([
             'workspace_id' => $workspaceId,
             'dataset_id' => $request->input('dataset_id'),
             'status' => 'submitted',
             'progress' => 0,
-            'pipeline_config_snapshot_json' => [
-                'phase' => '2',
-                'llm_model_id' => $request->input('llm_model_id', $defaultLlmModel),
-                'embedding_model' => 'amazon.titan-embed-text-v2:0',
-                'embedding_dimension' => 1024,
-                'clustering_method' => $clusteringMethod,
-                'clustering_params' => $clusteringParams,
-                'remove_language_bias' => $request->has('remove_language_bias'),
-                'dataset_name' => $datasetName,
-            ],
+            'pipeline_config_snapshot_json' => $pipelineConfig,
         ]);
 
         // Send first step (preprocess) to SQS

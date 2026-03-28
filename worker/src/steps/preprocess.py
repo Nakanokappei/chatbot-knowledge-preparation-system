@@ -17,7 +17,7 @@ import boto3
 import pandas as pd
 
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs, create_or_get_embedding
+from src.db import get_connection, update_job_status, update_job_step_outputs, create_or_get_embedding, global_progress
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -127,7 +127,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     5. Chain to the next step (embedding)
     """
     logger.info("Preprocess step started for job %d (dataset %d)", job_id, dataset_id)
-    update_job_status(job_id, status="preprocessing", progress=10)
+    update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 10))
 
     # Step 0: Create or get embedding record for this job
     pipeline_config = kwargs.get("pipeline_config") or {}
@@ -152,7 +152,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         update_job_status(job_id, status="failed", error_detail="No rows found for dataset")
         return
 
-    update_job_status(job_id, status="preprocessing", progress=30)
+    update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 30))
 
     # Step 2: Normalize text
     df["normalized_text"] = df["raw_text"].apply(normalize_text)
@@ -168,7 +168,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         dropped_count,
     )
 
-    update_job_status(job_id, status="preprocessing", progress=50)
+    update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 50))
 
     # Step 3: Update normalized_text in database
     updates = [
@@ -177,7 +177,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     ]
     save_normalized_text_to_db(updates)
 
-    update_job_status(job_id, status="preprocessing", progress=70)
+    update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 70))
 
     # Step 4: Save to S3 as Parquet
     output_s3_path = f"s3://{S3_BUCKET}/{tenant_id}/jobs/{job_id}/preprocess/normalized_rows.parquet"
@@ -186,7 +186,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     export_df = df[["id", "normalized_text"]].rename(columns={"id": "row_id"})
     upload_parquet_to_s3(export_df, output_s3_path)
 
-    update_job_status(job_id, status="preprocessing", progress=90)
+    update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 90))
 
     # Step 5: Record step output metadata
     update_job_step_outputs(job_id, "preprocess", {

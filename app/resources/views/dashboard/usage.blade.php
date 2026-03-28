@@ -27,8 +27,8 @@
                 @if($showCost)
                 <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">{{ __('ui.cost_30days') }}</div></div>
                 @endif
-                <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">{{ __('ui.tokens_30days') }}</div></div>
                 <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">{{ __('ui.requests_30days') }}</div></div>
+                <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">{{ __('ui.tokens_30days') }}</div></div>
             </div>
 
             {{-- Daily chart --}}
@@ -46,7 +46,12 @@
                         <span style="--c: #34c759;">{{ __('ui.chat') }}</span>
                         <span style="--c: #ff9500;">{{ __('ui.embedding') }}</span>
                         @endif
-                        <span style="--c: #8e8e93;">{{ $showCost ? '─' : '' }} {{ __('ui.tokens') }}</span>
+                        @if($showCost)
+                        <span style="--c: #8e8e93;">─ {{ __('ui.tokens') }}</span>
+                        @else
+                        <span style="--c: #0071e3;">{{ __('ui.tokens') }}</span>
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 14px; height: 2px; background: #ea4335; border-radius: 1px;"></span> {{ __('ui.requests') }}</span>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -94,6 +99,25 @@
                     </table>
                 </div>
             </div>
+
+            {{-- Top searched Knowledge Units --}}
+            @if(isset($topKUs) && $topKUs->isNotEmpty())
+            <div class="card" style="margin-bottom: 20px;">
+                <h2>{!! __('ui.top_searched_kus') !!}</h2>
+                <table>
+                    <thead><tr><th>{{ __('ui.topic') }}</th><th>{{ __('ui.intent') }}</th><th>{{ __('ui.search_count') }}</th></tr></thead>
+                    <tbody>
+                    @foreach($topKUs as $ku)
+                        <tr>
+                            <td><a href="{{ route('knowledge-units.show', $ku) }}" style="color: #0071e3; text-decoration: none;">{{ $ku->topic }}</a></td>
+                            <td style="color: #5f6368; font-size: 13px;">{{ $ku->intent }}</td>
+                            <td style="text-align: center; font-weight: 600;">{{ number_format($ku->usage_count) }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
         </div>
     </div>
 @endsection
@@ -112,7 +136,7 @@
             const dt = new Date(today);
             dt.setDate(dt.getDate() - i);
             const key = dt.toISOString().slice(0, 10);
-            result.push(map[key] || { date: key, total_tokens: 0, total_cost: 0, pipeline_cost: 0, chat_cost: 0, embedding_cost: 0 });
+            result.push(map[key] || { date: key, total_tokens: 0, total_cost: 0, pipeline_cost: 0, chat_cost: 0, embedding_cost: 0, request_count: 0 });
         }
         return result;
     }
@@ -210,10 +234,10 @@
                     yOffset += h;
                 });
             } else {
-                // Token bars only (no cost)
+                // Token bars in blue (no cost mode)
                 const tokens = Number(day.total_tokens) || 0;
                 const h = maxTokens > 0 ? (tokens / maxTokens) * chartH : 0;
-                ctx.fillStyle = '#8e8e93';
+                ctx.fillStyle = '#0071e3';
                 ctx.beginPath();
                 ctx.roundRect(x, pad.top + chartH - h, barW, Math.max(h, h > 0 ? 1 : 0), [2, 2, 0, 0]);
                 ctx.fill();
@@ -228,8 +252,51 @@
             }
         });
 
+        // Non-cost mode: draw request_count line on right Y-axis
+        if (!showCost) {
+            const requestValues = days.map(d => Number(d.request_count) || 0);
+            const maxRequests = niceMax(Math.max(...requestValues, 1), 4);
+
+            // Right Y-axis labels for requests
+            ctx.fillStyle = '#5f6368';
+            ctx.font = '11px -apple-system, sans-serif';
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + chartH - (chartH * i / 4);
+                ctx.textAlign = 'left';
+                ctx.fillText(Math.round(maxRequests * i / 4).toString(), W - pad.right + 6, y + 4);
+            }
+
+            // Draw request line
+            ctx.beginPath();
+            ctx.strokeStyle = '#ea4335';
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            days.forEach((day, i) => {
+                const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                const requests = Number(day.request_count) || 0;
+                const y = pad.top + chartH - (requests / maxRequests) * chartH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Draw request data points
+            ctx.fillStyle = '#ea4335';
+            days.forEach((day, i) => {
+                const requests = Number(day.request_count) || 0;
+                if (requests > 0) {
+                    const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                    const y = pad.top + chartH - (requests / maxRequests) * chartH;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            return;
+        }
+
         // Draw token line on right Y-axis (only when cost bars are shown)
-        if (!showCost) { return; }
         ctx.beginPath();
         ctx.strokeStyle = '#8e8e93';
         ctx.lineWidth = 2;

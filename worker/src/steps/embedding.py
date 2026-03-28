@@ -28,7 +28,7 @@ import pandas as pd
 
 from src.bedrock_client import EMBEDDING_DIMENSION, MODEL_ID, generate_embeddings_batch
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs
+from src.db import get_connection, update_job_status, update_job_step_outputs, global_progress
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -226,13 +226,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     6. Chain to clustering step
     """
     logger.info("Embedding step started for job %d", job_id)
-    update_job_status(job_id, status="embedding", progress=10)
+    update_job_status(job_id, status="embedding", progress=global_progress("embedding", 10))
 
     # Step 1: Load normalized data from S3
     df = download_parquet_from_s3(input_s3_path)
     logger.info("Loaded %d rows from %s", len(df), input_s3_path)
 
-    update_job_status(job_id, status="embedding", progress=15)
+    update_job_status(job_id, status="embedding", progress=global_progress("embedding", 15))
 
     # Step 2: Compute cache keys and check cache (parallel S3 reads)
     df["cache_key"] = df["normalized_text"].apply(compute_cache_key)
@@ -248,7 +248,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         (cache_hits / len(all_keys) * 100) if all_keys else 0,
     )
 
-    update_job_status(job_id, status="embedding", progress=25)
+    update_job_status(job_id, status="embedding", progress=global_progress("embedding", 25))
 
     # Step 3: Generate embeddings for uncached rows (2-thread Bedrock calls)
     # Identify rows that need Bedrock API calls (not found in cache)
@@ -260,9 +260,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         logger.info("Generating %d embeddings via Bedrock (8 workers)...", len(uncached_texts))
 
         def progress_cb(completed, total):
-            # Map embedding progress to 25-75% of overall step
-            pct = 25 + int((completed / total) * 50)
-            update_job_status(job_id, status="embedding", progress=pct)
+            # Map embedding progress to 25-75% of local step range
+            local_pct = 25 + int((completed / total) * 50)
+            update_job_status(job_id, status="embedding", progress=global_progress("embedding", local_pct))
 
         vectors = generate_embeddings_batch(
             uncached_texts,
@@ -288,7 +288,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         save_cache_batch(cache_entries)
         logger.info("Saved %d new embeddings to cache", len(cache_entries))
 
-    update_job_status(job_id, status="embedding", progress=80)
+    update_job_status(job_id, status="embedding", progress=global_progress("embedding", 80))
 
     # Assemble all embeddings in original row order from cache and new results
     all_embeddings = []
@@ -317,7 +317,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         ContentType="application/json",
     )
 
-    update_job_status(job_id, status="embedding", progress=90)
+    update_job_status(job_id, status="embedding", progress=global_progress("embedding", 90))
 
     # Step 6: Record step metadata
     update_job_step_outputs(job_id, "embedding", {

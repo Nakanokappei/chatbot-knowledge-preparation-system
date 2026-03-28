@@ -97,6 +97,14 @@
         </div>
         <div class="topbar-right">
             <div class="user-menu" id="user-menu">
+                @php
+                    $roleLabel = match(auth()->user()->role) {
+                        'owner' => __('ui.role_owner'),
+                        'member' => __('ui.role_member'),
+                        'system_admin' => __('ui.role_system_admin'),
+                        default => auth()->user()->role,
+                    };
+                @endphp
                 <button class="user-btn" onclick="document.getElementById('user-dropdown').classList.toggle('show')">
                     @if(auth()->user()->isSystemAdmin())
                         <span style="color: #5f6368; font-size: 13px; margin-right: 12px;">{{ __('ui.system_admin') }}</span>
@@ -107,6 +115,7 @@
                             <span style="color: #5f6368; font-size: 13px; margin-right: 12px;">{{ auth()->user()->workspace->name }}</span>
                         @endif
                     @endif
+                    <span style="font-size: 11px; color: #86868b; background: #f0f0f2; padding: 1px 8px; border-radius: 8px; margin-right: 4px;">{{ $roleLabel }}</span>
                     <span class="user-avatar">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
                     {{ auth()->user()->name }}
                 </button>

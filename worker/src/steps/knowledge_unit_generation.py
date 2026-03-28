@@ -21,7 +21,7 @@ from src.bedrock_client import generate_embedding
 from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
 from src.db import (get_connection, db_cursor, update_job_status, update_job_step_outputs,
                     link_knowledge_units_to_embedding, update_embedding_status,
-                    record_token_usage)
+                    record_token_usage, global_progress)
 
 logger = logging.getLogger(__name__)
 
@@ -450,7 +450,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     5. Set job status to 'completed'
     """
     logger.info("Knowledge unit generation started for job %d", job_id)
-    update_job_status(job_id, status="knowledge_unit_generation", progress=10)
+    update_job_status(job_id, status="knowledge_unit_generation", progress=global_progress("knowledge_unit_generation", 10))
 
     pipeline_config = kwargs.get("pipeline_config") or {}
 
@@ -489,8 +489,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     total_ku_input_tokens = 0
     total_ku_output_tokens = 0
     for item_index, cluster in enumerate(clusters):
-        progress = 10 + int((item_index / len(clusters)) * 70)
-        update_job_status(job_id, status="knowledge_unit_generation", progress=progress)
+        local_pct = 10 + int((item_index / len(clusters)) * 70)
+        update_job_status(job_id, status="knowledge_unit_generation", progress=global_progress("knowledge_unit_generation", local_pct))
 
         # Load full metadata for representative rows
         representative_metadata = load_representative_metadata(cluster["id"])

@@ -20,6 +20,21 @@ from src.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 
 logger = logging.getLogger(__name__)
 
+# Global progress ranges for each pipeline step (5 steps x 20% each)
+STEP_PROGRESS_BASE = {
+    "preprocess": 0,
+    "embedding": 20,
+    "clustering": 40,
+    "cluster_analysis": 60,
+    "knowledge_unit_generation": 80,
+}
+
+
+def global_progress(step_name: str, local_pct: int) -> int:
+    """Convert a step-local progress (0-100) to a global pipeline progress (0-100)."""
+    base = STEP_PROGRESS_BASE.get(step_name, 0)
+    return base + int((local_pct / 100) * 20)
+
 # Thread-local storage for the current tenant context.
 # Set via set_tenant_context() before processing each job.
 # All get_connection() calls within that thread will inherit this tenant_id.

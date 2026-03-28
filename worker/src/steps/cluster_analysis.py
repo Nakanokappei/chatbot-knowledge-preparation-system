@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
-from src.db import get_connection, update_job_status, update_job_step_outputs, record_token_usage
+from src.db import get_connection, update_job_status, update_job_step_outputs, record_token_usage, global_progress
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -405,7 +405,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     Final:  Save all results to DB once names are unique
     """
     logger.info("Cluster analysis step started for job %d", job_id)
-    update_job_status(job_id, status="cluster_analysis", progress=10)
+    update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", 10))
 
     # Resolve LLM model from pipeline_config (user-selectable, default: Haiku 4.5)
     pipeline_config = kwargs.get("pipeline_config") or {}
@@ -459,8 +459,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             total_output_tokens += output_tokens
             completed += 1
 
-            progress = 10 + int((completed / len(clusters)) * 60)
-            update_job_status(job_id, status="cluster_analysis", progress=progress)
+            local_pct = 10 + int((completed / len(clusters)) * 60)
+            update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", local_pct))
 
             logger.info(
                 "Pass 1 — Cluster %d named: topic='%s', intent='%s' (%d/%d)",
@@ -470,20 +470,20 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
                 completed, len(clusters),
             )
 
-    update_job_status(job_id, status="cluster_analysis", progress=75)
+    update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", 75))
 
     # ── Pass 2: Resolve duplicate topic_names ────────────────────────────
     dedup_in, dedup_out = _resolve_duplicates(clusters, llm_model_id, job_id)
     total_input_tokens += dedup_in
     total_output_tokens += dedup_out
 
-    update_job_status(job_id, status="cluster_analysis", progress=85)
+    update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", 85))
 
     # ── Final: Save all results to DB ────────────────────────────────────
     for cluster in clusters:
         save_analysis_results(cluster["id"], cluster["analysis"])
 
-    update_job_status(job_id, status="cluster_analysis", progress=90)
+    update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", 90))
 
     # Record step metadata
     cluster_summaries = []
