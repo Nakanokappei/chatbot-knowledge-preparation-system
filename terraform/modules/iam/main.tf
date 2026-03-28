@@ -141,6 +141,18 @@ resource "aws_iam_role_policy" "app_task_permissions" {
         ]
         Resource = "*"
       },
+      # Required for ECS Exec (ecs execute-command) to work on this task.
+      {
+        Sid    = "SSMExec"
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      },
       # The App reads CloudWatch metrics (ECS CPU/Memory, RDS connections)
       # to render the system health dashboard for system administrators.
       {
