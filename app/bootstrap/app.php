@@ -32,10 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Role-based access control and Sanctum ability aliases
         $middleware->alias([
-            'budget' => \App\Http\Middleware\EnforceBudget::class,
-            'owner' => \App\Http\Middleware\RequireOwner::class,
-            'system_admin' => \App\Http\Middleware\RequireSystemAdmin::class,
-            'ability' => \App\Http\Middleware\CheckTokenAbility::class,
+            'budget'             => \App\Http\Middleware\EnforceBudget::class,
+            'owner'              => \App\Http\Middleware\RequireOwner::class,
+            'system_admin'       => \App\Http\Middleware\RequireSystemAdmin::class,
+            'ability'            => \App\Http\Middleware\CheckTokenAbility::class,
+            'workspace_owner'    => \App\Http\Middleware\RequireWorkspaceOwner::class,
+            'redirect_sysadmin'  => \App\Http\Middleware\RedirectSystemAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

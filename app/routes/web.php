@@ -75,49 +75,59 @@ Route::middleware('auth')->group(function () {
     // Pipeline: redirect legacy URLs to workspace pipeline view
     Route::get('/pipeline', fn () => redirect('/?pipeline=jobs&pf=all'))->name('dashboard');
     Route::get('/pipeline/jobs/{pipelineJob}', fn ($pipelineJob) => redirect('/?pipeline=jobs&pf=all'))->name('dashboard.show');
-    // Dataset wizard: upload → configure → finalize
-    Route::post('/dataset/upload', [DatasetWizardController::class, 'upload'])->name('dataset.upload');
-    Route::get('/dataset/{dataset}/configure', [DatasetWizardController::class, 'configure'])->name('dataset.configure');
-    Route::post('/dataset/{dataset}/preview', [DatasetWizardController::class, 'preview'])->name('dataset.preview');
-    Route::post('/dataset/{dataset}/re-encode', [DatasetWizardController::class, 'reEncode'])->name('dataset.re-encode');
-    Route::post('/dataset/{dataset}/generate-descriptions', [DatasetWizardController::class, 'generateDescriptionsApi'])->name('dataset.generate-descriptions');
-    Route::post('/dataset/{dataset}/finalize', [DatasetWizardController::class, 'finalize'])->name('dataset.finalize');
-    Route::delete('/dataset/{dataset}', [DatasetWizardController::class, 'destroy'])->name('dataset.destroy');
+    // Dataset wizard and pipeline routes — workspace-scoped (system_admin blocked)
+    Route::middleware('redirect_sysadmin')->group(function () {
+        Route::post('/dataset/upload', [DatasetWizardController::class, 'upload'])->name('dataset.upload');
+        Route::get('/dataset/{dataset}/configure', [DatasetWizardController::class, 'configure'])->name('dataset.configure');
+        Route::post('/dataset/{dataset}/preview', [DatasetWizardController::class, 'preview'])->name('dataset.preview');
+        Route::post('/dataset/{dataset}/re-encode', [DatasetWizardController::class, 'reEncode'])->name('dataset.re-encode');
+        Route::post('/dataset/{dataset}/generate-descriptions', [DatasetWizardController::class, 'generateDescriptionsApi'])->name('dataset.generate-descriptions');
+        Route::post('/dataset/{dataset}/finalize', [DatasetWizardController::class, 'finalize'])->name('dataset.finalize');
+        Route::delete('/dataset/{dataset}', [DatasetWizardController::class, 'destroy'])->name('dataset.destroy');
 
-    Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
-    Route::post('/jobs/{pipelineJob}/cancel', [DashboardController::class, 'cancelPipeline'])->name('dashboard.cancel-pipeline');
-    Route::get('/jobs/{pipelineJob}/knowledge-units', [DashboardController::class, 'knowledgeUnits'])->name('dashboard.knowledge-units');
-    Route::get('/jobs/{pipelineJob}/knowledge-units/export', [DashboardController::class, 'exportKnowledgeUnits'])->name('dashboard.knowledge-units.export');
+        Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
+        Route::post('/jobs/{pipelineJob}/cancel', [DashboardController::class, 'cancelPipeline'])->name('dashboard.cancel-pipeline');
+        Route::get('/jobs/{pipelineJob}/knowledge-units', [DashboardController::class, 'knowledgeUnits'])->name('dashboard.knowledge-units');
+        Route::get('/jobs/{pipelineJob}/knowledge-units/export', [DashboardController::class, 'exportKnowledgeUnits'])->name('dashboard.knowledge-units.export');
 
-    // Knowledge Unit: detail, edit, review, versions
-    Route::get('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'show'])->name('knowledge-units.show');
-    Route::put('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'update'])->name('knowledge-units.update');
-    Route::post('/knowledge-units/{knowledgeUnit}/review', [KnowledgeUnitController::class, 'review'])->name('knowledge-units.review');
-    Route::get('/knowledge-units/{knowledgeUnit}/versions', [KnowledgeUnitController::class, 'versions'])->name('knowledge-units.versions');
-    Route::post('/jobs/{pipelineJob}/knowledge-units/bulk-approve', [KnowledgeUnitController::class, 'bulkApprove'])->name('knowledge-units.bulk-approve');
+        // Knowledge Unit: detail, edit, versions (owner+member); review is owner-only
+        Route::get('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'show'])->name('knowledge-units.show');
+        Route::put('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'update'])->name('knowledge-units.update');
+        Route::get('/knowledge-units/{knowledgeUnit}/versions', [KnowledgeUnitController::class, 'versions'])->name('knowledge-units.versions');
+        Route::post('/jobs/{pipelineJob}/knowledge-units/bulk-approve', [KnowledgeUnitController::class, 'bulkApprove'])->name('knowledge-units.bulk-approve');
+    });
 
-    // Knowledge Packages
-    Route::get('/knowledge-packages', [KnowledgePackageController::class, 'index'])->name('kp.index');
-    Route::get('/knowledge-packages/create', [KnowledgePackageController::class, 'create'])->name('kp.create');
-    Route::post('/knowledge-packages', [KnowledgePackageController::class, 'store'])->name('kp.store');
-    Route::get('/knowledge-packages/{package}', [KnowledgePackageController::class, 'show'])->name('kp.show');
-    Route::post('/knowledge-packages/{package}/submit-review', [KnowledgePackageController::class, 'submitForReview'])->name('kp.submit-review');
-    Route::post('/knowledge-packages/{package}/publish', [KnowledgePackageController::class, 'publish'])->name('kp.publish');
-    Route::post('/knowledge-packages/{package}/reject-review', [KnowledgePackageController::class, 'rejectReview'])->name('kp.reject-review');
-    Route::post('/knowledge-packages/{package}/new-version', [KnowledgePackageController::class, 'newVersion'])->name('kp.new-version');
-    Route::get('/knowledge-packages/{package}/export', [KnowledgePackageController::class, 'export'])->name('kp.export');
-    Route::get('/knowledge-packages/{package}/chat', [KnowledgePackageController::class, 'chat'])->name('kp.chat');
-    Route::get('/knowledge-packages/{package}/evaluation', [KnowledgePackageController::class, 'evaluation'])->name('kp.evaluation');
+    // Knowledge Unit review — owner only (system_admin redirected, member → 403)
+    Route::post('/knowledge-units/{knowledgeUnit}/review', [KnowledgeUnitController::class, 'review'])
+        ->name('knowledge-units.review')
+        ->middleware('workspace_owner');
 
-    // Usage dashboard
-    Route::get('/usage', [UsageController::class, 'index'])->name('usage');
+    // Knowledge Packages — owner only (system_admin redirected, member → 403)
+    Route::middleware('workspace_owner')->group(function () {
+        Route::get('/knowledge-packages', [KnowledgePackageController::class, 'index'])->name('kp.index');
+        Route::get('/knowledge-packages/create', [KnowledgePackageController::class, 'create'])->name('kp.create');
+        Route::post('/knowledge-packages', [KnowledgePackageController::class, 'store'])->name('kp.store');
+        Route::get('/knowledge-packages/{package}', [KnowledgePackageController::class, 'show'])->name('kp.show');
+        Route::post('/knowledge-packages/{package}/submit-review', [KnowledgePackageController::class, 'submitForReview'])->name('kp.submit-review');
+        Route::post('/knowledge-packages/{package}/publish', [KnowledgePackageController::class, 'publish'])->name('kp.publish');
+        Route::post('/knowledge-packages/{package}/reject-review', [KnowledgePackageController::class, 'rejectReview'])->name('kp.reject-review');
+        Route::post('/knowledge-packages/{package}/new-version', [KnowledgePackageController::class, 'newVersion'])->name('kp.new-version');
+        Route::get('/knowledge-packages/{package}/export', [KnowledgePackageController::class, 'export'])->name('kp.export');
+        Route::get('/knowledge-packages/{package}/chat', [KnowledgePackageController::class, 'chat'])->name('kp.chat');
+        Route::get('/knowledge-packages/{package}/evaluation', [KnowledgePackageController::class, 'evaluation'])->name('kp.evaluation');
+    });
+
+    // Usage dashboard — owner only (system_admin redirected, member → 403)
+    Route::get('/usage', [UsageController::class, 'index'])->name('usage')->middleware('workspace_owner');
 
     // Chat & Retrieve (web session auth, used by browser UI)
     Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
     Route::post('/web-api/chat', [\App\Http\Controllers\Api\ChatController::class, 'chat'])->name('web.chat');
 
-    // API guide: documentation and interactive sandbox (session auth, no token required)
-    Route::get('/api-guide', [\App\Http\Controllers\ApiGuideController::class, 'index'])->name('api.guide');
+    // API guide — workspace-scoped (system_admin blocked)
+    Route::get('/api-guide', [\App\Http\Controllers\ApiGuideController::class, 'index'])
+        ->name('api.guide')
+        ->middleware('redirect_sysadmin');
 
     // Profile: user settings, password change, API tokens
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -26,19 +26,6 @@ use Illuminate\View\View;
 class DashboardController extends Controller
 {
     /**
-     * Guard: system admins have no workspace; redirect to admin dashboard.
-     */
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            if (auth()->check() && auth()->user()->isSystemAdmin()) {
-                return redirect()->route('admin.index');
-            }
-            return $next($request);
-        });
-    }
-
-    /**
      * Display the dashboard with job list and statistics.
      */
     public function index(): View

@@ -12,24 +12,6 @@ use Illuminate\Support\Facades\DB;
 class UsageController extends Controller
 {
     /**
-     * Guard: usage dashboard is owner-only.
-     * - System admins are redirected to their admin dashboard.
-     * - Members (non-owners) receive a 403.
-     */
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            if (auth()->check() && auth()->user()->isSystemAdmin()) {
-                return redirect()->route('admin.index');
-            }
-            if (auth()->check() && !auth()->user()->isOwner()) {
-                abort(403, 'Owner access required.');
-            }
-            return $next($request);
-        });
-    }
-
-    /**
      * Display the cost dashboard with monthly summary, daily trend,
      * and breakdowns by endpoint and model for the last 30 days.
      */
