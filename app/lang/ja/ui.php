@@ -56,6 +56,7 @@ return [
 
     // ── Workspace: Cluster header ───────────────────────
     'clusters' => 'クラスター',
+    'cluster_count' => 'クラスター数',
     'noise' => 'ノイズ',
     'silhouette' => 'シルエット',
     'method' => '手法',
@@ -227,7 +228,7 @@ return [
     'current_password' => '現在のパスワード',
     'new_password' => '新しいパスワード',
     'confirm_password' => 'パスワード確認',
-    'confirm_new_password' => '新しいパスワード（確認）',
+    'confirm_new_password' => 'パスワード（確認）',
     'update_profile' => 'プロフィール更新',
     'name' => '名前',
 

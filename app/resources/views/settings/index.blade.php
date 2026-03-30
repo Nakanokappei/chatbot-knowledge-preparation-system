@@ -44,8 +44,8 @@
                 @php
                     $availableLlmModels = $systemLlmModels->filter(fn($m) => !$models->contains('model_id', $m->model_id));
                 @endphp
-                @if($systemLlmModels->isEmpty())
-                    {{-- Admin has registered no models at all --}}
+                @if($systemLlmModels->isEmpty() && $models->isEmpty())
+                    {{-- Admin has registered no models at all, and workspace has none either --}}
                     <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.no_system_models_hint') }}</p>
                 @elseif($availableLlmModels->isEmpty())
                     {{-- All registered models already added to this workspace --}}
@@ -129,8 +129,8 @@
                 @php
                     $availableEmbModels = $systemEmbeddingModels->filter(fn($m) => !$embeddingModels->contains('model_id', $m->model_id));
                 @endphp
-                @if($systemEmbeddingModels->isEmpty())
-                    {{-- Admin has registered no embedding models at all --}}
+                @if($systemEmbeddingModels->isEmpty() && $embeddingModels->isEmpty())
+                    {{-- Admin has registered no embedding models at all, and workspace has none either --}}
                     <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.no_system_models_hint') }}</p>
                 @elseif($availableEmbModels->isEmpty())
                     {{-- All registered embedding models already added to this workspace --}}

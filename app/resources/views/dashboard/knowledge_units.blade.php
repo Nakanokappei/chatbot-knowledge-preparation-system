@@ -36,8 +36,13 @@
         {{-- Stats --}}
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-value" style="color: #0071e3;">{{ $knowledgeUnits->count() }}</div>
-                <div class="stat-label">{{ __('ui.knowledge_units') }}</div>
+                <div class="stat-value" style="color: #0071e3; font-size: 20px;">
+                    {{ $knowledgeUnits->count() }}
+                    <span style="font-size: 13px; font-weight: 400; color: #34c759;">
+                        （承認済み{{ $knowledgeUnits->where('review_status', 'approved')->count() }}）件
+                    </span>
+                </div>
+                <div class="stat-label">{{ __('ui.cluster_count') }}</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value">{{ $knowledgeUnits->sum('row_count') }}</div>
