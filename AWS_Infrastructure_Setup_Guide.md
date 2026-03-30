@@ -1,7 +1,7 @@
 # AWS Infrastructure Setup Guide
 
 **Project:** Chatbot Knowledge Preparation System (CKPS)
-**Last Updated:** 2026-03-27
+**Last Updated:** 2026-03-30
 **Author:** Senior Engineer
 
 ---
@@ -333,26 +333,58 @@ aws ecs run-task \
   --region ap-northeast-1 --profile kps-company
 ```
 
-### 6.4 Create Initial User
+### 6.4 Create Initial User (System Administrator)
+
+The application uses a web-based setup flow controlled by `SETUP_PASSPHRASE`. When no users exist and the passphrase is configured, navigating to the app redirects to `/setup`.
+
+**Step 1: Set `SETUP_PASSPHRASE` in SSM / task definition**
+
+The `SETUP_PASSPHRASE` environment variable must be injected into the App task definition before the initial setup. Set it via SSM Parameter Store (recommended), or temporarily override it in the task definition.
 
 ```bash
-cat > /tmp/create-user.json << 'EOF'
-{
-  "containerOverrides": [{
-    "name": "app",
-    "command": ["sh", "-c", "cd /var/www/html && php artisan tinker --execute=\"\\App\\Models\\Tenant::firstOrCreate(['name' => 'Default'], ['slug' => 'default']); \\$t = \\App\\Models\\Tenant::first(); \\App\\Models\\User::firstOrCreate(['email' => 'admin@kps.dev'], ['name' => 'Admin', 'password' => bcrypt('changeme'), 'tenant_id' => \\$t->id]); echo 'Done';\""]
-  }]
-}
-EOF
-
-aws ecs run-task \
-  --cluster kps-dev-cluster \
-  --task-definition kps-dev-app \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[<PRIVATE_SUBNET_ID>],securityGroups=[<APP_SG_ID>],assignPublicIp=DISABLED}" \
-  --overrides file:///tmp/create-user.json \
+# Store the passphrase in SSM
+aws ssm put-parameter \
+  --name "/kps-dev/setup_passphrase" \
+  --value "<YOUR_PASSPHRASE>" \
+  --type SecureString \
   --region ap-northeast-1 --profile kps-company
 ```
+
+Ensure the App task definition includes:
+```json
+{ "name": "SETUP_PASSPHRASE", "valueFrom": "arn:aws:ssm:ap-northeast-1:<ACCOUNT_ID>:parameter/kps-dev/setup_passphrase" }
+```
+
+**Step 2: Access `/setup` in your browser**
+
+Navigate to `https://<ALB_DNS>/setup`. The page is only accessible when:
+- No users exist in the database, **and**
+- `SETUP_PASSPHRASE` is non-empty
+
+Enter your email address and the passphrase. The app generates a one-time registration link (valid 7 days).
+
+**Step 3: Register via the invitation link**
+
+Open the registration link. Set your name and password. Your account is created with the `system_admin` role and no workspace assignment.
+
+**Step 4: Disable setup mode**
+
+After registration, clear the passphrase to prevent re-entry:
+
+```bash
+aws ssm put-parameter \
+  --name "/kps-dev/setup_passphrase" \
+  --value "" \
+  --type SecureString \
+  --overwrite \
+  --region ap-northeast-1 --profile kps-company
+```
+
+**Step 5: Create the first Workspace**
+
+Log in as system administrator, then navigate to **Admin → Workspaces → New Workspace** to create the initial workspace and invite workspace owners/members via the UI.
+
+> **Note:** The application uses a `Workspace` model (formerly `Tenant`). Users have one of three roles: `system_admin` (no workspace), `owner`, or `member`.
 
 ### 6.5 Application DB User (RLS)
 
@@ -505,9 +537,16 @@ Failure (3x) → Route to DLQ → CloudWatch alarm
 | Bucket Name | kps-dev-csv-uploads |
 | Encryption | SSE-S3 (AES256) |
 | Public Access | All blocked |
-| Lifecycle | Delete after 90 days |
 | CORS | PUT allowed from any origin |
 | Versioning | Not enabled |
+
+**Lifecycle Rules** (`infra/s3-lifecycle.json`):
+
+| Rule | Prefix | Transition | Expiration |
+|------|--------|------------|------------|
+| EmbeddingDataLifecycle | `embeddings/` | 30d → STANDARD_IA, 90d → GLACIER | — |
+| PreprocessDataCleanup | `preprocess/` | — | Delete after 90 days |
+| ExportsLifecycle | `exports/` | 30d → STANDARD_IA | — |
 
 ---
 
@@ -573,12 +612,22 @@ gh secret set AWS_DEPLOY_ROLE_ARN --body "arn:aws:iam::<ACCOUNT_ID>:role/kps-dev
 
 ### 12.2 Alarms
 
-| Alarm | Condition | Action |
-|-------|-----------|--------|
-| RDS CPU High | CPUUtilization > 80% for 5 min | SNS alert |
-| RDS Free Storage Low | FreeStorageSpace < 5 GB for 5 min | SNS alert |
-| DLQ Messages | Any message in DLQ | SNS alert |
-| App Running Count Low | RunningTaskCount < 1 for 1 min | SNS alert |
+Alarm definitions are stored in `infra/cloudwatch-alarms.json` and can be deployed with:
+
+```bash
+aws cloudwatch put-metric-alarm \
+  --cli-input-json file://infra/cloudwatch-alarms.json \
+  --region ap-northeast-1 --profile kps-company
+```
+
+| Alarm | Metric | Condition | Action |
+|-------|--------|-----------|--------|
+| RetrievalLatency | p99 retrieval response time | > 2 s for 5 min | SNS alert |
+| ChatLatency | p99 chat response time | > 12 s for 5 min | SNS alert |
+| PipelineStepErrors | Pipeline step failure count | ≥ 3 in 15 min | SNS alert |
+| TokenCostPerDay | LLM token cost | > $10/hour | SNS alert |
+| SQS-DLQ-Messages | DLQ message count | Any message | SNS alert |
+| ChatErrorRate | Chat error count | > 5 in 5 min | SNS alert |
 
 ### 12.3 SNS Topic
 
@@ -672,18 +721,28 @@ cp app/.env.example app/.env
 
 # Key overrides for local:
 APP_ENV=local
+APP_URL=http://localhost:8000
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5433
 DB_DATABASE=knowledge_prep
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
+DB_USERNAME=ckps_user
+DB_PASSWORD=ckps_local_password
 QUEUE_CONNECTION=database
 FILESYSTEM_DISK=local
-AWS_BEDROCK_REGION=ap-northeast-1
+AWS_DEFAULT_REGION=ap-northeast-1
 AWS_ACCESS_KEY_ID=<YOUR_KEY>
 AWS_SECRET_ACCESS_KEY=<YOUR_SECRET>
+
+# Initial setup (set a passphrase to enable /setup on first run)
+SETUP_PASSPHRASE=<YOUR_LOCAL_PASSPHRASE>
+
+# Mail (log driver is fine for local — check storage/logs for links)
+MAIL_MAILER=log
 ```
+
+> **Local DB credentials** match `docker-compose.yml` (`ckps_user` / `ckps_local_password`).
+> The `db` service listens on host port **5433** (to avoid conflicts with a local PostgreSQL on 5432).
 
 ---
 
@@ -706,7 +765,27 @@ Before going to production, address these items:
 
 ---
 
-## 16. Useful Commands
+## 16. Environment Management (kps.sh)
+
+The `kps.sh` script in the project root manages RDS and ECS for the dev environment:
+
+```bash
+# Start RDS + ECS services (desired count = 1)
+./kps.sh start
+
+# Stop ECS services first, then stop RDS
+./kps.sh stop
+
+# Show current status of ECS services and RDS
+./kps.sh status
+```
+
+> **RDS auto-restart:** AWS automatically restarts a stopped RDS instance after 7 days.
+> A Lambda function (`kps-weekly-stop`) runs every Monday at 08:00 JST to re-stop it and reset the timer.
+
+---
+
+## 17. Useful Commands
 
 ```bash
 # View ECS service status
@@ -744,7 +823,7 @@ cd terraform/ && terraform state list
 
 ---
 
-## 17. Cost Estimate (Dev Environment)
+## 18. Cost Estimate (Dev Environment)
 
 | Service | Spec | Estimated Monthly |
 |---------|------|-------------------|
