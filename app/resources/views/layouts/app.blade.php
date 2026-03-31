@@ -82,6 +82,11 @@
         .page-content { flex: 1; overflow-y: auto; padding: 24px; background: #fff; border-radius: 12px 0 0 0; }
         .page-container { max-width: 960px; margin: 0 auto; }
 
+        /* ── PoC notice banner ───────────────────────────────── */
+        .poc-notice { background: #fff3cd; color: #856404; font-size: 12px; text-align: center; padding: 5px 40px; flex-shrink: 0; letter-spacing: 0.01em; position: relative; }
+        .poc-notice-close { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #856404; font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; opacity: 0.7; }
+        .poc-notice-close:hover { opacity: 1; background: rgba(0,0,0,0.06); }
+
         @yield('extra-styles')
     </style>
     {{-- System admin: override topbar, body background, and primary buttons to match the admin console theme --}}
@@ -98,6 +103,14 @@
     @endif
 </head>
 <body>
+    {{-- PoC notice banner: shown to owner and member roles only; hidden once dismissed via localStorage --}}
+    @if(auth()->check() && !auth()->user()->isSystemAdmin())
+    <div class="poc-notice" id="poc-notice">
+        {{ __('ui.poc_notice') }}
+        <button class="poc-notice-close" onclick="dismissPocNotice()" aria-label="閉じる">×</button>
+    </div>
+    @endif
+
     {{-- Top navigation bar: hamburger menu, app title, nav links, and user dropdown --}}
     <div class="topbar">
         <div class="topbar-left">
@@ -182,6 +195,21 @@
     @yield('body')
 
     <script>
+        // Restore dismissed state for PoC notice banner on page load
+        (function() {
+            if (localStorage.getItem('poc_notice_dismissed') === '1') {
+                const el = document.getElementById('poc-notice');
+                if (el) el.style.display = 'none';
+            }
+        })();
+
+        // Hide the PoC notice banner and persist the choice in localStorage
+        function dismissPocNotice() {
+            const el = document.getElementById('poc-notice');
+            if (el) el.style.display = 'none';
+            localStorage.setItem('poc_notice_dismissed', '1');
+        }
+
         // Close user dropdown when clicking outside
         document.addEventListener('click', function(e) {
             const menu = document.getElementById('user-menu');

@@ -487,6 +487,7 @@ return [
     'select_from_system_models' => 'システムモデルから選択',
     'model_not_in_system_templates' => 'このモデルは使用できません。システムテンプレートから選択してください。',
     'no_system_models_hint' => 'システム管理者がモデルを登録していません。管理者にお問い合わせください。',
+    'poc_notice' => 'このシステムは PoC 環境です。稼働時間は平日 08:30〜19:30 のみです。',
     'all_models_added' => 'このワークスペースで利用できるモデルはすべて追加済みです。',
     'invite_role' => 'ロール',
     'usage_by_endpoint' => 'エンドポイント別使用状況',
