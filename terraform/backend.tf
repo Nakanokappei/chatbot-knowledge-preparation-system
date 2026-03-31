@@ -17,5 +17,6 @@ terraform {
     region         = "ap-northeast-1"
     dynamodb_table = "kps-terraform-lock"
     encrypt        = true
+    profile        = "kps-company"
   }
 }
