@@ -233,6 +233,21 @@ module "waf" {
 }
 
 # ------------------------------------------------------------------
+# Scheduler — weekday auto-start (08:30 JST) / auto-stop (19:30 JST)
+# ------------------------------------------------------------------
+
+module "scheduler" {
+  source = "./modules/scheduler"
+
+  name_prefix    = local.name_prefix
+  aws_region     = var.aws_region
+  rds_identifier = "${local.name_prefix}-postgres"
+  ecs_cluster    = "${local.name_prefix}-cluster"
+  ecs_services   = ["${local.name_prefix}-app", "${local.name_prefix}-worker"]
+  common_tags    = local.common_tags
+}
+
+# ------------------------------------------------------------------
 # Phase 8: Monitoring
 # ------------------------------------------------------------------
 

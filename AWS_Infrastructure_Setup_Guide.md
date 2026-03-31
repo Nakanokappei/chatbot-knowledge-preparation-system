@@ -765,9 +765,11 @@ Before going to production, address these items:
 
 ---
 
-## 16. Environment Management (kps.sh)
+## 16. Environment Management
 
-The `kps.sh` script in the project root manages RDS and ECS for the dev environment:
+### 16.1 Manual control (kps.sh)
+
+The `kps.sh` script in the project root manages RDS and ECS on demand:
 
 ```bash
 # Start RDS + ECS services (desired count = 1)
@@ -780,8 +782,40 @@ The `kps.sh` script in the project root manages RDS and ECS for the dev environm
 ./kps.sh status
 ```
 
-> **RDS auto-restart:** AWS automatically restarts a stopped RDS instance after 7 days.
-> A Lambda function (`kps-weekly-stop`) runs every Monday at 08:00 JST to re-stop it and reset the timer.
+### 16.2 Automatic weekday schedule
+
+Two EventBridge Scheduler schedules (managed by `terraform/modules/scheduler`) run Lambda functions to start and stop the environment on a fixed weekday schedule:
+
+| Schedule | Cron (JST) | Action |
+|----------|------------|--------|
+| `kps-dev-weekday-start` | Mon–Fri 08:30 | Start RDS → set ECS desiredCount=1 |
+| `kps-dev-weekday-stop`  | Mon–Fri 19:30 | Set ECS desiredCount=0 → stop RDS |
+
+- **Weekends and holidays:** no automatic action — environment stays in its last state.
+- **Lambda source:** `terraform/modules/scheduler/lambda/kps_start.py` and `kps_stop.py`
+
+To update the schedule times, change the `schedule_expression` values in `terraform/modules/scheduler/main.tf` and run `terraform apply`.
+
+### 16.3 Removing legacy resources
+
+If the old Saturday-shutdown EventBridge rule (`kps-weekly-saturday-stop` or similar) and the `kps-weekly-stop` Monday Lambda were created manually, delete them:
+
+```bash
+# List EventBridge Scheduler schedules to find the legacy names
+aws scheduler list-schedules --profile kps-company --region ap-northeast-1
+
+# Delete a schedule by name
+aws scheduler delete-schedule \
+  --name <LEGACY_SCHEDULE_NAME> \
+  --region ap-northeast-1 --profile kps-company
+
+# Delete the legacy kps-weekly-stop Lambda (no longer needed)
+aws lambda delete-function \
+  --function-name kps-weekly-stop \
+  --region ap-northeast-1 --profile kps-company
+```
+
+> **Why kps-weekly-stop is no longer needed:** RDS was previously stopped indefinitely and would auto-restart after 7 days. With the new weekday schedule, RDS is stopped every evening and started every morning — the longest continuous stop is ~63 hours (Fri 19:30 → Mon 08:30), well under the 7-day limit.
 
 ---
 
