@@ -103,8 +103,8 @@
     @endif
 </head>
 <body>
-    {{-- PoC notice banner: shown to owner and member roles only; hidden once dismissed via localStorage --}}
-    @if(auth()->check() && !auth()->user()->isSystemAdmin())
+    {{-- PoC notice banner: shown to owner and member roles only when POC_NOTICE_ENABLED=true; hidden once dismissed via localStorage --}}
+    @if(config('app.poc_notice_enabled') && auth()->check() && !auth()->user()->isSystemAdmin())
     <div class="poc-notice" id="poc-notice">
         {{ __('ui.poc_notice') }}
         <button class="poc-notice-close" onclick="dismissPocNotice()" aria-label="閉じる">×</button>

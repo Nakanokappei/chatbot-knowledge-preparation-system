@@ -125,4 +125,7 @@ return [
 
     'setup_passphrase' => env('SETUP_PASSPHRASE', ''),
 
+    // Show the PoC notice banner to owner/member users. Set to false to hide it.
+    'poc_notice_enabled' => env('POC_NOTICE_ENABLED', true),
+
 ];
