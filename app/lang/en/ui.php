@@ -486,6 +486,7 @@ return [
     'select_from_system_models' => 'Select from system models',
     'model_not_in_system_templates' => 'This model is not available. Please select from the system templates.',
     'no_system_models_hint' => 'No models have been configured by the system administrator. Please contact your admin.',
+    'poc_notice' => 'This is a PoC environment. Available on weekdays only, 8:30 AM–7:30 PM JST.',
     'all_models_added' => 'All available models have already been added to this workspace.',
     'invite_role' => 'Role',
     'usage_by_endpoint' => 'Usage by Endpoint',
