@@ -311,7 +311,7 @@
                                     else                   { $silBg = '#f8d7da'; $silColor = '#721c24'; $silLabel = __('ui.silhouette_poor'); }
                                 @endphp
                                 <div style="background: {{ $silBg }}; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;"
-                                     title="Text embeddings typically score 0.0–0.3 due to high dimensionality.">
+                                     title="{{ __('ui.silhouette_score_hint') }}">
                                     <div style="font-size: 11px; color: {{ $silColor }};">{{ $silLabel }}</div>
                                     <div style="font-size: 20px; font-weight: 700; color: {{ $silColor }};">{{ number_format($sil, 3) }}</div>
                                     <div style="font-size: 11px; color: {{ $silColor }};">{{ __('ui.silhouette') }}</div>
@@ -330,28 +330,28 @@
                             <div style="background: #f0f0f2; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
                                 <div style="font-size: 11px; color: #5f6368;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #5f6368;">{{ $statusCounts['draft'] }}</div>
-                                <div style="font-size: 11px; color: #5f6368;">Draft</div>
+                                <div style="font-size: 11px; color: #5f6368;">{{ __('ui.draft') }}</div>
                             </div>
                             @endif
                             @if($statusCounts->get('reviewed', 0) > 0)
                             <div style="background: #fff3cd; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
                                 <div style="font-size: 11px; color: #856404;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #856404;">{{ $statusCounts['reviewed'] }}</div>
-                                <div style="font-size: 11px; color: #856404;">Reviewed</div>
+                                <div style="font-size: 11px; color: #856404;">{{ __('ui.reviewed') }}</div>
                             </div>
                             @endif
                             @if($statusCounts->get('approved', 0) > 0)
                             <div style="background: #d4edda; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
                                 <div style="font-size: 11px; color: #155724;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #155724;">{{ $statusCounts['approved'] }}</div>
-                                <div style="font-size: 11px; color: #155724;">Approved</div>
+                                <div style="font-size: 11px; color: #155724;">{{ __('ui.approved') }}</div>
                             </div>
                             @endif
                             @if($statusCounts->get('rejected', 0) > 0)
                             <div style="background: #f8d7da; border-radius: 8px; padding: 8px 14px; text-align: center; min-width: 70px;">
                                 <div style="font-size: 11px; color: #721c24;">&nbsp;</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #721c24;">{{ $statusCounts['rejected'] }}</div>
-                                <div style="font-size: 11px; color: #721c24;">Rejected</div>
+                                <div style="font-size: 11px; color: #721c24;">{{ __('ui.rejected') }}</div>
                             </div>
                             @endif
 
@@ -457,7 +457,7 @@
                             </div>
                         </div>
                         <form method="POST" action="{{ route('workspace.destroy', $current->id) }}"
-                              onsubmit="return confirm('Delete &quot;{{ $current->name }}&quot; and all its KUs? This cannot be undone.')">
+                              onsubmit="return confirm('{{ __('ui.delete_embedding_confirm', ['name' => $current->name]) }}')">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline" style="color: #ff3b30; border-color: #ff3b30;">
                                 🗑 {{ __('ui.delete') }}
@@ -663,7 +663,7 @@
             background: #1d1d1f; border-radius: 12px 12px 0 0; flex-shrink: 0;">
             <div>
                 <div style="font-size: 14px; font-weight: 600; color: #fff;">{{ __('ui.chat') }} — {{ Str::limit($current->name, 30) }}</div>
-                <div style="font-size: 11px; color: #aaa;">{{ $knowledgeUnits->where('review_status', 'approved')->count() }} approved clusters as knowledge source</div>
+                <div style="font-size: 11px; color: #aaa;">{{ __('ui.approved_ku_count', ['count' => $knowledgeUnits->where('review_status', 'approved')->count()]) }}</div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
                 <button onclick="toggleHistoryPanel()" title="{{ __('ui.chat_history') }}"
@@ -673,7 +673,7 @@
                     </svg>
                     {{ __('ui.chat_history') }}
                 </button>
-                <button onclick="clearChat()" style="background: none; border: none; cursor: pointer; color: #aaa; font-size: 12px;" title="Clear">Clear</button>
+                <button onclick="clearChat()" style="background: none; border: none; cursor: pointer; color: #aaa; font-size: 12px;" title="{{ __('ui.clear_chat') }}">{{ __('ui.clear_chat') }}</button>
                 <button onclick="closeChatOverlay()" style="background: none; border: none; cursor: pointer; color: #fff; font-size: 18px; line-height: 1; padding: 0 4px;">✕</button>
             </div>
         </div>
@@ -692,14 +692,14 @@
         <!-- Messages area -->
         <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
             <div style="text-align: center; color: #5f6368; font-size: 12px; padding: 20px 0;">
-                Ask a question about the data in this embedding's clusters.
+                {{ __('ui.chat_placeholder') }}
             </div>
         </div>
 
         <!-- Input area (hidden while history panel is open) -->
         <div id="chat-input-area" style="border-top: 1px solid #e5e5e7; padding: 12px 16px; flex-shrink: 0;">
             <form onsubmit="sendChatMessage(event)" style="display: flex; gap: 8px;">
-                <input type="text" id="chat-input" placeholder="Type your question..."
+                <input type="text" id="chat-input" placeholder="{{ __('ui.chat_input_placeholder') }}"
                     style="flex: 1; padding: 10px 14px; border: 1px solid #d2d2d7; border-radius: 20px; font-size: 14px; outline: none;"
                     autocomplete="off">
                 <button type="submit" id="chat-send-btn"
@@ -928,7 +928,7 @@
                 color: #aaa; opacity: 0; transition: opacity 0.15s;
                 flex-shrink: 0; margin-top: 6px;
             `;
-            copyBtn.title = 'Copy';
+            copyBtn.title = '{{ __("ui.copy") }}';
             copyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(content).then(() => {
@@ -1027,7 +1027,7 @@
                         ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-6 0v4H5l7-7 7 7h-5z"/><path d="M5 9v10a2 2 0 002 2h10a2 2 0 002-2V9"/></svg>'
                         : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 006 0v-4h3l-7 7-7-7h5z"/><path d="M19 15V5a2 2 0 00-2-2H7a2 2 0 00-2 2v10"/></svg>';
                     btn.style.cssText = 'background: none; border: none; cursor: pointer; padding: 2px; color: #ccc; transition: color 0.15s;';
-                    btn.title = type === 'up' ? 'Helpful' : 'Not helpful';
+                    btn.title = type === 'up' ? '{{ __("ui.helpful") }}' : '{{ __("ui.not_helpful") }}';
                     btn.addEventListener('mouseenter', () => btn.style.color = type === 'up' ? '#34a853' : '#ea4335');
                     btn.addEventListener('mouseleave', () => { if (!btn.dataset.voted) btn.style.color = '#ccc'; });
                     btn.addEventListener('click', () => {
@@ -1204,7 +1204,7 @@
                     list.appendChild(item);
                 });
             } catch (e) {
-                list.innerHTML = '<div style="text-align:center;color:#ea4335;font-size:12px;padding:20px;">Failed to load history</div>';
+                list.innerHTML = '<div style="text-align:center;color:#ea4335;font-size:12px;padding:20px;">{{ __("ui.failed_load_history") }}</div>';
             }
             @endif
         }
@@ -1239,7 +1239,7 @@
                     updateContextIndicator();
                 }
             } catch (e) {
-                appendChatMessage('assistant', 'Failed to load session: ' + e.message);
+                appendChatMessage('assistant', '{{ __("ui.failed_load_session") }}' + e.message);
             }
             @endif
         }

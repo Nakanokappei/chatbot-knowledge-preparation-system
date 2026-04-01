@@ -533,6 +533,30 @@ return [
     'copy_token' => 'Copy',
     'token_copied' => 'Copied!',
 
+    // ── Status labels ────────────────────────────────────
+    'reviewed' => 'Reviewed',
+    'rejected' => 'Rejected',
+
+    // ── Chat UI ──────────────────────────────────────────
+    'chat_input_placeholder' => 'Type your question...',
+    'clear_chat'             => 'Clear',
+    'approved_ku_count'      => ':count approved clusters as knowledge source',
+    'silhouette_score_hint'  => 'Text embeddings typically score 0.0–0.3 due to high dimensionality.',
+    'failed_load_history'    => 'Failed to load history',
+    'failed_load_session'    => 'Failed to load session: ',
+    'helpful'                => 'Helpful',
+    'not_helpful'            => 'Not helpful',
+
+    // ── Confirmation dialogs ──────────────────────────────
+    'delete_embedding_confirm' => 'Delete ":name" and all its KUs? This cannot be undone.',
+    'send_reset_confirm'       => 'Send password reset email to :name?',
+
+    // ── Export buttons ────────────────────────────────────
+    'export_json_approved' => 'JSON (Approved)',
+    'export_csv_approved'  => 'CSV (Approved)',
+    'export_json_all'      => 'JSON (All)',
+    'export_csv_all'       => 'CSV (All)',
+
     // ── Role labels ──────────────────────────────────────
     'role_owner' => 'Owner',
     'role_member' => 'Member',

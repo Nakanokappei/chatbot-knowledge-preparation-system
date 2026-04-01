@@ -55,16 +55,16 @@
                                 <form method="POST" action="{{ route('workspace.update-role', $member) }}" style="margin: 0;">
                                     @csrf @method('PUT')
                                     <select name="role" onchange="this.form.submit()" style="padding: 3px 8px; border: 1px solid #d2d2d7; border-radius: 4px; font-size: 12px;">
-                                        <option value="owner" @if($member->role === 'owner') selected @endif>Owner</option>
-                                        <option value="member" @if($member->role === 'member') selected @endif>Member</option>
+                                        <option value="owner" @if($member->role === 'owner') selected @endif>{{ __('ui.role_owner') }}</option>
+                                        <option value="member" @if($member->role === 'member') selected @endif>{{ __('ui.role_member') }}</option>
                                     </select>
                                 </form>
                             @else
-                                <span class="badge" style="background: #e8f5e9; color: #2e7d32;">Owner</span>
+                                <span class="badge" style="background: #e8f5e9; color: #2e7d32;">{{ __('ui.role_owner') }}</span>
                             @endif
                             <div style="font-size: 12px; color: #5f6368;">{{ $member->created_at->format('Y-m-d') }}</div>
                             <form method="POST" action="{{ route('workspace.reset-password', $member) }}" style="margin: 0;"
-                                  onsubmit="return confirm('Send password reset email to {{ $member->name }}?')">
+                                  onsubmit="return confirm('{{ __('ui.send_reset_confirm', ['name' => $member->name]) }}')">
                                 @csrf
                                 <button type="submit" style="background: none; border: 1px solid #d2d2d7; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #5f6368; cursor: pointer; white-space: nowrap;">{{ __('ui.send_reset') }}</button>
                             </form>
@@ -91,8 +91,8 @@
                     <div style="width: 120px;">
                         <label for="invite_role">{{ __('ui.invite_role') }}</label>
                         <select name="role" id="invite_role" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            <option value="member">Member</option>
-                            <option value="owner">Owner</option>
+                            <option value="member">{{ __('ui.role_member') }}</option>
+                            <option value="owner">{{ __('ui.role_owner') }}</option>
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary" style="white-space: nowrap;">{{ __('ui.send_invitation') }}</button>

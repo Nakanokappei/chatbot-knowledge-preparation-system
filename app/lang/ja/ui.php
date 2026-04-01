@@ -534,6 +534,30 @@ return [
     'copy_token' => 'コピー',
     'token_copied' => 'コピーしました',
 
+    // ── ステータスラベル ──────────────────────────────────
+    'reviewed' => 'レビュー済み',
+    'rejected' => '却下',
+
+    // ── チャット UI ───────────────────────────────────────
+    'chat_input_placeholder' => '質問を入力...',
+    'clear_chat'             => 'クリア',
+    'approved_ku_count'      => ':count 件の承認済みクラスターをナレッジソースとして使用',
+    'silhouette_score_hint'  => 'テキスト埋め込みは高次元のため、通常 0.0〜0.3 のスコアになります。',
+    'failed_load_history'    => '履歴の読み込みに失敗しました',
+    'failed_load_session'    => 'セッションの読み込みに失敗しました: ',
+    'helpful'                => '役に立った',
+    'not_helpful'            => '役に立たなかった',
+
+    // ── 確認ダイアログ ────────────────────────────────────
+    'delete_embedding_confirm' => '「:name」とすべての KU を削除しますか？この操作は元に戻せません。',
+    'send_reset_confirm'       => ':name にパスワードリセットメールを送信しますか？',
+
+    // ── エクスポートボタン ────────────────────────────────
+    'export_json_approved' => 'JSON（承認済み）',
+    'export_csv_approved'  => 'CSV（承認済み）',
+    'export_json_all'      => 'JSON（全件）',
+    'export_csv_all'       => 'CSV（全件）',
+
     // ── ロールラベル ──────────────────────────────────────
     'role_owner' => 'オーナー',
     'role_member' => 'メンバー',

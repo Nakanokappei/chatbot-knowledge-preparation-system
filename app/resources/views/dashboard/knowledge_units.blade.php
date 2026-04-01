@@ -79,10 +79,10 @@
             <div class="card-actions">
                 <h2 style="margin-bottom: 0;">{{ __('ui.export') }}</h2>
                 <div class="export-bar">
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'approved']) }}" class="btn btn-outline btn-sm">JSON (Approved)</a>
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'approved']) }}" class="btn btn-outline btn-sm">CSV (Approved)</a>
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'all']) }}" class="btn btn-outline btn-sm" style="opacity: 0.65;">JSON (All)</a>
-                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'all']) }}" class="btn btn-outline btn-sm" style="opacity: 0.65;">CSV (All)</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'approved']) }}" class="btn btn-outline btn-sm">{{ __('ui.export_json_approved') }}</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'approved']) }}" class="btn btn-outline btn-sm">{{ __('ui.export_csv_approved') }}</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'json', 'status' => 'all']) }}" class="btn btn-outline btn-sm" style="opacity: 0.65;">{{ __('ui.export_json_all') }}</a>
+                    <a href="{{ route('dashboard.knowledge-units.export', ['pipelineJob' => $job->id, 'format' => 'csv', 'status' => 'all']) }}" class="btn btn-outline btn-sm" style="opacity: 0.65;">{{ __('ui.export_csv_all') }}</a>
                 </div>
             </div>
         </div>
