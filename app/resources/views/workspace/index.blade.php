@@ -196,7 +196,15 @@
                                 <path d="M6 18h12l2 4h8l2-4h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </div>
-                        <div class="empty-title">No {{ $pipelineFilter !== 'all' ? $pipelineFilter : '' }} jobs</div>
+                        @php
+                            $noJobsKey = match($pipelineFilter) {
+                                'processing' => 'no_jobs_processing',
+                                'failed'     => 'no_jobs_failed',
+                                'completed'  => 'no_jobs_completed',
+                                default      => 'no_jobs',
+                            };
+                        @endphp
+                        <div class="empty-title">{{ __('ui.' . $noJobsKey) }}</div>
                         <div style="font-size: 14px;">{{ __('ui.no_jobs_hint') }}</div>
                     </div>
                 @else

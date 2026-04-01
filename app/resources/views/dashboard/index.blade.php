@@ -39,42 +39,42 @@
         {{-- Sidebar: navigation links that filter jobs by status (all, completed, processing, failed) --}}
         <div class="sidebar">
             <div class="sidebar-tree">
-                <div class="sidebar-section">Pipeline Jobs</div>
+                <div class="sidebar-section">{{ __('ui.pipeline_jobs') }}</div>
 
                 <a href="{{ route('dashboard', ['filter' => 'all']) }}"
                    class="sidebar-item {{ $filter === 'all' ? 'active' : '' }}">
                     <span class="sidebar-icon">📋</span>
-                    All Jobs
+                    {{ __('ui.all_jobs') }}
                     <span class="sidebar-count">{{ $stats['total'] }}</span>
                 </a>
 
                 <a href="{{ route('dashboard', ['filter' => 'completed']) }}"
                    class="sidebar-item {{ $filter === 'completed' ? 'active' : '' }}">
                     <span class="sidebar-icon">✅</span>
-                    Completed
+                    {{ __('ui.completed') }}
                     <span class="sidebar-count">{{ $stats['completed'] }}</span>
                 </a>
 
                 <a href="{{ route('dashboard', ['filter' => 'processing']) }}"
                    class="sidebar-item {{ $filter === 'processing' ? 'active' : '' }}">
                     <span class="sidebar-icon">⏳</span>
-                    Processing
+                    {{ __('ui.processing') }}
                     <span class="sidebar-count">{{ $stats['processing'] }}</span>
                 </a>
 
                 <a href="{{ route('dashboard', ['filter' => 'failed']) }}"
                    class="sidebar-item {{ $filter === 'failed' ? 'active' : '' }}">
                     <span class="sidebar-icon">❌</span>
-                    Failed
+                    {{ __('ui.failed') }}
                     <span class="sidebar-count">{{ $stats['failed'] }}</span>
                 </a>
 
-                <div class="sidebar-section" style="margin-top: 16px;">Actions</div>
+                <div class="sidebar-section" style="margin-top: 16px;">{{ __('ui.actions') }}</div>
 
                 <a href="{{ route('dashboard', ['filter' => $filter, 'show' => 'dispatch']) }}"
                    class="sidebar-item {{ request('show') === 'dispatch' ? 'active' : '' }}">
                     <span class="sidebar-icon">🚀</span>
-                    Run Pipeline
+                    {{ __('ui.run_pipeline') }}
                 </a>
             </div>
         </div>
@@ -83,7 +83,7 @@
         <div class="main" id="main-content">
             @if(request('show') === 'dispatch')
                 {{-- Dispatch form: CSV upload and pipeline run with clustering method selection --}}
-                <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">Run Pipeline</h2>
+                <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 16px;">{{ __('ui.run_pipeline') }}</h2>
 
                 @if(session('success'))
                     <div style="background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">✓ {{ session('success') }}</div>
@@ -93,16 +93,16 @@
                 @endif
 
                 <div class="dispatch-card">
-                    <h3>Upload Dataset</h3>
+                    <h3>{{ __('ui.upload_dataset') }}</h3>
                     <form method="POST" action="{{ route('dataset.upload') }}" enctype="multipart/form-data" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                         @csrf
                         <input type="file" name="csv_file" accept=".csv,.txt" required style="font-size: 13px;">
-                        <button type="submit" class="btn btn-primary">Upload & Configure</button>
+                        <button type="submit" class="btn btn-primary">{{ __('ui.upload_configure') }}</button>
                     </form>
                 </div>
 
                 <div class="dispatch-card">
-                    <h3>Dispatch Pipeline</h3>
+                    <h3>{{ __('ui.dispatch_pipeline') }}</h3>
                     <form method="POST" action="{{ route('dashboard.dispatch-pipeline') }}">
                         @csrf
                         <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
@@ -112,18 +112,18 @@
                                 @endforeach
                             </select>
                             <select name="llm_model_id" required style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                                <option value="">-- Select LLM --</option>
+                                <option value="">{{ __('ui.select_llm') }}</option>
                                 @foreach($llmModels as $model)
                                     <option value="{{ $model->model_id }}">{{ $model->display_name }}</option>
                                 @endforeach
                             </select>
                             <select name="clustering_method" id="clustering-method" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                                <option value="hdbscan" selected>HDBSCAN (auto clusters)</option>
-                                <option value="kmeans">K-Means (fixed clusters)</option>
-                                <option value="agglomerative">Agglomerative (hierarchical)</option>
-                                <option value="leiden">HNSW + Leiden (graph)</option>
+                                <option value="hdbscan" selected>{{ __('ui.method_hdbscan') }}</option>
+                                <option value="kmeans">{{ __('ui.method_kmeans') }}</option>
+                                <option value="agglomerative">{{ __('ui.method_agglomerative') }}</option>
+                                <option value="leiden">{{ __('ui.method_leiden') }}</option>
                             </select>
-                            <button type="submit" class="btn btn-primary" style="background: #30d158;">Run Full Pipeline</button>
+                            <button type="submit" class="btn btn-primary" style="background: #30d158;">{{ __('ui.run_full_pipeline') }}</button>
                         </div>
                         <div id="clustering-params" style="margin-top: 10px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                             <div id="params-hdbscan">
@@ -163,14 +163,22 @@
                 @endif
 
                 @if($jobs->isEmpty())
+                    @php
+                        $noJobsKey = match($filter) {
+                            'processing' => 'no_jobs_processing',
+                            'failed'     => 'no_jobs_failed',
+                            'completed'  => 'no_jobs_completed',
+                            default      => 'no_jobs',
+                        };
+                    @endphp
                     <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
                         <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
-                        <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px;">No {{ $filter !== 'all' ? $filter : '' }} jobs</div>
+                        <div style="font-size: 16px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px;">{{ __('ui.' . $noJobsKey) }}</div>
                         <div style="font-size: 13px;">
                             @if($filter === 'all')
-                                Run a pipeline to get started.
+                                {{ __('ui.no_jobs_hint') }}
                             @else
-                                No jobs with status "{{ $filter }}".
+                                {{ __('ui.no_jobs_filter', ['filter' => __('ui.' . $filter)]) }}
                             @endif
                         </div>
                     </div>
@@ -190,9 +198,9 @@
                                     <div style="font-size: 14px; font-weight: 500;">{{ $job->dataset->name ?? 'Unknown Dataset' }}</div>
                                     <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($nClusters !== null)
-                                            {{ $nClusters }} clusters
+                                            {{ $nClusters }} {{ __('ui.clusters') }}
                                             @if($silhouette !== null)
-                                                · silhouette {{ number_format($silhouette, 3) }}
+                                                · {{ __('ui.silhouette') }} {{ number_format($silhouette, 3) }}
                                             @endif
                                         @else
                                             {{ $job->status }}
@@ -203,7 +211,7 @@
                                     </div>
                                     <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                         @if($nNoise !== null)
-                                            {{ $nNoise }} noise points
+                                            {{ $nNoise }} {{ __('ui.noise_points') }}
                                         @elseif($job->error_detail)
                                             {{ Str::limit($job->error_detail, 80) }}
                                         @endif

@@ -41,7 +41,7 @@
             <div class="empty-state" id="empty-state">
                 <h3>{{ __('ui.rag_chat') }}</h3>
                 <p>{{ __('ui.ask_question_about') }}</p>
-                <p style="font-size: 12px; margin-top: 8px; color: #a0a0a5;">Retrieval + Augmented Generation against {{ $package->ku_count }} approved Knowledge Units</p>
+                <p style="font-size: 12px; margin-top: 8px; color: #a0a0a5;">{{ __('ui.rag_tech_note', ['count' => $package->ku_count]) }}</p>
             </div>
         </div>
     </div>

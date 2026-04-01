@@ -48,11 +48,24 @@ return [
 
     // ── Sidebar: Pipeline ───────────────────────────────
     'pipeline' => 'パイプライン',
+    'pipeline_jobs' => 'パイプラインジョブ',
     'all_jobs' => 'すべてのジョブ',
     'completed' => '完了',
     'processing' => '処理中',
     'failed' => '失敗/中止',
+    'actions' => 'アクション',
     'run_pipeline' => 'パイプライン実行',
+    'run_full_pipeline' => 'フルパイプラインを実行',
+    'upload_dataset' => 'データセットをアップロード',
+    'upload_configure' => 'アップロード＆設定',
+    'dispatch_pipeline' => 'パイプラインを実行',
+    'select_llm' => '-- LLM を選択 --',
+    'method_hdbscan' => 'HDBSCAN（自動クラスタリング）',
+    'method_kmeans' => 'K-Means（固定クラスタ数）',
+    'method_agglomerative' => '凝集型（階層的）',
+    'method_leiden' => 'HNSW + Leiden（グラフ）',
+    'job_number' => 'ジョブ #',
+    'rag_tech_note' => '承認済みナレッジユニット :count 件を対象とした RAG チャット',
 
     // ── Workspace: Cluster header ───────────────────────
     'clusters' => 'クラスター',
@@ -117,6 +130,9 @@ return [
     'no_jobs' => 'ジョブがありません',
     'no_jobs_hint' => 'パイプラインを実行してください。',
     'no_jobs_filter' => '":filter" のジョブはありません。',
+    'no_jobs_processing' => '処理中のジョブはありません',
+    'no_jobs_failed' => '失敗したジョブはありません',
+    'no_jobs_completed' => '完了したジョブはありません',
     'noise_points' => 'ノイズポイント',
 
     // ── Upload / Configure dataset ──────────────────────

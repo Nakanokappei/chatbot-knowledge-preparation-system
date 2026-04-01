@@ -48,11 +48,24 @@ return [
 
     // ── Sidebar: Pipeline ───────────────────────────────
     'pipeline' => 'Pipeline',
+    'pipeline_jobs' => 'Pipeline Jobs',
     'all_jobs' => 'All Jobs',
     'completed' => 'Completed',
     'processing' => 'Processing',
     'failed' => 'Failed',
+    'actions' => 'Actions',
     'run_pipeline' => 'Run Pipeline',
+    'run_full_pipeline' => 'Run Full Pipeline',
+    'upload_dataset' => 'Upload Dataset',
+    'upload_configure' => 'Upload & Configure',
+    'dispatch_pipeline' => 'Dispatch Pipeline',
+    'select_llm' => '-- Select LLM --',
+    'method_hdbscan' => 'HDBSCAN (auto clusters)',
+    'method_kmeans' => 'K-Means (fixed clusters)',
+    'method_agglomerative' => 'Agglomerative (hierarchical)',
+    'method_leiden' => 'HNSW + Leiden (graph)',
+    'job_number' => 'Job #',
+    'rag_tech_note' => 'Retrieval + Augmented Generation against :count approved Knowledge Units',
 
     // ── Workspace: Cluster header ───────────────────────
     'clusters' => 'Clusters',
@@ -116,6 +129,9 @@ return [
     'no_jobs' => 'No jobs',
     'no_jobs_hint' => 'Run a pipeline to get started.',
     'no_jobs_filter' => 'No jobs with status ":filter".',
+    'no_jobs_processing' => 'No processing jobs',
+    'no_jobs_failed' => 'No failed jobs',
+    'no_jobs_completed' => 'No completed jobs',
     'noise_points' => 'noise points',
 
     // ── Upload / Configure dataset ──────────────────────

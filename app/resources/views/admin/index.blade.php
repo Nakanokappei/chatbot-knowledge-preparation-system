@@ -154,11 +154,11 @@
                             @endphp
                             <tr>
                                 <td style="max-width: 0; width: 100%;">
-                                    <div style="font-size: 14px; font-weight: 500;">{{ $job->dataset->name ?? 'Job #' . $job->id }}</div>
+                                    <div style="font-size: 14px; font-weight: 500;">{{ $job->dataset->name ?? __('ui.job_number') . $job->id }}</div>
                                     <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
                                         @if($nClusters !== null)
-                                            {{ $nClusters }} clusters
-                                            @if($silhouette !== null) · silhouette {{ number_format($silhouette, 3) }} @endif
+                                            {{ $nClusters }} {{ __('ui.clusters') }}
+                                            @if($silhouette !== null) · {{ __('ui.silhouette') }} {{ number_format($silhouette, 3) }} @endif
                                         @else
                                             {{ $job->status }}
                                             @if($job->progress > 0 && $job->progress < 100) · {{ $job->progress }}% @endif
