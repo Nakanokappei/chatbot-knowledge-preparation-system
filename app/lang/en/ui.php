@@ -783,4 +783,19 @@ return [
     'refresh_kus_confirm'           => 'Re-sync with current approved KUs from the source embeddings?',
     'package_kus_refreshed'         => 'KU list refreshed (:count KUs).',
     'no_embeddings_in_package'      => 'No source embeddings found in this package.',
+
+    // ── Evaluation (simplified) ─────────────────────────────
+    'eval_title'                    => 'Search Quality Test',
+    'eval_description'              => 'Enter questions that your customers might ask. The system will search the knowledge base and show which articles match. Use this to verify that the chatbot can find the right answers.',
+    'eval_queries_tested'           => 'Tested',
+    'eval_avg_relevance'            => 'Avg. Relevance',
+    'eval_avg_response_time'        => 'Avg. Response',
+    'eval_test_queries'             => 'Test Questions',
+    'eval_test_queries_hint'        => 'Type questions as your customers would ask them. Press Enter to add more.',
+    'eval_query_placeholder'        => 'e.g. How do I reset my password?',
+    'eval_add_query'                => 'Add Question',
+    'eval_run'                      => 'Run Test',
+    'eval_enter_at_least_one'       => 'Please enter at least one question.',
+    'eval_no_match'                 => 'No matching articles found. Consider adding a QA entry for this topic.',
+    'eval_complete'                 => 'Test complete.',
 ];

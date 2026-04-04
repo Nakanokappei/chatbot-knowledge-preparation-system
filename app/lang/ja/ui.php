@@ -784,4 +784,19 @@ return [
     'refresh_kus_confirm'           => '元のエンベディングの承認済みKUで更新しますか？',
     'package_kus_refreshed'         => 'KUリストを更新しました（:count 件）。',
     'no_embeddings_in_package'      => 'このパッケージにエンベディングが見つかりません。',
+
+    // ── 検索品質テスト（簡素化版）──────────────────────
+    'eval_title'                    => '検索品質テスト',
+    'eval_description'              => 'お客様が実際に聞きそうな質問を入力してください。ナレッジベースを検索し、どの記事がヒットするかを確認できます。チャットボットが正しい回答を見つけられるかの検証に使います。',
+    'eval_queries_tested'           => 'テスト数',
+    'eval_avg_relevance'            => '平均関連度',
+    'eval_avg_response_time'        => '平均応答時間',
+    'eval_test_queries'             => 'テスト質問',
+    'eval_test_queries_hint'        => 'お客様の立場で質問を入力してください。Enterキーで追加できます。',
+    'eval_query_placeholder'        => '例: パスワードをリセットするにはどうすればいいですか？',
+    'eval_add_query'                => '質問を追加',
+    'eval_run'                      => 'テスト実行',
+    'eval_enter_at_least_one'       => '質問を1つ以上入力してください。',
+    'eval_no_match'                 => '該当する記事が見つかりませんでした。このトピックのQAエントリの追加を検討してください。',
+    'eval_complete'                 => 'テスト完了。',
 ];
