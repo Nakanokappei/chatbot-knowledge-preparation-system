@@ -204,12 +204,15 @@
     loadKeys();
 
     function loadKeys() {
+        var tbody = document.getElementById('embed-keys-body');
         fetch('/knowledge-packages/' + packageId + '/api-keys', {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
         .then(function(data) {
-            var tbody = document.getElementById('embed-keys-body');
             if (!data.keys || data.keys.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#86868b;padding:20px;">{{ __("ui.embed_no_keys") }}</td></tr>';
                 return;
@@ -225,6 +228,9 @@
                     + '<td>' + (k.status === 'active' ? '<button onclick="revokeKey(' + k.id + ')" class="btn btn-sm btn-danger">{{ __("ui.embed_revoke") }}</button>' : '') + '</td>';
                 tbody.appendChild(tr);
             });
+        })
+        .catch(function() {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#86868b;padding:20px;">{{ __("ui.embed_no_keys") }}</td></tr>';
         });
     }
 
