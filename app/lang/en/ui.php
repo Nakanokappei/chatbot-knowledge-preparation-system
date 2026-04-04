@@ -803,4 +803,8 @@ return [
     'eval_enter_at_least_one'       => 'Please enter at least one question.',
     'eval_no_match'                 => 'No matching articles found. Consider adding a QA entry for this topic.',
     'eval_complete'                 => 'Test complete.',
+
+    // ── Knowledge Mapping: reference_url ─────────────────────
+    'km_reference_url'              => 'Reference URL',
+    'km_reference_url_hint'         => 'URL to a manual page or help article for link guidance mode.',
 ];

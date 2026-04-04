@@ -277,6 +277,20 @@
                         <span id="km-category-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_category_hint') }}</span>
                     </div>
 
+                    {{-- Reference URL --}}
+                    <label style="font-weight: 500; font-size: 13px;">{{ __('ui.km_reference_url') }}</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <select name="km_reference_url_source" id="km-reference_url-source" onchange="toggleKmLlm('reference_url')"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px; width: 220px; flex-shrink: 0;">
+                            <option value="_none">{{ __('ui.not_used') }}</option>
+                            <option value="_llm">{{ __('ui.extract_with_llm') }}</option>
+                            @foreach($columns as $columnIndex => $columnName)
+                                <option value="{{ $columnIndex }}">{{ $columnName }}</option>
+                            @endforeach
+                        </select>
+                        <span id="km-reference_url-hint" style="font-size: 11px; color: #5f6368; min-width: 0;">{{ __('ui.km_reference_url_hint') }}</span>
+                    </div>
+
                 </div>
 
                 {{-- LLM fallback option — outside the grid so it spans full width --}}

@@ -535,7 +535,7 @@ class DatasetWizardController extends Controller
 
             // Save knowledge structure mapping
             $knowledgeMapping = [];
-            foreach (['question', 'symptoms', 'root_cause', 'resolution', 'primary_filter', 'category'] as $field) {
+            foreach (['question', 'symptoms', 'root_cause', 'resolution', 'primary_filter', 'category', 'reference_url'] as $field) {
                 $source = $request->input("km_{$field}_source", '_none');
                 $knowledgeMapping[$field] = $source;
             }

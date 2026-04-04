@@ -804,4 +804,8 @@ return [
     'eval_enter_at_least_one'       => '質問を1つ以上入力してください。',
     'eval_no_match'                 => '該当する記事が見つかりませんでした。このトピックのQAエントリの追加を検討してください。',
     'eval_complete'                 => 'テスト完了。',
+
+    // ── ナレッジマッピング: reference_url ─────────────────────
+    'km_reference_url'              => '参照URL',
+    'km_reference_url_hint'         => 'マニュアルやヘルプ記事へのURL。リンク案内モードで使用されます。',
 ];

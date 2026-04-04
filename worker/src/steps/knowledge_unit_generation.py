@@ -74,6 +74,7 @@ def build_knowledge_extraction_prompt(
         "resolution": "Step-by-step resolution or recommended action (2-3 sentences)",
         "primary_filter": "The primary filter value for this cluster — typically a product, service, region, or department name (short string, or null if unclear)",
         "category": "A classification tag for this knowledge (e.g., 'billing', 'technical', 'account')",
+        "reference_url": "A URL to relevant documentation, manual page, or help article (full URL starting with http/https, or null if none found)",
     }
 
     for field, source in mapping.items():
@@ -384,6 +385,7 @@ def create_knowledge_unit(
                 topic, intent, summary, question, symptoms,
                 root_cause, primary_filter, category,
                 typical_cases_json, cause_summary, resolution_summary,
+                reference_url,
                 representative_rows_json, keywords_json,
                 row_count, confidence, review_status,
                 source_refs_json, pipeline_config_version, prompt_version,
@@ -393,6 +395,7 @@ def create_knowledge_unit(
                        %s, %s, %s, %s, %s,
                        %s, %s, %s,
                        %s, %s, %s,
+                       %s,
                        %s, %s,
                        %s, %s, %s,
                        %s, %s, %s,
@@ -406,6 +409,7 @@ def create_knowledge_unit(
                 extracted_fields.get("root_cause"), extracted_fields.get("primary_filter"), extracted_fields.get("category"),
                 json.dumps(typical_cases),
                 extracted_fields.get("root_cause") or None, extracted_fields.get("resolution") or None,
+                extracted_fields.get("reference_url") or None,
                 json.dumps(cluster["representative_rows"]), json.dumps(cluster["keywords"]),
                 cluster["row_count"], 0.0, "approved",
                 json.dumps(source_refs), pipeline_config.get("phase", "2"),
