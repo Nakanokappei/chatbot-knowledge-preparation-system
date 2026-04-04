@@ -19,13 +19,16 @@
     var script = document.currentScript;
     if (!script) return;
 
-    var apiKey   = script.getAttribute('data-key');
-    var host     = script.getAttribute('data-host') || script.src.replace(/\/widget\.js.*$/, '');
-    var position = script.getAttribute('data-position') || 'bottom-right';
-    var title    = script.getAttribute('data-title') || 'Support';
-    var theme    = script.getAttribute('data-theme') || 'light';
-    var color    = script.getAttribute('data-color') || '#0071e3';
-    var greeting = script.getAttribute('data-greeting') || '';
+    var apiKey      = script.getAttribute('data-key');
+    var host        = script.getAttribute('data-host') || script.src.replace(/\/widget\.js.*$/, '');
+    var position    = script.getAttribute('data-position') || 'bottom-right';
+    var title       = script.getAttribute('data-title') || 'Support';
+    var theme       = script.getAttribute('data-theme') || 'light';
+    var color       = script.getAttribute('data-color') || '#0071e3';
+    var greeting    = script.getAttribute('data-greeting') || '';
+    var placeholder = script.getAttribute('data-placeholder') || '';
+    var iconUrl     = script.getAttribute('data-icon') || '';
+    var openers     = script.getAttribute('data-openers') || '';
 
     if (!apiKey) {
         console.error('[KPS Widget] data-key attribute is required.');
@@ -39,6 +42,9 @@
         color: color,
     });
     if (greeting) params.set('greeting', greeting);
+    if (placeholder) params.set('placeholder', placeholder);
+    if (iconUrl) params.set('icon', iconUrl);
+    if (openers) params.set('openers', openers);
     var iframeUrl = host + '/embed/chat/' + encodeURIComponent(apiKey) + '?' + params.toString();
 
     // Determine position styles

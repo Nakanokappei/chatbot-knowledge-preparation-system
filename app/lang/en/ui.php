@@ -807,4 +807,23 @@ return [
     // ── Knowledge Mapping: reference_url ─────────────────────
     'km_reference_url'              => 'Reference URL',
     'km_reference_url_hint'         => 'URL to a manual page or help article for link guidance mode.',
+
+    // ── Chatbot Appearance ─────────────────────────────────
+    'chatbot_appearance'            => 'Chatbot Appearance',
+    'chatbot_appearance_hint'       => 'Customize how the chatbot looks and behaves when embedded on external sites. Save before generating embed code.',
+    'appearance_title'              => 'Header Title',
+    'appearance_theme'              => 'Theme',
+    'appearance_color'              => 'Accent Color',
+    'appearance_placeholder'        => 'Input Placeholder',
+    'appearance_greeting'           => 'Greeting Message',
+    'appearance_greeting_placeholder' => 'e.g. Welcome! How can I help you today?',
+    'appearance_icon_url'           => 'Bot Icon URL',
+    'appearance_openers'            => 'Suggested Questions (Openers)',
+    'appearance_openers_hint'       => 'Up to 3 questions shown as quick-start buttons when the chat opens.',
+    'appearance_opener_placeholder' => 'Question :n',
+    'appearance_openers_suggestion' => 'Popular topics:',
+    'saved'                         => 'Saved!',
+
+    // ── FAQ Export ──────────────────────────────────────────
+    'export_faq'                    => 'Export FAQ',
 ];

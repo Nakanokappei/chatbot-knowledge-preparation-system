@@ -53,9 +53,24 @@
         .typing span:nth-child(3) { animation-delay: 0.4s; }
         @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
+        /* Bot avatar next to assistant messages */
+        .msg-row { display: flex; gap: 8px; align-items: flex-start; }
+        .msg-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; object-fit: cover; }
+
         /* Empty state */
-        .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; color: {{ $theme === 'dark' ? '#666' : '#86868b' }}; }
+        .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; color: {{ $theme === 'dark' ? '#666' : '#86868b' }}; }
         .empty-state p { font-size: 13px; line-height: 1.6; }
+
+        /* Opener buttons */
+        .openers { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; width: 100%; max-width: 300px; }
+        .opener-btn {
+            padding: 8px 14px; border-radius: 18px; font-size: 13px; cursor: pointer;
+            border: 1px solid {{ $theme === 'dark' ? '#444' : '#d2d2d7' }};
+            background: {{ $theme === 'dark' ? '#2a2a2a' : '#fff' }};
+            color: {{ $theme === 'dark' ? '#e0e0e0' : '#1d1d1f' }};
+            text-align: left; transition: background 0.15s;
+        }
+        .opener-btn:hover { background: {{ $theme === 'dark' ? '#333' : '#f0f0f2' }}; }
 
         /* Input area */
         .chat-input-area {
@@ -85,23 +100,41 @@
 </head>
 <body>
     <div class="chat-header">
-        <div class="chat-header-dot"></div>
+        @if(!empty($icon_url))
+            <img src="{{ $icon_url }}" class="msg-avatar" alt="" onerror="this.outerHTML='<div class=\'chat-header-dot\'></div>'">
+        @else
+            <div class="chat-header-dot"></div>
+        @endif
         <div class="chat-header-title">{{ $title }}</div>
     </div>
 
     <div class="chat-body" id="chatBody">
         @if($initial_message)
             <div class="msg msg-assistant">{{ $initial_message }}</div>
+            @if(!empty($openers))
+            <div class="openers" id="openerButtons">
+                @foreach($openers as $opener)
+                <button class="opener-btn" onclick="submitOpener(this)">{{ $opener }}</button>
+                @endforeach
+            </div>
+            @endif
         @else
             <div class="empty-state" id="emptyState">
                 <p>{{ $package_name }}<br>Ask a question to get started.</p>
+                @if(!empty($openers))
+                <div class="openers">
+                    @foreach($openers as $opener)
+                    <button class="opener-btn" onclick="submitOpener(this)">{{ $opener }}</button>
+                    @endforeach
+                </div>
+                @endif
             </div>
         @endif
     </div>
 
     <div class="chat-input-area">
         <input type="text" class="chat-input" id="chatInput"
-               placeholder="Type your question..."
+               placeholder="{{ $placeholder }}"
                maxlength="4000" autocomplete="off">
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -122,9 +155,18 @@
     var sessionId = null;
     var isLoading = false;
 
+    var ICON_URL = @json($icon_url ?? '');
     var chatBody = document.getElementById('chatBody');
     var chatInput = document.getElementById('chatInput');
     var sendBtn = document.getElementById('sendBtn');
+
+    // Submit an opener button question as a user message
+    window.submitOpener = function(btn) {
+        chatInput.value = btn.textContent;
+        // Remove all opener buttons
+        document.querySelectorAll('.openers').forEach(function(el) { el.remove(); });
+        sendMessage();
+    };
 
     // Send on Enter key
     chatInput.addEventListener('keydown', function(e) {
@@ -139,9 +181,10 @@
         var message = chatInput.value.trim();
         if (!message || isLoading) return;
 
-        // Remove empty state
+        // Remove empty state and opener buttons
         var empty = document.getElementById('emptyState');
         if (empty) empty.remove();
+        document.querySelectorAll('.openers').forEach(function(el) { el.remove(); });
 
         // Add user message bubble
         appendMessage('user', escapeHtml(message));
@@ -214,14 +257,29 @@
     };
 
     function appendMessage(role, content, isHtml) {
-        var div = document.createElement('div');
-        div.className = 'msg msg-' + role;
+        var msgDiv = document.createElement('div');
+        msgDiv.className = 'msg msg-' + role;
         if (isHtml) {
-            div.innerHTML = content;
+            msgDiv.innerHTML = content;
         } else {
-            div.textContent = content;
+            msgDiv.textContent = content;
         }
-        chatBody.appendChild(div);
+
+        // Wrap assistant messages with avatar if icon is configured
+        if (role === 'assistant' && ICON_URL) {
+            var row = document.createElement('div');
+            row.className = 'msg-row';
+            var img = document.createElement('img');
+            img.className = 'msg-avatar';
+            img.src = ICON_URL;
+            img.alt = '';
+            img.onerror = function() { this.style.display = 'none'; };
+            row.appendChild(img);
+            row.appendChild(msgDiv);
+            chatBody.appendChild(row);
+        } else {
+            chatBody.appendChild(msgDiv);
+        }
         scrollToBottom();
     }
 

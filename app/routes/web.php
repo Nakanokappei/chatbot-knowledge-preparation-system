@@ -139,6 +139,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/knowledge-packages/{package}/new-version', [KnowledgePackageController::class, 'newVersion'])->name('kp.new-version');
         Route::post('/knowledge-packages/{package}/refresh-kus', [KnowledgePackageController::class, 'refreshKUs'])->name('kp.refresh-kus');
         Route::get('/knowledge-packages/{package}/export', [KnowledgePackageController::class, 'export'])->name('kp.export');
+        Route::get('/knowledge-packages/{package}/export-faq', [KnowledgePackageController::class, 'exportFaq'])->name('kp.export-faq');
+        Route::put('/knowledge-packages/{package}/embed-config', [KnowledgePackageController::class, 'updateEmbedConfig'])->name('kp.embed-config');
         Route::get('/knowledge-packages/{package}/chat', [KnowledgePackageController::class, 'chat'])->name('kp.chat');
         Route::get('/knowledge-packages/{package}/evaluation', [KnowledgePackageController::class, 'evaluation'])->name('kp.evaluation');
 

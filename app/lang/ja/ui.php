@@ -808,4 +808,23 @@ return [
     // ── ナレッジマッピング: reference_url ─────────────────────
     'km_reference_url'              => '参照URL',
     'km_reference_url_hint'         => 'マニュアルやヘルプ記事へのURL。リンク案内モードで使用されます。',
+
+    // ── チャットボット外観設定 ──────────────────────────────
+    'chatbot_appearance'            => 'チャットボット外観設定',
+    'chatbot_appearance_hint'       => '外部サイトに埋め込む際のチャットボットの見た目と動作をカスタマイズします。埋め込みコード生成の前に保存してください。',
+    'appearance_title'              => 'ヘッダータイトル',
+    'appearance_theme'              => 'テーマ',
+    'appearance_color'              => 'アクセントカラー',
+    'appearance_placeholder'        => '入力欄のプレースホルダー',
+    'appearance_greeting'           => '挨拶メッセージ',
+    'appearance_greeting_placeholder' => '例: ようこそ！ご質問はございますか？',
+    'appearance_icon_url'           => 'ボットアイコンURL',
+    'appearance_openers'            => 'よくある質問ボタン（オープナー）',
+    'appearance_openers_hint'       => 'チャット起動時に表示されるクイックスタートボタン（最大3件）。',
+    'appearance_opener_placeholder' => '質問 :n',
+    'appearance_openers_suggestion' => '人気のトピック:',
+    'saved'                         => '保存しました',
+
+    // ── FAQエクスポート ─────────────────────────────────────
+    'export_faq'                    => 'FAQ出力',
 ];

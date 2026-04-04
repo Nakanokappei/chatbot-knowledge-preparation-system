@@ -35,18 +35,36 @@ class EmbedController extends Controller
             abort(404, 'Package not available.');
         }
 
-        // Customization via query parameters with validation
-        $color = $request->query('color', '#0071e3');
+        // Read saved appearance config from the package (DB defaults)
+        $savedConfig = $embedKey->package->embed_config_json ?? [];
+
+        // Customization via query parameters, falling back to saved config, then hard defaults
+        $color = $request->query('color', $savedConfig['color'] ?? '#0071e3');
         if (!preg_match('/^#[0-9a-fA-F]{3,6}$/', $color)) {
             $color = '#0071e3';
         }
-        $theme = in_array($request->query('theme'), ['light', 'dark']) ? $request->query('theme') : 'light';
+        $themeParam = $request->query('theme', $savedConfig['theme'] ?? 'light');
+        $theme = in_array($themeParam, ['light', 'dark']) ? $themeParam : 'light';
+
+        // Decode openers from query param (JSON string) or saved config
+        $openers = [];
+        if ($request->has('openers')) {
+            $decoded = json_decode($request->query('openers'), true);
+            if (is_array($decoded)) {
+                $openers = array_slice($decoded, 0, 3);
+            }
+        } elseif (!empty($savedConfig['openers'])) {
+            $openers = array_slice($savedConfig['openers'], 0, 3);
+        }
 
         $config = [
-            'title' => $request->query('title', $embedKey->package->name),
+            'title' => $request->query('title', $savedConfig['title'] ?? $embedKey->package->name),
             'theme' => $theme,
             'accent_color' => $color,
-            'initial_message' => $request->query('greeting'),
+            'initial_message' => $request->query('greeting', $savedConfig['greeting'] ?? null),
+            'placeholder' => $request->query('placeholder', $savedConfig['placeholder'] ?? 'Type your question...'),
+            'icon_url' => $request->query('icon', $savedConfig['icon_url'] ?? null),
+            'openers' => $openers,
             'api_key' => $token,
             'package_name' => $embedKey->package->name,
             'chat_endpoint' => url('/embed/api/chat'),

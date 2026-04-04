@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\KnowledgePackage;
 use App\Models\KnowledgePackageItem;
 use App\Models\KnowledgeUnit;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Manages Knowledge Packages — versioned collections of approved KUs.
@@ -278,5 +280,97 @@ class KnowledgePackageController extends Controller
     public function evaluation(KnowledgePackage $package)
     {
         return view('dashboard.datasets.evaluation', compact('package'));
+    }
+
+    /**
+     * Update the embed appearance configuration stored in embed_config_json.
+     *
+     * Accepts title, greeting, placeholder, theme, color, icon_url, and openers.
+     * Merges into existing config so partial updates are safe.
+     */
+    public function updateEmbedConfig(Request $request, KnowledgePackage $package): JsonResponse
+    {
+        $validated = $request->validate([
+            'title'       => 'nullable|string|max:100',
+            'greeting'    => 'nullable|string|max:500',
+            'placeholder' => 'nullable|string|max:200',
+            'theme'       => 'nullable|in:light,dark',
+            'color'       => ['nullable', 'regex:/^#[0-9a-fA-F]{3,6}$/'],
+            'icon_url'    => 'nullable|url|max:500',
+            'openers'     => 'nullable|array|max:3',
+            'openers.*'   => 'string|max:200',
+        ]);
+
+        // Filter out empty strings so we don't store blank openers
+        if (isset($validated['openers'])) {
+            $validated['openers'] = array_values(array_filter($validated['openers'], fn($v) => trim($v) !== ''));
+        }
+
+        // Merge with existing config to allow partial updates
+        $existing = $package->embed_config_json ?? [];
+        $package->update([
+            'embed_config_json' => array_merge($existing, $validated),
+        ]);
+
+        return response()->json(['success' => true, 'config' => $package->embed_config_json]);
+    }
+
+    /**
+     * Export the package as a frequency-sorted FAQ document in Markdown format.
+     *
+     * KUs are sorted by row_count descending (proxy for inquiry frequency).
+     * Output includes question, answer, and supplementary details.
+     */
+    public function exportFaq(KnowledgePackage $package): StreamedResponse
+    {
+        $package->load(['items.knowledgeUnit']);
+
+        // Sort KUs by row_count descending (most frequent inquiries first)
+        $sortedItems = $package->items->sortByDesc(fn($item) => $item->knowledgeUnit->row_count ?? 0)->values();
+
+        $filename = str_replace(' ', '_', $package->name) . "_v{$package->version}_FAQ.md";
+
+        return response()->streamDownload(function () use ($package, $sortedItems) {
+            echo "# FAQ — {$package->name} v{$package->version}\n";
+            echo "Export date: " . now()->format('Y-m-d') . "\n\n";
+            echo "---\n\n";
+
+            foreach ($sortedItems as $index => $item) {
+                $ku = $item->knowledgeUnit;
+                $number = $index + 1;
+                $rowCount = $ku->row_count ?? 0;
+
+                // Topic header with inquiry count
+                echo "## {$number}. {$ku->topic}";
+                if ($rowCount > 0) {
+                    echo " ({$rowCount} " . ($rowCount === 1 ? 'case' : 'cases') . ")";
+                }
+                echo "\n\n";
+
+                // Question: prefer the explicit question field, fall back to topic + intent
+                $question = $ku->question ?: "{$ku->topic} — {$ku->intent}";
+                echo "**Q:** {$question}\n\n";
+
+                // Answer: prefer resolution_summary, fall back to summary
+                $answer = $ku->resolution_summary ?: $ku->summary ?: '(No answer available)';
+                echo "**A:** {$answer}\n\n";
+
+                // Supplementary details if available
+                $supplements = [];
+                if (!empty($ku->symptoms)) {
+                    $supplements[] = "**Symptoms:** {$ku->symptoms}";
+                }
+                if (!empty($ku->cause_summary)) {
+                    $supplements[] = "**Cause:** {$ku->cause_summary}";
+                }
+                if (!empty($supplements)) {
+                    echo implode("\n\n", $supplements) . "\n\n";
+                }
+
+                echo "---\n\n";
+            }
+        }, $filename, [
+            'Content-Type' => 'text/markdown; charset=UTF-8',
+        ]);
     }
 }
