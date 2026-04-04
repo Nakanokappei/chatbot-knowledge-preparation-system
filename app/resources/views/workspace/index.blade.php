@@ -437,6 +437,12 @@
 
                     <!-- Action buttons -->
                     <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
+                        <!-- QA Registration -->
+                        <a href="{{ route('knowledge-units.create', ['embedding_id' => $current->id]) }}"
+                           class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                            {{ __('ui.manual_qa_registration') }}
+                        </a>
                         <!-- Export dropdown: CSV or JSON -->
                         <div style="position: relative; display: inline-block;">
                             <button type="button" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;"
@@ -597,17 +603,6 @@
                             </tbody>
                         </table>
                     </form>
-
-                    {{-- QA Registration action — contextual to the current embedding --}}
-                    <div style="margin-top: 16px;">
-                        <a href="{{ route('knowledge-units.create', ['embedding_id' => $current->id]) }}"
-                           class="btn btn-outline" style="gap: 6px;">
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;">
-                                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                            {{ __('ui.manual_qa_registration') }}
-                        </a>
-                    </div>
                 @endif
             @else
                 <div class="empty">
