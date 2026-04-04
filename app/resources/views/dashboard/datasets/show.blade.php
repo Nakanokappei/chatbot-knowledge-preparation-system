@@ -186,6 +186,7 @@
 
     </div>
 </div>
+@endsection
 
 @section('scripts')
 @if($package->isPublished())
