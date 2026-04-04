@@ -187,13 +187,14 @@
                 @else
                     <table>
                         <thead>
-                            <tr><th>{{ __('ui.display_name') }}</th><th>{{ __('ui.model_id') }}</th><th>{{ __('ui.dimension') }}</th><th>{{ __('ui.cost') }}</th><th>{{ __('ui.status') }}</th><th></th></tr>
+                            <tr><th>{{ __('ui.display_name') }}</th><th>{{ __('ui.model_id') }}</th><th>{{ __('ui.provider') }}</th><th>{{ __('ui.dimension') }}</th><th>{{ __('ui.cost') }}</th><th>{{ __('ui.status') }}</th><th></th></tr>
                         </thead>
                         <tbody>
                             @foreach($embeddingModels as $em)
                             <tr @if(!$em->is_active) style="opacity: 0.5;" @endif>
                                 <td style="font-weight: 500;">{{ $em->display_name }}</td>
                                 <td><span class="mono">{{ $em->model_id }}</span></td>
+                                <td><span class="badge {{ ($em->provider ?? 'bedrock') === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?? 'bedrock') }}</span></td>
                                 <td style="text-align: center;">{{ $em->dimension }}</td>
                                 <td style="white-space: nowrap; font-size: 12px;">
                                     <form method="POST" action="{{ route('admin.settings.embedding.update', $em) }}" style="display: inline; margin: 0;">
@@ -226,6 +227,66 @@
                     </table>
                 @endif
             </div>
+
+            {{-- OpenAI Embedding Models section --}}
+            <hr style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.openai_embedding_models') }}</h1>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.openai_embedding_models_desc') }}</p>
+
+            {{-- OpenAI API Key --}}
+            <div class="card">
+                <h2>{{ __('ui.openai_api_key') }}</h2>
+                <form method="POST" action="{{ route('admin.settings.openai-key') }}">
+                    @csrf
+                    <div style="display: flex; gap: 8px; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">API Key</label>
+                            <input type="password" name="openai_api_key" placeholder="{{ $openAiKeySet ? '••••••••  (configured)' : 'sk-...' }}"
+                                style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;"
+                                {{ $openAiKeySet ? '' : 'required' }}>
+                        </div>
+                        <button type="submit" class="btn btn-primary">{{ __('ui.save') }}</button>
+                    </div>
+                    @if($openAiKeySet)
+                        <p style="font-size: 11px; color: #34c759; margin-top: 6px;">✓ {{ __('ui.openai_key_configured') }}</p>
+                    @endif
+                </form>
+            </div>
+
+            {{-- Add OpenAI Embedding Model --}}
+            <div class="card">
+                <h2>{{ __('ui.add_openai_embedding_model') }}</h2>
+                @if(!$openAiKeySet)
+                    <p style="color: #ff9500; font-size: 13px;">{{ __('ui.openai_key_required_first') }}</p>
+                @else
+                    <form method="POST" action="{{ route('admin.settings.openai-embedding.store') }}">
+                        @csrf
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 2;">
+                                <label>{{ __('ui.select_model') }}</label>
+                                <select name="model_id" required onchange="updateOpenAiDimension(this)"
+                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
+                                    <option value="">{{ __('ui.choose_embedding_model') }}</option>
+                                    @if(!$embeddingModels->contains('model_id', 'text-embedding-3-small'))
+                                    <option value="text-embedding-3-small" data-dim="1536">text-embedding-3-small — $0.02/1M tokens (1536 dim)</option>
+                                    @endif
+                                    @if(!$embeddingModels->contains('model_id', 'text-embedding-3-large'))
+                                    <option value="text-embedding-3-large" data-dim="3072">text-embedding-3-large — $0.13/1M tokens (3072 dim)</option>
+                                    @endif
+                                </select>
+                            </div>
+                            <div class="form-group" style="width: 120px; flex: none;">
+                                <label>{{ __('ui.dimension') }}</label>
+                                <input type="number" name="dimension" id="openai_dimension" value="1536" min="1" max="8192"
+                                    style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
+                                <span style="font-size: 10px; color: #86868b;">{{ __('ui.openai_dim_hint') }}</span>
+                            </div>
+                            <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
+                        </div>
+                    </form>
+                @endif
+            </div>
+
         </div>
     </div>
 @endsection
@@ -234,6 +295,10 @@
         function updateDisplayName(select) {
             const option = select.options[select.selectedIndex];
             document.getElementById('display_name').value = option.getAttribute('data-display') || '';
+        }
+        function updateOpenAiDimension(select) {
+            var dim = select.options[select.selectedIndex].getAttribute('data-dim') || '1536';
+            document.getElementById('openai_dimension').value = dim;
         }
         function updateEmbDisplayName(select) {
             const option = select.options[select.selectedIndex];

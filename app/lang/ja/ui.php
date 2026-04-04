@@ -768,4 +768,15 @@ return [
     'demo_send'                     => '送信',
     'demo_form_submitted'           => 'デモページのため、フォームは実際には送信されません。',
     'demo_greeting'                 => ':company サポートへようこそ！ご質問をどうぞ。',
+
+    // ── OpenAI 埋め込みモデル ─────────────────────────────
+    'openai_embedding_models'       => 'OpenAI 埋め込みモデル',
+    'openai_embedding_models_desc'  => 'OpenAI の埋め込みモデルを追加します。APIキーは全ワークスペース共通です。',
+    'openai_api_key'                => 'OpenAI APIキー',
+    'openai_key_saved'              => 'OpenAI APIキーを保存しました。',
+    'openai_key_configured'         => 'APIキーは設定済みです。',
+    'openai_key_required_first'     => 'モデルを追加する前に、上のOpenAI APIキーを設定してください。',
+    'add_openai_embedding_model'    => 'OpenAI 埋め込みモデルを追加',
+    'openai_dim_hint'               => 'デフォルトより小さくできます',
+    'provider'                      => 'プロバイダー',
 ];

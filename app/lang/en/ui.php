@@ -767,4 +767,15 @@ return [
     'demo_send'                     => 'Send',
     'demo_form_submitted'           => 'This is a demo. The form was not actually submitted.',
     'demo_greeting'                 => 'Welcome to :company Support! How can I help you today?',
+
+    // ── OpenAI Embedding Models ─────────────────────────────
+    'openai_embedding_models'       => 'OpenAI Embedding Models',
+    'openai_embedding_models_desc'  => 'Add OpenAI embedding models. API key is shared across all workspaces.',
+    'openai_api_key'                => 'OpenAI API Key',
+    'openai_key_saved'              => 'OpenAI API key saved.',
+    'openai_key_configured'         => 'API key is configured.',
+    'openai_key_required_first'     => 'Set the OpenAI API key above before adding models.',
+    'add_openai_embedding_model'    => 'Add OpenAI Embedding Model',
+    'openai_dim_hint'               => 'Can be reduced from default',
+    'provider'                      => 'Provider',
 ];

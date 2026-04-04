@@ -50,10 +50,13 @@ class AdminSettingsController extends Controller
         $bedrockEmbeddingModels = $this->invokePrivate($settingsCtrl, 'fetchBedrockEmbeddingModels');
         $pricing = $this->invokePrivate($settingsCtrl, 'fetchBedrockPricing');
 
+        $openAiKeySet = self::getOpenAiKey() !== null;
+
         return view('admin.settings', compact(
             'models', 'embeddingModels', 'bedrockModels',
             'bedrockEmbeddingModels', 'pricing',
             'usedModelIds', 'usedEmbeddingModelIds',
+            'openAiKeySet',
         ));
     }
 
@@ -164,6 +167,7 @@ class AdminSettingsController extends Controller
             'workspace_id' => null,
             'display_name' => $displayName,
             'model_id' => $modelId,
+            'provider' => 'bedrock',
             'dimension' => $request->input('dimension', 1024),
             'is_default' => false,
             'sort_order' => $maxSort + 1,
@@ -208,6 +212,82 @@ class AdminSettingsController extends Controller
         $embeddingModel->delete();
         return redirect()->route('admin.settings.index')
             ->with('success', "{$name} deleted.");
+    }
+
+    // ── OpenAI Settings ──
+
+    /**
+     * Save the system-wide OpenAI API key (encrypted).
+     */
+    public function saveOpenAiKey(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'openai_api_key' => 'required|string|max:200',
+        ]);
+
+        \DB::table('system_settings')->updateOrInsert(
+            ['key' => 'openai_api_key'],
+            ['value' => encrypt($request->input('openai_api_key')), 'updated_at' => now()],
+        );
+
+        return redirect()->route('admin.settings.index')
+            ->with('success', __('ui.openai_key_saved'));
+    }
+
+    /**
+     * Add an OpenAI embedding model as a system template.
+     */
+    public function storeOpenAiEmbedding(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'model_id' => 'required|string|in:text-embedding-3-small,text-embedding-3-large',
+            'dimension' => 'required|integer|min:1|max:8192',
+        ]);
+
+        $modelId = $request->input('model_id');
+
+        if (EmbeddingModel::whereNull('workspace_id')->where('model_id', $modelId)->exists()) {
+            return redirect()->route('admin.settings.index')
+                ->with('error', 'This OpenAI embedding model is already registered.');
+        }
+
+        // Default display names and pricing
+        $modelInfo = [
+            'text-embedding-3-small' => ['name' => 'OpenAI text-embedding-3-small', 'price' => 0.02],
+            'text-embedding-3-large' => ['name' => 'OpenAI text-embedding-3-large', 'price' => 0.13],
+        ];
+        $info = $modelInfo[$modelId];
+
+        $maxSort = EmbeddingModel::whereNull('workspace_id')->max('sort_order') ?? -1;
+
+        EmbeddingModel::create([
+            'workspace_id' => null,
+            'display_name' => $info['name'],
+            'model_id' => $modelId,
+            'provider' => 'openai',
+            'dimension' => $request->input('dimension'),
+            'is_default' => false,
+            'sort_order' => $maxSort + 1,
+            'is_active' => true,
+            'input_price_per_1m' => $info['price'],
+        ]);
+
+        return redirect()->route('admin.settings.index')
+            ->with('success', "{$info['name']} added as system template.");
+    }
+
+    /**
+     * Get the stored OpenAI API key (decrypted), or null if not set.
+     */
+    public static function getOpenAiKey(): ?string
+    {
+        $row = \DB::table('system_settings')->where('key', 'openai_api_key')->first();
+        if (!$row || !$row->value) return null;
+        try {
+            return decrypt($row->value);
+        } catch (\Exception) {
+            return null;
+        }
     }
 
     /**

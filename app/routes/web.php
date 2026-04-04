@@ -192,6 +192,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/embedding-models', [AdminSettingsController::class, 'storeEmbedding'])->name('admin.settings.embedding.store');
         Route::put('/settings/embedding-models/{embeddingModel}', [AdminSettingsController::class, 'updateEmbedding'])->name('admin.settings.embedding.update');
         Route::delete('/settings/embedding-models/{embeddingModel}', [AdminSettingsController::class, 'destroyEmbedding'])->name('admin.settings.embedding.destroy');
+
+        // OpenAI settings
+        Route::post('/settings/openai-key', [AdminSettingsController::class, 'saveOpenAiKey'])->name('admin.settings.openai-key');
+        Route::post('/settings/openai-embedding', [AdminSettingsController::class, 'storeOpenAiEmbedding'])->name('admin.settings.openai-embedding.store');
     });
 
     // Owner-only routes: workspace settings, model management, invitations

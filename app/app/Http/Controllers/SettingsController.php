@@ -150,7 +150,7 @@ class SettingsController extends Controller
      */
     private function fetchBedrockEmbeddingModels(): array
     {
-        return Cache::remember('bedrock_embedding_models_list', 3600, function () {
+        return Cache::remember('bedrock_embedding_models_v2', 3600, function () {
             try {
                 $client = new \Aws\Bedrock\BedrockClient([
                     'region' => env('AWS_DEFAULT_REGION', 'ap-northeast-1'),
@@ -160,14 +160,39 @@ class SettingsController extends Controller
                 $response = $client->listFoundationModels();
                 $result = [];
 
+                $seen = [];
                 foreach ($response['modelSummaries'] as $modelSummary) {
                     $outputModalities = $modelSummary['outputModalities'] ?? [];
                     if (!in_array('EMBEDDING', $outputModalities)) {
                         continue;
                     }
 
+                    $modelId = $modelSummary['modelId'];
+
+                    // Extract base model ID (strip region prefix like "ap-northeast-1.")
+                    $baseModelId = preg_replace('/^[a-z]{2}-[a-z]+-\d+\./', '', $modelId);
+
+                    // Deduplicate by base model ID, keep the region-prefixed version
+                    // for display but use base for dedup
+                    if (isset($seen[$baseModelId])) {
+                        // If this one has a region prefix and the previous didn't, keep both
+                        // Otherwise skip duplicate
+                        if ($modelId === $baseModelId) {
+                            continue; // Skip generic if region-specific already exists
+                        }
+                        // Add as variant with region info
+                        $region = explode('.', $modelId)[0] ?? '';
+                        $result[] = [
+                            'model_id' => $modelId,
+                            'display_name' => $modelSummary['modelName'] . " ({$region})",
+                            'provider' => $modelSummary['providerName'],
+                        ];
+                        continue;
+                    }
+
+                    $seen[$baseModelId] = true;
                     $result[] = [
-                        'model_id' => $modelSummary['modelId'],
+                        'model_id' => $modelId,
                         'display_name' => $modelSummary['modelName'],
                         'provider' => $modelSummary['providerName'],
                     ];
