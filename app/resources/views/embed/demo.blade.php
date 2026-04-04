@@ -86,7 +86,7 @@
 
         {{-- Chat prompt --}}
         <div class="chat-prompt">
-            <p>{{ __('ui.demo_chat_prompt') }}</p>
+            <p>{!! __('ui.demo_chat_prompt') !!}</p>
         </div>
 
         {{-- FAQ from actual KU topics --}}
