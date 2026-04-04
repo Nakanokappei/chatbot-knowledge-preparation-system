@@ -195,7 +195,6 @@
 
 @section('scripts')
 @if($package->isPublished())
-<script>
 (function() {
     var packageId = {{ $package->id }};
     var appUrl = @json(rtrim(config('app.url'), '/'));
@@ -264,7 +263,7 @@
             document.getElementById('embed-key-result').style.display = 'block';
 
             // Show embed snippet
-            var snippet = '<script src="' + appUrl + '/widget.js"\n'
+            var snippet = '<' + 'script src="' + appUrl + '/widget.js"\n'
                 + '        data-key="' + data.key + '"\n'
                 + '        data-title="{{ $package->name }}"\n'
                 + '        data-theme="light">\n'
@@ -306,6 +305,5 @@
         return d.innerHTML;
     }
 })();
-</script>
 @endif
 @endsection
