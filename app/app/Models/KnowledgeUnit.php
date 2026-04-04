@@ -43,11 +43,11 @@ class KnowledgeUnit extends Model
 
     /**
      * Check whether this KU can be edited.
-     * CTO rule: approved KUs are locked — create a new version instead.
+     * Both approved and draft KUs are editable (simplified workflow).
      */
     public function isEditable(): bool
     {
-        return $this->review_status !== 'approved';
+        return true;
     }
 
     /** Whether this KU has a reference URL for link guidance. */

@@ -5,7 +5,7 @@ For each cluster with completed analysis (topic_name, intent, summary),
 this step creates a Knowledge Unit record and its initial version snapshot.
 
 CTO directive: "This cluster will become a Knowledge Unit."
-CTO directive: review_status lifecycle: draft -> reviewed -> approved -> rejected
+Review status: approved (default) or draft (opted out by user after quality check)
 
 Input:  Completed cluster_analysis results in RDS (clusters with topic_name, intent, summary)
 Output: knowledge_units table populated, knowledge_unit_versions v1 snapshots created
@@ -407,7 +407,7 @@ def create_knowledge_unit(
                 json.dumps(typical_cases),
                 extracted_fields.get("root_cause") or None, extracted_fields.get("resolution") or None,
                 json.dumps(cluster["representative_rows"]), json.dumps(cluster["keywords"]),
-                cluster["row_count"], 0.0, "draft",
+                cluster["row_count"], 0.0, "approved",
                 json.dumps(source_refs), pipeline_config.get("phase", "2"),
                 KNOWLEDGE_EXTRACTION_PROMPT_VERSION,
                 1, cluster["centroid_vector"],
@@ -427,7 +427,7 @@ def create_knowledge_unit(
             "primary_filter": extracted_fields.get("primary_filter"), "category": extracted_fields.get("category"),
             "keywords": cluster["keywords"], "row_count": cluster["row_count"],
             "representative_rows": cluster["representative_rows"],
-            "review_status": "draft",
+            "review_status": "approved",
         }
         cur.execute(
             """INSERT INTO knowledge_unit_versions
@@ -445,7 +445,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     For each analyzed cluster:
     1. Load cluster analysis results (topic, intent, summary, keywords)
     2. Load representative rows and centroid vector
-    3. Create knowledge_unit record with review_status='draft'
+    3. Create knowledge_unit record with review_status='approved'
     4. Create knowledge_unit_versions v1 snapshot
     5. Set job status to 'completed'
     """

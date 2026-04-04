@@ -40,43 +40,45 @@ class KnowledgePackageController extends Controller
     {
         $workspaceId = auth()->user()->workspace_id;
 
-        // Load approved KUs grouped by pipeline job for selection
-        $approvedKUs = KnowledgeUnit::where('workspace_id', $workspaceId)
-            ->where('review_status', 'approved')
-            ->orderBy('pipeline_job_id')
-            ->orderBy('topic')
+        // Load embeddings that have at least one approved KU
+        $embeddings = \App\Models\Embedding::where('workspace_id', $workspaceId)
+            ->where('status', 'ready')
+            ->withCount(['knowledgeUnits as approved_ku_count' => fn($q) => $q->where('review_status', 'approved')])
+            ->having('approved_ku_count', '>', 0)
+            ->with('dataset:id,name')
+            ->orderByDesc('created_at')
             ->get();
 
-        return view('dashboard.datasets.create', compact('approvedKUs'));
+        return view('dashboard.datasets.create', compact('embeddings'));
     }
 
     /**
-     * Store a new package from selected approved KUs.
+     * Store a new package from all approved KUs in the selected embedding(s).
      */
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'knowledge_unit_ids' => 'required|array|min:1',
-            'knowledge_unit_ids.*' => 'exists:knowledge_units,id',
+            'embedding_ids' => 'required|array|min:1',
+            'embedding_ids.*' => 'exists:embeddings,id',
         ]);
 
         $workspaceId = auth()->user()->workspace_id;
 
-        // Verify all selected KUs are approved and belong to this workspace
+        // Collect all approved KUs from the selected embeddings
         $selectedKUs = KnowledgeUnit::where('workspace_id', $workspaceId)
             ->where('review_status', 'approved')
-            ->whereIn('id', $request->knowledge_unit_ids)
+            ->whereIn('embedding_id', $request->embedding_ids)
+            ->orderBy('embedding_id')
+            ->orderBy('topic')
             ->get();
 
-        // Ensure the count matches — some IDs may have been non-approved or wrong workspace
-        if ($selectedKUs->count() !== count($request->knowledge_unit_ids)) {
-            return back()->withErrors(['knowledge_unit_ids' => 'All selected units must be approved.']);
+        if ($selectedKUs->isEmpty()) {
+            return back()->withErrors(['embedding_ids' => __('ui.no_approved_kus_in_embedding')]);
         }
 
         $package = DB::transaction(function () use ($request, $workspaceId, $selectedKUs) {
-            // Create the package
             $package = KnowledgePackage::create([
                 'workspace_id' => $workspaceId,
                 'name' => $request->name,
@@ -87,7 +89,6 @@ class KnowledgePackageController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
-            // Add each KU as an item, recording its current version
             foreach ($selectedKUs->values() as $index => $ku) {
                 KnowledgePackageItem::create([
                     'knowledge_package_id' => $package->id,

@@ -54,38 +54,26 @@
             <div class="flash-error">&#10007; {{ session('error') }}</div>
         @endif
 
-        {{-- Review actions --}}
-        @if(count($allowedTransitions) > 0)
-            <div class="card">
-                <h2>{{ __('ui.review') }}</h2>
-                <div class="review-bar">
-                    @foreach($allowedTransitions as $status)
-                        <form method="POST" action="{{ route('knowledge-units.review', $ku) }}" style="display: inline;">
-                            @csrf
-                            <input type="hidden" name="new_status" value="{{ $status }}">
-                            @if($status === 'approved')
-                                <button type="submit" class="btn btn-green" onclick="return confirm('{{ __('ui.approve_confirm') }}')">{{ __('ui.approve') }}</button>
-                            @elseif($status === 'reviewed')
-                                <button type="submit" class="btn btn-primary">{{ __('ui.mark_as_reviewed') }}</button>
-                            @elseif($status === 'rejected')
-                                <button type="submit" class="btn btn-danger">{{ __('ui.reject') }}</button>
-                            @elseif($status === 'draft')
-                                <button type="submit" class="btn btn-orange">{{ __('ui.revert_to_draft') }}</button>
-                            @endif
-                        </form>
-                    @endforeach
-                    <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-sm btn-outline">{{ __('ui.version_history') }} ({{ $ku->versions->count() }})</a>
-                </div>
+        {{-- Status toggle: approved / excluded --}}
+        <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <form method="POST" action="{{ route('knowledge-units.review', $ku) }}" style="display: inline;">
+                    @csrf
+                    @if($ku->review_status === 'approved')
+                        <input type="hidden" name="new_status" value="draft">
+                        <button type="submit" class="btn btn-outline" style="gap: 6px;">
+                            ✅ {{ __('ui.approved') }} &mdash; {{ __('ui.click_to_exclude') }}
+                        </button>
+                    @else
+                        <input type="hidden" name="new_status" value="approved">
+                        <button type="submit" class="btn btn-green" style="gap: 6px;">
+                            ⬜ {{ __('ui.excluded') }} &mdash; {{ __('ui.click_to_approve') }}
+                        </button>
+                    @endif
+                </form>
             </div>
-        @else
-            <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h2 style="margin-bottom: 4px;">{{ __('ui.review') }}</h2>
-                    <span style="font-size: 13px; color: #155724;">{{ __('ui.ku_locked') }}</span>
-                </div>
-                <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-sm btn-outline">{{ __('ui.version_history') }} ({{ $ku->versions->count() }})</a>
-            </div>
-        @endif
+            <a href="{{ route('knowledge-units.versions', $ku) }}" class="btn btn-sm btn-outline">{{ __('ui.version_history') }} ({{ $ku->versions->count() }})</a>
+        </div>
 
         {{-- Edit form --}}
         <div class="card">

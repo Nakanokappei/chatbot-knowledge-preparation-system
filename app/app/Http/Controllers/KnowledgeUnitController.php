@@ -25,12 +25,13 @@ class KnowledgeUnitController extends Controller
 {
     /**
      * Allowed review_status transitions.
+     *
+     * Simplified to two states: approved (included) and draft (opted out).
+     * Users opt out KUs after quality checking via chat.
      */
     private const STATUS_TRANSITIONS = [
-        'draft' => ['reviewed'],
-        'reviewed' => ['approved', 'rejected'],
-        'rejected' => ['draft'],
-        'approved' => [],  // locked
+        'draft' => ['approved'],
+        'approved' => ['draft'],
     ];
 
     /**

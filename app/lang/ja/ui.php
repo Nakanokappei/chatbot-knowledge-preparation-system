@@ -730,4 +730,17 @@ return [
     'turns'                         => 'ターン',
     'turns_label'                   => 'ターン',
     'thread_had_followups'          => ':count 件のフォローアップメッセージ',
+
+    // ── 承認ワークフロー簡素化 ────────────────────────
+    'approved'                      => '承認済み',
+    'excluded'                      => '除外',
+    'approve_all'                   => 'すべて承認',
+    'exclude_all'                   => 'すべて除外',
+    'approved_count'                => '承認済み',
+    'click_to_exclude'              => 'クリックで除外',
+    'click_to_approve'              => 'クリックで承認',
+    'select_embeddings'             => 'ナレッジ（エンベディング）を選択',
+    'select_embeddings_hint'        => '選択したエンベディングの承認済みKUがすべてこのパッケージに含まれます。',
+    'no_approved_kus_in_embedding'  => '選択したエンベディングに承認済みKUがありません。',
+    'package_description_placeholder' => 'このパッケージの用途は？',
 ];

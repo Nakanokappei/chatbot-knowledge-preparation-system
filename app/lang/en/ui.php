@@ -729,4 +729,17 @@ return [
     'turns'                         => 'Turns',
     'turns_label'                   => 'turns',
     'thread_had_followups'          => 'Thread had :count follow-up message(s)',
+
+    // ── Simplified approval workflow ────────────────────────
+    'approved'                      => 'Approved',
+    'excluded'                      => 'Excluded',
+    'approve_all'                   => 'Approve All',
+    'exclude_all'                   => 'Exclude All',
+    'approved_count'                => 'approved',
+    'click_to_exclude'              => 'Click to exclude',
+    'click_to_approve'              => 'Click to approve',
+    'select_embeddings'             => 'Select Knowledge (Embeddings)',
+    'select_embeddings_hint'        => 'All approved KUs from the selected embeddings will be included in this package.',
+    'no_approved_kus_in_embedding'  => 'No approved KUs found in the selected embeddings.',
+    'package_description_placeholder' => 'What is this package for?',
 ];

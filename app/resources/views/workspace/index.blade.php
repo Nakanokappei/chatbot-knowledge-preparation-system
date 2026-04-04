@@ -514,95 +514,69 @@
                         <p>{{ __('ui.run_pipeline_to_generate') }}</p>
                     </div>
                 @else
-                    <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" id="bulk-form">
-                        @csrf
-                        <table class="ku-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 36px; position: relative;">
-                                        <div style="display: flex; align-items: center; gap: 2px;">
-                                            <input type="checkbox" id="select-all" style="cursor: pointer;"
-                                                   onchange="toggleAllCheckboxes(this)">
-                                            <button type="button" id="bulk-dropdown-btn"
-                                                    style="background: none; border: none; cursor: pointer; font-size: 10px; color: #5f6368; padding: 0 2px;"
-                                                    onclick="toggleBulkDropdown(event)">▼</button>
+                    {{-- Bulk approve/exclude actions --}}
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+                        <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" style="display: inline;">
+                            @csrf
+                            <input type="hidden" name="new_status" value="approved">
+                            <input type="hidden" name="ku_ids" value="all">
+                            <button type="submit" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.approve_all') }}</button>
+                        </form>
+                        <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" style="display: inline;">
+                            @csrf
+                            <input type="hidden" name="new_status" value="draft">
+                            <input type="hidden" name="ku_ids" value="all">
+                            <button type="submit" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.exclude_all') }}</button>
+                        </form>
+                        @php
+                            $approvedCount = $knowledgeUnits->where('review_status', 'approved')->count();
+                            $totalCount = $knowledgeUnits->count();
+                        @endphp
+                        <span style="font-size: 12px; color: #5f6368;">{{ $approvedCount }}/{{ $totalCount }} {{ __('ui.approved_count') }}</span>
+                    </div>
+
+                    <table class="ku-table">
+                        @php $totalKuRows = $knowledgeUnits->sum('row_count'); @endphp
+                        <tbody>
+                            @foreach($knowledgeUnits as $ku)
+                                <tr style="cursor: pointer; {{ $ku->review_status === 'draft' ? 'opacity: 0.5;' : '' }}"
+                                    onclick="if(!event.target.closest('.ku-toggle'))window.location='{{ route('workspace.ku', ['embeddingId' => $current->id, 'kuId' => $ku->id]) }}'">
+                                    <td onclick="event.stopPropagation();" class="ku-toggle" style="width: 40px; vertical-align: top; padding-top: 12px; text-align: center;">
+                                        <form method="POST" action="{{ route('knowledge-units.review', $ku) }}" style="display: inline;">
+                                            @csrf
+                                            <input type="hidden" name="new_status" value="{{ $ku->review_status === 'approved' ? 'draft' : 'approved' }}">
+                                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 18px; padding: 0;" title="{{ $ku->review_status === 'approved' ? __('ui.click_to_exclude') : __('ui.click_to_approve') }}">
+                                                {{ $ku->review_status === 'approved' ? '✅' : '⬜' }}
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td style="max-width: 0; width: 100%;">
+                                        <div style="display: flex; align-items: baseline; gap: 8px;">
+                                            <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $ku->intent }}</span>
+                                            @if($ku->primary_filter)
+                                                <span style="font-size: 11px; color: #0071e3; background: #e8f0fe; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->primary_filter, 30) }}</span>
+                                            @endif
+                                            @if($ku->category)
+                                                <span style="font-size: 11px; color: #5f6368; background: #f0f0f2; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->category, 20) }}</span>
+                                            @endif
                                         </div>
-                                        <div id="bulk-dropdown" style="display: none; position: absolute; top: 100%; left: 0; z-index: 100;
-                                            background: #fff; border: 1px solid #d2d2d7; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                                            min-width: 180px; padding: 4px 0;">
-                                            <button type="submit" name="new_status" value="draft"
-                                                    style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
-                                                    onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                ✏️ {{ __('ui.set_draft') }}
-                                            </button>
-                                            <button type="submit" name="new_status" value="reviewed"
-                                                    style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
-                                                    onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                👁️ {{ __('ui.set_reviewed') }}
-                                            </button>
-                                            <button type="submit" name="new_status" value="approved"
-                                                    style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
-                                                    onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                ✅ {{ __('ui.set_approved') }}
-                                            </button>
-                                            <button type="submit" name="new_status" value="rejected"
-                                                    style="display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 14px; border: none; background: none; cursor: pointer; font-size: 13px; text-align: left;"
-                                                    onmouseover="this.style.background='#f0f0f2'" onmouseout="this.style.background='none'">
-                                                ❌ {{ __('ui.set_rejected') }}
-                                            </button>
-                                        </div>
-                                    </th>
-                                    <td colspan="3"></td>
+                                        <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">{{ $ku->topic }}</div>
+                                        @if($ku->question)
+                                            <div style="font-size: 12px; color: #1d1d1f; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Q: {{ $ku->question }}</div>
+                                        @elseif($ku->summary)
+                                            <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $ku->summary }}</div>
+                                        @endif
+                                    </td>
+                                    <td style="text-align: right; vertical-align: top; padding-top: 10px; white-space: nowrap;">
+                                        <div style="font-size: 13px; color: #5f6368;">{{ $ku->row_count }} {{ __('ui.rows') }}</div>
+                                        @if($totalKuRows > 0)
+                                            <div style="font-size: 12px; color: #aaa; margin-top: 4px;">{{ number_format($ku->row_count / $totalKuRows * 100, 1) }}%</div>
+                                        @endif
+                                    </td>
                                 </tr>
-                            </thead>
-                            @php $totalKuRows = $knowledgeUnits->sum('row_count'); @endphp
-                            <tbody>
-                                @foreach($knowledgeUnits as $ku)
-                                    <tr style="cursor: pointer;"
-                                        onclick="if(!event.target.closest('input[type=checkbox]'))window.location='{{ route('workspace.ku', ['embeddingId' => $current->id, 'kuId' => $ku->id]) }}'">
-                                        <td onclick="event.stopPropagation();" style="vertical-align: top; padding-top: 12px;">
-                                            <input type="checkbox" name="ku_ids[]" value="{{ $ku->id }}" class="ku-checkbox"
-                                                   style="cursor: pointer;" onchange="updateSelectAll()">
-                                        </td>
-                                        <td style="max-width: 0; width: 100%;">
-                                            <div style="display: flex; align-items: baseline; gap: 8px;">
-                                                <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $ku->intent }}</span>
-                                                @if($ku->primary_filter)
-                                                    <span style="font-size: 11px; color: #0071e3; background: #e8f0fe; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->primary_filter, 30) }}</span>
-                                                @endif
-                                                @if($ku->category)
-                                                    <span style="font-size: 11px; color: #5f6368; background: #f0f0f2; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->category, 20) }}</span>
-                                                @endif
-                                            </div>
-                                            <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">{{ $ku->topic }}</div>
-                                            @if($ku->question)
-                                                <div style="font-size: 12px; color: #1d1d1f; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Q: {{ $ku->question }}</div>
-                                            @elseif($ku->summary)
-                                                <div style="font-size: 12px; color: #a0a0a5; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $ku->summary }}</div>
-                                            @endif
-                                        </td>
-                                        <td style="text-align: right; vertical-align: top; padding-top: 10px; white-space: nowrap;">
-                                            <div style="font-size: 13px; color: #5f6368;">{{ $ku->row_count }} {{ __('ui.rows') }}</div>
-                                            @if($totalKuRows > 0)
-                                                <div style="font-size: 12px; color: #aaa; margin-top: 4px;">{{ number_format($ku->row_count / $totalKuRows * 100, 1) }}%</div>
-                                            @else
-                                                <div style="height: 18px;"></div>
-                                            @endif
-                                            <div title="{{ $ku->review_status }}" style="font-size: 14px; text-align: right;">
-                                                @switch($ku->review_status)
-                                                    @case('draft')    ✏️ @break
-                                                    @case('reviewed') 👁️ @break
-                                                    @case('approved') ✅ @break
-                                                    @case('rejected') ❌ @break
-                                                    @default          ❓
-                                                @endswitch
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </form>
+                            @endforeach
+                        </tbody>
+                    </table>
                 @endif
             @else
                 <div class="empty">

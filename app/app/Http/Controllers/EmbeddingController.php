@@ -176,38 +176,39 @@ class EmbeddingController extends Controller
     }
 
     /**
-     * Bulk update review_status for selected knowledge units.
+     * Bulk update review_status for knowledge units.
      *
-     * Accepts an array of KU IDs and a target status from the dropdown.
+     * Accepts ku_ids as an array of IDs or the string 'all' to target
+     * every KU in the embedding. Status is limited to approved/draft.
      */
     public function bulkUpdateStatus(Request $request, int $embeddingId)
     {
         $request->validate([
-            'ku_ids' => 'required|array|min:1',
-            'ku_ids.*' => 'integer|exists:knowledge_units,id',
-            'new_status' => 'required|in:draft,reviewed,approved,rejected',
+            'new_status' => 'required|in:draft,approved',
         ]);
 
         $embedding = Embedding::where('workspace_id', auth()->user()->workspace_id)
             ->findOrFail($embeddingId);
 
-        $updated = KnowledgeUnit::where('embedding_id', $embeddingId)
-            ->whereIn('id', $request->input('ku_ids'))
-            ->update([
-                'review_status' => $request->input('new_status'),
-                'edited_by_user_id' => auth()->id(),
-                'edited_at' => now(),
-                'updated_at' => now(),
-            ]);
+        // Build query: 'all' targets every KU, otherwise specific IDs
+        $query = KnowledgeUnit::where('embedding_id', $embeddingId);
+        $kuIds = $request->input('ku_ids');
+        if ($kuIds !== 'all') {
+            $ids = is_array($kuIds) ? $kuIds : explode(',', $kuIds);
+            $query->whereIn('id', $ids);
+        }
 
-        $statusLabels = [
-            'draft' => 'Draft', 'reviewed' => 'Reviewed',
-            'approved' => 'Approved', 'rejected' => 'Rejected',
-        ];
-        $label = $statusLabels[$request->input('new_status')] ?? $request->input('new_status');
+        $updated = $query->update([
+            'review_status' => $request->input('new_status'),
+            'edited_by_user_id' => auth()->id(),
+            'edited_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        return redirect()->route('workspace.index', ['embeddingId' => $embeddingId])
-            ->with('success', "{$updated} KU(s) marked as {$label}.");
+        $label = $request->input('new_status') === 'approved' ? __('ui.approved') : __('ui.excluded');
+
+        return redirect()->route('workspace.embedding', ['embeddingId' => $embeddingId])
+            ->with('success', "{$updated} KU(s) → {$label}");
     }
 
     /**
