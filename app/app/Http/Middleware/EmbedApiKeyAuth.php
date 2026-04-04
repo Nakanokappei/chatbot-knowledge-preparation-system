@@ -53,6 +53,11 @@ class EmbedApiKeyAuth
             'total_requests' => DB::raw('total_requests + 1'),
         ]);
 
+        // Set PostgreSQL RLS workspace scope for embed requests
+        // (embed routes bypass SetWorkspaceScope middleware, so set it here)
+        DB::statement("SET app.workspace_id = '{$embedKey->workspace_id}'");
+        DB::statement("SET app.is_system_admin = 'false'");
+
         // Bind context for downstream controllers
         $request->attributes->set('embed_api_key', $embedKey);
         $request->attributes->set('embed_workspace_id', $embedKey->workspace_id);

@@ -2,192 +2,311 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ChatConversation;
-use App\Models\ChatMessage;
+use App\Models\ChatSession;
+use App\Models\ChatTurn;
+use App\Models\KnowledgeUnit;
 use App\Services\BedrockService;
 use App\Services\CostTrackingService;
 use App\Services\RagService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
- * Chat API for embedded widget/iframe — authenticated via EmbedApiKeyAuth middleware.
+ * Chat API for embedded widget/iframe — uses the SAME engine as workspace chat.
  *
- * Reuses RagService and BedrockService from the existing chat implementation.
- * Conversations are anonymous (no user_id) since end-users are unauthenticated.
+ * Authenticated via EmbedApiKeyAuth middleware (not Sanctum/session).
+ * Uses RagService::processChat() with scopeType='package' for identical
+ * behavior: slot-filling, input gate, clarification questions, rejection jokes.
+ *
+ * Conversations are stored in ChatSession/ChatTurn (same as workspace chat)
+ * with knowledge_package_id set instead of embedding_id.
  */
 class EmbedChatController extends Controller
 {
-    // Maximum conversation history messages to include in LLM context
-    private const MAX_HISTORY_MESSAGES = 10;
-
     /**
-     * Process a chat message against the package linked to the API key.
+     * Process a chat message using the same conversational engine as workspace chat.
      */
     public function chat(Request $request): JsonResponse
     {
         $request->validate([
             'message' => 'required|string|max:4000',
-            'conversation_id' => 'nullable|uuid',
+            'session_id' => 'nullable|integer',
         ]);
 
         $packageId = $request->attributes->get('embed_package_id');
         $workspaceId = $request->attributes->get('embed_workspace_id');
-
-        $rag = new RagService();
-        $bedrock = new BedrockService();
-
-        // Two-stage vector search against the published package
-        $searchResult = $rag->searchPackageKnowledgeUnits($request->message, $packageId, 5);
-
-        if (empty($searchResult['results'])) {
-            return response()->json([
-                'message' => 'No matching knowledge found for your question.',
-                'sources' => [],
-            ]);
-        }
-
-        $retrievedKUs = $searchResult['results'];
         $package = $request->attributes->get('embed_package');
 
-        // Determine response strategy (link guidance mode)
-        $responseStrategy = $rag->buildResponseStrategy($retrievedKUs, $package->response_mode ?? 'default_answer');
+        try {
+            // Load or create session (scoped to package, not embedding)
+            $session = $this->resolveSession($request, $workspaceId, $packageId);
+            $contextFromDb = $session->buildContext();
+            $contextFromDb['state'] = $session->state;
 
-        $sources = array_map(fn($ku) => [
-            'knowledge_unit_id' => $ku->id,
-            'topic' => $ku->topic,
-            'similarity' => round((float) $ku->similarity, 4),
-        ], $retrievedKUs);
+            $rag = new RagService();
 
-        // Get or create anonymous conversation
-        $conversation = $this->getOrCreateConversation(
-            $request->conversation_id, $workspaceId, $packageId
-        );
+            // Process chat with the SAME engine as workspace chat,
+            // but scoped to package instead of embedding
+            $chatResult = $rag->processChat(
+                $request->message,
+                $packageId,
+                $workspaceId,
+                $contextFromDb,
+                [],
+                'package',  // scope type
+            );
 
-        // Save user message
-        ChatMessage::create([
-            'conversation_id' => $conversation->id,
-            'role' => 'user',
-            'content' => $request->message,
-        ]);
+            $action = $chatResult['action'];
+            $context = $chatResult['context'];
+            $modelId = $chatResult['model_id'];
+            $searchMode = $chatResult['search_mode'] ?? 'none';
 
-        // Link-only mode — return links without LLM invocation
-        if ($responseStrategy['skip_llm']) {
-            $linksMessage = $rag->formatLinksOnlyMessage($responseStrategy['links']);
+            // Update session state
+            $session->updateFromResult($context, $action);
 
-            ChatMessage::create([
-                'conversation_id' => $conversation->id,
-                'role' => 'assistant',
-                'content' => $linksMessage,
-                'sources_json' => $sources,
-            ]);
+            // Action: input gate rejected the message
+            if ($action === 'rejected') {
+                $joke = $this->generateRejectionJoke($request->message, $modelId);
+                $this->persistTurns($session, $request->message, $joke, 'rejected', $context, [], $searchMode);
+
+                return response()->json([
+                    'message' => $joke,
+                    'action' => 'rejected',
+                    'context' => ['primary_filter' => null, 'question' => null],
+                    'sources' => [],
+                    'session_id' => $session->id,
+                ]);
+            }
+
+            // Action: ask primary filter
+            if ($action === 'ask_primary_filter') {
+                $clarification = $this->generateClarificationQuestion(
+                    $context['question'] ?? $request->message, $modelId
+                );
+                $this->persistTurns($session, $request->message, $clarification, 'ask_primary_filter', $context, [], $searchMode);
+
+                return response()->json([
+                    'message' => $clarification,
+                    'action' => 'ask_primary_filter',
+                    'context' => $context,
+                    'sources' => [],
+                    'session_id' => $session->id,
+                ]);
+            }
+
+            // Action: no matching knowledge
+            if ($action === 'no_match') {
+                $noMatchMsg = __('ui.chat_no_match');
+                $this->persistTurns($session, $request->message, $noMatchMsg, 'no_match', $context, [], $searchMode);
+
+                return response()->json([
+                    'message' => $noMatchMsg,
+                    'action' => 'no_match',
+                    'context' => $context,
+                    'sources' => [],
+                    'session_id' => $session->id,
+                ]);
+            }
+
+            // Actions: answer / answer_broad — generate LLM response
+            if (!$modelId) {
+                return response()->json(['error' => 'No LLM model configured.'], 400);
+            }
+
+            $bedrock = new BedrockService();
+
+            // Check link guidance mode
+            $responseStrategy = $rag->buildResponseStrategy(
+                $chatResult['results'],
+                $package->response_mode ?? 'default_answer'
+            );
+
+            // Link-only mode: skip LLM
+            if ($responseStrategy['skip_llm']) {
+                $linksMessage = $rag->formatLinksOnlyMessage($responseStrategy['links']);
+                $sources = $rag->buildSources($chatResult['results'], $searchMode);
+                $this->persistTurns($session, $request->message, $linksMessage, $action, $context, $sources, $searchMode);
+
+                return response()->json([
+                    'message' => $linksMessage,
+                    'action' => $action,
+                    'links' => $responseStrategy['links'],
+                    'sources' => $sources,
+                    'session_id' => $session->id,
+                    'latency_ms' => 0,
+                ]);
+            }
+
+            // Build RAG context and invoke LLM
+            $contextKUs = !empty($responseStrategy['answer_kus']) ? $responseStrategy['answer_kus'] : $chatResult['results'];
+            $knowledgeContext = $rag->buildContext($contextKUs);
+
+            $systemPrompt = !empty($responseStrategy['links'])
+                ? $rag->buildSystemPromptWithLinks($knowledgeContext, $responseStrategy['links'])
+                : $rag->buildSystemPrompt($knowledgeContext);
+
+            if ($action === 'answer_broad') {
+                $systemPrompt .= "\n\nIMPORTANT: The user asked about \"{$context['primary_filter']}\" but no exact match was found. The knowledge below is from other entries and may be useful as reference. Clearly note this in your response.";
+            }
+
+            $messages = [['role' => 'user', 'content' => $context['question'] ?? $request->message]];
+            $llmResult = $bedrock->invokeChat($modelId, $systemPrompt, $messages);
+
+            // Track cost
+            $costTracker = new CostTrackingService();
+            $costTracker->recordUsage(
+                $workspaceId, null, 'embed_chat',
+                $llmResult['model_id'],
+                $llmResult['input_tokens'], $llmResult['output_tokens'],
+            );
+
+            // Increment usage_count on cited KUs
+            $sourceKuIds = collect($chatResult['results'])->pluck('id')->filter()->values()->toArray();
+            if (!empty($sourceKuIds)) {
+                KnowledgeUnit::whereIn('id', $sourceKuIds)->increment('usage_count');
+            }
+            $costTracker->recordChatAnswer($workspaceId);
+
+            $sources = $rag->buildSources($chatResult['results'], $searchMode);
+
+            $this->persistTurns(
+                $session, $request->message, $llmResult['content'],
+                $action, $context, $sources, $searchMode,
+                (int) ($llmResult['latency_ms'] ?? 0),
+            );
 
             return response()->json([
-                'conversation_id' => $conversation->id,
-                'message' => $linksMessage,
+                'message' => $llmResult['content'],
+                'action' => $action,
+                'context' => $context,
                 'links' => $responseStrategy['links'],
                 'sources' => $sources,
-                'latency_ms' => 0,
+                'session_id' => $session->id,
+                'latency_ms' => $llmResult['latency_ms'],
             ]);
-        }
 
-        // Normal / mixed mode — invoke LLM
-        $contextKUs = !empty($responseStrategy['answer_kus']) ? $responseStrategy['answer_kus'] : $retrievedKUs;
-        $knowledgeContext = $rag->buildContext($contextKUs);
-        $messages = $this->buildMessagesArray($conversation, $request->message);
-
-        $systemPrompt = !empty($responseStrategy['links'])
-            ? $rag->buildSystemPromptWithLinks($knowledgeContext, $responseStrategy['links'])
-            : $rag->buildSystemPrompt($knowledgeContext);
-
-        $modelId = $rag->resolveModelId($workspaceId)
-            ?? 'ap-northeast-1.anthropic.claude-3-5-haiku-20251001-v1:0';
-
-        try {
-            $llmResult = $bedrock->invokeChat($modelId, $systemPrompt, $messages);
         } catch (\Exception $e) {
+            Log::error('Embed chat failed', ['error' => $e->getMessage()]);
             return response()->json(['error' => 'Service temporarily unavailable.'], 503);
         }
-
-        // Save assistant message with metadata
-        ChatMessage::create([
-            'conversation_id' => $conversation->id,
-            'role' => 'assistant',
-            'content' => $llmResult['content'],
-            'sources_json' => $sources,
-            'input_tokens' => $llmResult['input_tokens'],
-            'output_tokens' => $llmResult['output_tokens'],
-            'latency_ms' => $llmResult['latency_ms'],
-        ]);
-
-        // Track cost under 'embed_chat' endpoint category
-        (new CostTrackingService())->recordUsage(
-            $workspaceId, null, 'embed_chat',
-            $llmResult['model_id'],
-            $llmResult['input_tokens'], $llmResult['output_tokens'],
-        );
-
-        return response()->json([
-            'conversation_id' => $conversation->id,
-            'message' => $llmResult['content'],
-            'links' => $responseStrategy['links'],
-            'sources' => $sources,
-            'latency_ms' => $llmResult['latency_ms'],
-        ]);
     }
 
     /**
-     * Get existing conversation or create a new anonymous one.
+     * Resolve or create a ChatSession for package-scoped chat.
      */
-    private function getOrCreateConversation(?string $conversationId, int $workspaceId, int $packageId): ChatConversation
+    private function resolveSession(Request $request, int $workspaceId, int $packageId): ChatSession
     {
-        if ($conversationId) {
-            $existing = ChatConversation::where('id', $conversationId)
-                ->where('workspace_id', $workspaceId)
-                ->where('knowledge_package_id', $packageId)
-                ->first();
+        $sessionId = $request->input('session_id');
 
-            if ($existing) {
-                return $existing;
+        if ($sessionId) {
+            $session = ChatSession::where('workspace_id', $workspaceId)
+                ->where('knowledge_package_id', $packageId)
+                ->find($sessionId);
+            if ($session) {
+                return $session;
             }
         }
 
-        // Anonymous conversation (user_id = null for embed users)
-        return ChatConversation::create([
+        return ChatSession::create([
             'workspace_id' => $workspaceId,
+            'user_id' => null,  // Anonymous embed user
+            'embedding_id' => null,
             'knowledge_package_id' => $packageId,
-            'user_id' => null,
+            'title' => mb_substr($request->message, 0, 60),
+            'state' => 'idle',
         ]);
     }
 
     /**
-     * Build the messages array including conversation history.
+     * Persist user + assistant turn pair with search metadata.
      */
-    private function buildMessagesArray(ChatConversation $conversation, string $currentMessage): array
-    {
-        $history = $conversation->messages()
-            ->orderByDesc('created_at')
-            ->limit(self::MAX_HISTORY_MESSAGES + 1)
-            ->get()
-            ->reverse()
-            ->values();
-
-        $messages = [];
-
-        // Add history messages (skip the last one, which is the current user message)
-        foreach ($history->slice(0, -1) as $msg) {
-            $messages[] = [
-                'role' => $msg->role,
-                'content' => $msg->content,
+    private function persistTurns(
+        ChatSession $session,
+        string $userContent,
+        string $assistantContent,
+        string $action,
+        array $context,
+        array $sources,
+        string $searchMode = 'none',
+        int $responseMs = 0,
+    ): void {
+        try {
+            $extractedSlots = [
+                'primary_filter' => $context['primary_filter'] ?? null,
+                'question' => $context['question'] ?? null,
             ];
+
+            ChatTurn::create([
+                'session_id' => $session->id,
+                'role' => 'user',
+                'content' => $userContent,
+                'context' => $context,
+                'extracted_slots' => $extractedSlots,
+            ]);
+
+            ChatTurn::create([
+                'session_id' => $session->id,
+                'role' => 'assistant',
+                'content' => $assistantContent,
+                'context' => $context,
+                'action' => $action,
+                'sources' => $sources,
+                'search_mode' => $searchMode,
+                'extracted_slots' => $extractedSlots,
+                'response_ms' => $responseMs > 0 ? $responseMs : null,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Embed chat history persist failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate a clarification question asking which product/entity.
+     */
+    private function generateClarificationQuestion(string $userQuestion, string $modelId): string
+    {
+        $bedrock = new BedrockService();
+        $systemPrompt = 'You are a helpful customer support chatbot. Generate ONLY a short clarification question, nothing else.';
+        $userPrompt = "The user asked: \"{$userQuestion}\"\n\nWe need to know which specific product or entity they are referring to. Generate a short, friendly question asking them to specify — in the SAME LANGUAGE as the user's question. Output ONLY the question.";
+
+        try {
+            $response = $bedrock->invokeChat($modelId, $systemPrompt, [
+                ['role' => 'user', 'content' => $userPrompt],
+            ], 100);
+            $text = trim($response['content'] ?? '');
+            if (!empty($text)) {
+                return $text;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Embed clarification LLM failed: ' . $e->getMessage());
         }
 
-        // Add current user message
-        $messages[] = [
-            'role' => 'user',
-            'content' => $currentMessage,
-        ];
+        return __('ui.chat_ask_filter');
+    }
 
-        return $messages;
+    /**
+     * Generate a witty rejection response for off-topic messages.
+     */
+    private function generateRejectionJoke(string $userMessage, string $modelId): string
+    {
+        $bedrock = new BedrockService();
+        $systemPrompt = 'You are a witty product support chatbot. You ONLY answer product/service support questions.';
+        $userPrompt = "The user sent a non-support message: \"{$userMessage}\"\n\nGenerate a short (1-2 sentences), humorous response that reminds them you only handle product support — in the SAME LANGUAGE as the user's message. Output ONLY the response.";
+
+        try {
+            $response = $bedrock->invokeChat($modelId, $systemPrompt, [
+                ['role' => 'user', 'content' => $userPrompt],
+            ], 150);
+            $text = trim($response['content'] ?? '');
+            if (!empty($text)) {
+                return $text;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Embed rejection joke LLM failed: ' . $e->getMessage());
+        }
+
+        $jokes = __('ui.chat_rejection_jokes');
+        return is_array($jokes) ? $jokes[array_rand($jokes)] : $jokes;
     }
 }

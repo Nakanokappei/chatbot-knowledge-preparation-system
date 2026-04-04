@@ -119,7 +119,7 @@
 
     var API_KEY = @json($api_key);
     var CHAT_ENDPOINT = @json($chat_endpoint);
-    var conversationId = null;
+    var sessionId = null;
     var isLoading = false;
 
     var chatBody = document.getElementById('chatBody');
@@ -169,7 +169,7 @@
             },
             body: JSON.stringify({
                 message: message,
-                conversation_id: conversationId,
+                session_id: sessionId,
             }),
         })
         .then(function(res) { return res.json(); })
@@ -182,8 +182,8 @@
                 appendMessage('assistant', escapeHtml(data.error));
             } else {
                 // Update conversation ID for multi-turn
-                if (data.conversation_id) {
-                    conversationId = data.conversation_id;
+                if (data.session_id) {
+                    sessionId = data.session_id;
                 }
 
                 // Render assistant response

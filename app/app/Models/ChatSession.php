@@ -21,8 +21,8 @@ class ChatSession extends Model
     use BelongsToWorkspace;
 
     protected $fillable = [
-        'workspace_id', 'user_id', 'embedding_id', 'title',
-        'current_primary_filter', 'current_question', 'state',
+        'workspace_id', 'user_id', 'embedding_id', 'knowledge_package_id',
+        'title', 'current_primary_filter', 'current_question', 'state',
     ];
 
     /** All turns in this session, ordered chronologically. */
@@ -31,10 +31,16 @@ class ChatSession extends Model
         return $this->hasMany(ChatTurn::class, 'session_id')->orderBy('created_at');
     }
 
-    /** The embedding this session queries against. */
+    /** The embedding this session queries against (workspace chat). */
     public function embedding(): BelongsTo
     {
         return $this->belongsTo(Embedding::class);
+    }
+
+    /** The knowledge package this session queries against (embed widget chat). */
+    public function knowledgePackage(): BelongsTo
+    {
+        return $this->belongsTo(KnowledgePackage::class);
     }
 
     /** The user who initiated this session. */

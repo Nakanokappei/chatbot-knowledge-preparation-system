@@ -256,12 +256,20 @@ PROMPT;
      * Returns: ['action' => string, 'message' => string|null, 'context' => array,
      *           'results' => array, 'search_mode' => string, 'model_id' => string|null]
      */
+    /**
+     * Process a chat message with primary filter extraction and multi-stage search.
+     *
+     * Supports two scopes:
+     *   - 'embedding': search KUs by embedding_id (workspace chat)
+     *   - 'package':   search KUs by package_id via knowledge_package_items (embed widget)
+     */
     public function processChat(
         string $userMessage,
-        int $embeddingId,
+        int $scopeId,
         int $workspaceId,
         array $existingContext = [],
         array $history = [],
+        string $scopeType = 'embedding',
     ): array {
         $modelId = $this->resolveModelId($workspaceId);
 
@@ -352,11 +360,12 @@ PROMPT;
         $searchMode = 'none';
         $minThreshold = 0.08;
 
-        // Gather candidates from both embedding columns with relaxed threshold
+        // Gather candidates from both embedding columns with relaxed threshold.
+        // Use embedding-scoped or package-scoped search depending on scope type.
         foreach (['search_embedding', 'broad_embedding'] as $column) {
-            $results = $this->vectorSearch(
-                $vectorString, $embeddingId, $column, $minThreshold, self::TOP_K * 2,
-            );
+            $results = $scopeType === 'package'
+                ? $this->packageVectorSearch($vectorString, $scopeId, $column, $minThreshold, self::TOP_K * 2)
+                : $this->vectorSearch($vectorString, $scopeId, $column, $minThreshold, self::TOP_K * 2);
             foreach ($results as $ku) {
                 // Keep the highest similarity score per KU
                 if (!isset($seenIds[$ku->id]) || (float)$ku->similarity > (float)$seenIds[$ku->id]->similarity) {
