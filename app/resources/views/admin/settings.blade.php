@@ -133,13 +133,13 @@
             </div>
 
             {{-- Embedding models section --}}
-            <hr style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
+            <hr id="embedding-section" style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.embedding_models') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.embedding_models_desc') }}</p>
 
             <div class="card">
                 <h2>{{ __('ui.add_embedding_model') }}</h2>
-                <form method="POST" action="{{ route('admin.settings.embedding.store') }}">
+                <form method="POST" action="{{ route('admin.settings.embedding.store') }}#embedding-section">
                     @csrf
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
@@ -197,7 +197,7 @@
                                 <td><span class="badge {{ ($em->provider ?? 'bedrock') === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?? 'bedrock') }}</span></td>
                                 <td style="text-align: center;">{{ $em->dimension }}</td>
                                 <td style="white-space: nowrap; font-size: 12px;">
-                                    <form method="POST" action="{{ route('admin.settings.embedding.update', $em) }}" style="display: inline; margin: 0;">
+                                    <form method="POST" action="{{ route('admin.settings.embedding.update', $em) }}#embedding-section" style="display: inline; margin: 0;">
                                         @csrf @method('PUT')
                                         <input type="hidden" name="action" value="update_pricing">
                                         <span style="color: #5f6368;">$</span><input type="number" name="input_price_per_1m" value="{{ $em->input_price_per_1m }}"
@@ -213,11 +213,11 @@
                                 </td>
                                 <td>
                                     <div class="actions">
-                                        <form method="POST" action="{{ route('admin.settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
+                                        <form method="POST" action="{{ route('admin.settings.embedding.update', $em) }}#embedding-section">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
                                         @if(in_array($em->model_id, $usedEmbeddingModelIds))
                                             <button type="button" class="btn btn-sm btn-danger" disabled title="In use by a workspace" style="opacity:0.4;cursor:not-allowed;">{{ __('ui.delete') }}</button>
                                         @else
-                                            <form method="POST" action="{{ route('admin.settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                            <form method="POST" action="{{ route('admin.settings.embedding.destroy', $em) }}#embedding-section" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
                                     </div>
                                 </td>
@@ -229,14 +229,14 @@
             </div>
 
             {{-- OpenAI Embedding Models section --}}
-            <hr style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
+            <hr id="openai-section" style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.openai_embedding_models') }}</h1>
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.openai_embedding_models_desc') }}</p>
 
             {{-- OpenAI API Key --}}
             <div class="card">
                 <h2>{{ __('ui.openai_api_key') }}</h2>
-                <form method="POST" action="{{ route('admin.settings.openai-key') }}">
+                <form method="POST" action="{{ route('admin.settings.openai-key') }}#openai-section">
                     @csrf
                     <div style="display: flex; gap: 8px; align-items: flex-end;">
                         <div style="flex: 1;">
@@ -259,11 +259,11 @@
                 @if(!$openAiKeySet)
                     <p style="color: #ff9500; font-size: 13px;">{{ __('ui.openai_key_required_first') }}</p>
                 @else
-                    <form method="POST" action="{{ route('admin.settings.openai-embedding.store') }}">
+                    <form method="POST" action="{{ route('admin.settings.openai-embedding.store') }}#openai-section">
                         @csrf
-                        <div class="form-row">
-                            <div class="form-group" style="flex: 2;">
-                                <label>{{ __('ui.select_model') }}</label>
+                        <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 2; min-width: 200px;">
+                                <label style="display: block; font-size: 12px; color: #5f6368; margin-bottom: 4px; font-weight: 500;">{{ __('ui.select_model') }}</label>
                                 <select name="model_id" required onchange="updateOpenAiDimension(this)"
                                     style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
                                     <option value="">{{ __('ui.choose_embedding_model') }}</option>
@@ -275,14 +275,14 @@
                                     @endif
                                 </select>
                             </div>
-                            <div class="form-group" style="width: 120px; flex: none;">
-                                <label>{{ __('ui.dimension') }}</label>
+                            <div style="width: 120px; flex: none;">
+                                <label style="display: block; font-size: 12px; color: #5f6368; margin-bottom: 4px; font-weight: 500;">{{ __('ui.dimension') }}</label>
                                 <input type="number" name="dimension" id="openai_dimension" value="1536" min="1" max="8192"
                                     style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
-                                <span style="font-size: 10px; color: #86868b;">{{ __('ui.openai_dim_hint') }}</span>
                             </div>
-                            <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
+                            <button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button>
                         </div>
+                        <span style="font-size: 10px; color: #86868b; display: block; margin-top: 4px;">{{ __('ui.openai_dim_hint') }}</span>
                     </form>
                 @endif
             </div>

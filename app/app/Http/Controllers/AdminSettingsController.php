@@ -174,13 +174,14 @@ class AdminSettingsController extends Controller
             'is_active' => true,
         ]);
 
-        return redirect()->route('admin.settings.index')
+        return redirect(route('admin.settings.index') . '#embedding-section')
             ->with('success', "{$displayName} added as system template.");
     }
 
     public function updateEmbedding(Request $request, EmbeddingModel $embeddingModel): RedirectResponse
     {
         $action = $request->input('action');
+        $anchor = ($embeddingModel->provider ?? 'bedrock') === 'openai' ? '#openai-section' : '#embedding-section';
 
         if ($action === 'set_default') {
             abort(403, 'System admins cannot set default models.');
@@ -189,7 +190,7 @@ class AdminSettingsController extends Controller
         if ($action === 'toggle_active') {
             $embeddingModel->update(['is_active' => !$embeddingModel->is_active]);
             $status = $embeddingModel->is_active ? 'activated' : 'deactivated';
-            return redirect()->route('admin.settings.index')
+            return redirect(route('admin.settings.index') . $anchor)
                 ->with('success', "{$embeddingModel->display_name} {$status}.");
         }
 
@@ -199,18 +200,19 @@ class AdminSettingsController extends Controller
                     'input_price_per_1m' => max(0, (float) $request->input('input_price_per_1m')),
                 ]);
             }
-            return redirect()->route('admin.settings.index')
+            return redirect(route('admin.settings.index') . $anchor)
                 ->with('success', "Pricing updated for {$embeddingModel->display_name}.");
         }
 
-        return redirect()->route('admin.settings.index');
+        return redirect(route('admin.settings.index') . $anchor);
     }
 
     public function destroyEmbedding(EmbeddingModel $embeddingModel): RedirectResponse
     {
+        $anchor = ($embeddingModel->provider ?? 'bedrock') === 'openai' ? '#openai-section' : '#embedding-section';
         $name = $embeddingModel->display_name;
         $embeddingModel->delete();
-        return redirect()->route('admin.settings.index')
+        return redirect(route('admin.settings.index') . $anchor)
             ->with('success', "{$name} deleted.");
     }
 
@@ -230,7 +232,7 @@ class AdminSettingsController extends Controller
             ['value' => encrypt($request->input('openai_api_key')), 'updated_at' => now()],
         );
 
-        return redirect()->route('admin.settings.index')
+        return redirect(route('admin.settings.index') . '#openai-section')
             ->with('success', __('ui.openai_key_saved'));
     }
 
@@ -272,7 +274,7 @@ class AdminSettingsController extends Controller
             'input_price_per_1m' => $info['price'],
         ]);
 
-        return redirect()->route('admin.settings.index')
+        return redirect(route('admin.settings.index') . '#openai-section')
             ->with('success', "{$info['name']} added as system template.");
     }
 
