@@ -739,6 +739,7 @@ return [
     'approved_count'                => '承認済み',
     'click_to_exclude'              => 'クリックで除外',
     'click_to_approve'              => 'クリックで承認',
+    'set_excluded'                  => '除外する',
     'select_embeddings'             => 'ナレッジ（エンベディング）を選択',
     'select_embeddings_hint'        => '選択したエンベディングの承認済みKUがすべてこのパッケージに含まれます。',
     'no_approved_kus_in_embedding'  => '選択したエンベディングに承認済みKUがありません。',

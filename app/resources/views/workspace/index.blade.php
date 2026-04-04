@@ -514,25 +514,32 @@
                         <p>{{ __('ui.run_pipeline_to_generate') }}</p>
                     </div>
                 @else
-                    {{-- Bulk approve/exclude actions --}}
-                    <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
-                        <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" style="display: inline;">
-                            @csrf
-                            <input type="hidden" name="new_status" value="approved">
-                            <input type="hidden" name="ku_ids" value="all">
-                            <button type="submit" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.approve_all') }}</button>
-                        </form>
-                        <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" style="display: inline;">
-                            @csrf
-                            <input type="hidden" name="new_status" value="draft">
-                            <input type="hidden" name="ku_ids" value="all">
-                            <button type="submit" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.exclude_all') }}</button>
-                        </form>
-                        @php
-                            $approvedCount = $knowledgeUnits->where('review_status', 'approved')->count();
-                            $totalCount = $knowledgeUnits->count();
-                        @endphp
-                        <span style="font-size: 12px; color: #5f6368;">{{ $approvedCount }}/{{ $totalCount }} {{ __('ui.approved_count') }}</span>
+                    @php
+                        $approvedCount = $knowledgeUnits->where('review_status', 'approved')->count();
+                        $totalCount = $knowledgeUnits->count();
+                    @endphp
+
+                    {{-- Toolbar: selection controls (left) + status actions (right) --}}
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                        {{-- Selection controls --}}
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button type="button" onclick="kuSelectAll()" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.select_all_btn') }}</button>
+                            <button type="button" onclick="kuDeselectAll()" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.deselect_all') }}</button>
+                            <span id="ku-selection-count" style="font-size: 12px; color: #5f6368;">0 {{ __('ui.selected') }}</span>
+                        </div>
+                        {{-- Status actions (require selection) --}}
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span style="font-size: 12px; color: #5f6368;">{{ $approvedCount }}/{{ $totalCount }} {{ __('ui.approved_count') }}</span>
+                            <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" id="ku-bulk-form">
+                                @csrf
+                                <input type="hidden" name="ku_ids" id="ku-bulk-ids" value="">
+                                <input type="hidden" name="new_status" id="ku-bulk-status" value="">
+                                <button type="button" onclick="kuBulkAction('approved')" id="ku-btn-approve"
+                                    class="btn btn-sm btn-green" style="font-size: 12px;" disabled>{{ __('ui.approve') }}</button>
+                                <button type="button" onclick="kuBulkAction('draft')" id="ku-btn-exclude"
+                                    class="btn btn-sm btn-outline" style="font-size: 12px;" disabled>{{ __('ui.set_excluded') }}</button>
+                            </form>
+                        </div>
                     </div>
 
                     <table class="ku-table">
@@ -540,18 +547,13 @@
                         <tbody>
                             @foreach($knowledgeUnits as $ku)
                                 <tr style="cursor: pointer; {{ $ku->review_status === 'draft' ? 'opacity: 0.5;' : '' }}"
-                                    onclick="if(!event.target.closest('.ku-toggle'))window.location='{{ route('workspace.ku', ['embeddingId' => $current->id, 'kuId' => $ku->id]) }}'">
-                                    <td onclick="event.stopPropagation();" class="ku-toggle" style="width: 40px; vertical-align: top; padding-top: 12px; text-align: center;">
-                                        <form method="POST" action="{{ route('knowledge-units.review', $ku) }}" style="display: inline;">
-                                            @csrf
-                                            <input type="hidden" name="new_status" value="{{ $ku->review_status === 'approved' ? 'draft' : 'approved' }}">
-                                            <button type="submit" style="background: none; border: none; cursor: pointer; font-size: 18px; padding: 0;" title="{{ $ku->review_status === 'approved' ? __('ui.click_to_exclude') : __('ui.click_to_approve') }}">
-                                                {{ $ku->review_status === 'approved' ? '✅' : '⬜' }}
-                                            </button>
-                                        </form>
+                                    onclick="if(!event.target.closest('input[type=checkbox]'))window.location='{{ route('workspace.ku', ['embeddingId' => $current->id, 'kuId' => $ku->id]) }}'">
+                                    <td onclick="event.stopPropagation();" style="width: 36px; vertical-align: top; padding-top: 12px;">
+                                        <input type="checkbox" class="ku-checkbox" value="{{ $ku->id }}" style="cursor: pointer;" onchange="kuUpdateSelection()">
                                     </td>
                                     <td style="max-width: 0; width: 100%;">
                                         <div style="display: flex; align-items: baseline; gap: 8px;">
+                                            <span style="font-size: 16px; flex-shrink: 0;" title="{{ $ku->review_status }}">{{ $ku->review_status === 'approved' ? '✅' : '⬜' }}</span>
                                             <span style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $ku->intent }}</span>
                                             @if($ku->primary_filter)
                                                 <span style="font-size: 11px; color: #0071e3; background: #e8f0fe; padding: 1px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;">{{ Str::limit($ku->primary_filter, 30) }}</span>
@@ -792,6 +794,34 @@
 @endsection
 
 @section('scripts')
+        // ── KU Selection & Bulk Status ──────────────────────────
+        function kuSelectAll() {
+            document.querySelectorAll('.ku-checkbox').forEach(function(c) { c.checked = true; });
+            kuUpdateSelection();
+        }
+        function kuDeselectAll() {
+            document.querySelectorAll('.ku-checkbox').forEach(function(c) { c.checked = false; });
+            kuUpdateSelection();
+        }
+        function kuUpdateSelection() {
+            var checked = document.querySelectorAll('.ku-checkbox:checked');
+            var count = checked.length;
+            var label = document.getElementById('ku-selection-count');
+            if (label) label.textContent = count + ' {{ __("ui.selected") }}';
+            var btnApprove = document.getElementById('ku-btn-approve');
+            var btnExclude = document.getElementById('ku-btn-exclude');
+            if (btnApprove) btnApprove.disabled = count === 0;
+            if (btnExclude) btnExclude.disabled = count === 0;
+        }
+        function kuBulkAction(status) {
+            var checked = document.querySelectorAll('.ku-checkbox:checked');
+            if (checked.length === 0) return;
+            var ids = Array.from(checked).map(function(c) { return c.value; });
+            document.getElementById('ku-bulk-ids').value = ids.join(',');
+            document.getElementById('ku-bulk-status').value = status;
+            document.getElementById('ku-bulk-form').submit();
+        }
+
         // ── QA Registration Modal ──────────────────────────────
         function openQaModal() {
             document.getElementById('qa-modal-backdrop').style.display = 'block';

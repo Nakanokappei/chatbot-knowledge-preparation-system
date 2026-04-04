@@ -738,6 +738,7 @@ return [
     'approved_count'                => 'approved',
     'click_to_exclude'              => 'Click to exclude',
     'click_to_approve'              => 'Click to approve',
+    'set_excluded'                  => 'Exclude',
     'select_embeddings'             => 'Select Knowledge (Embeddings)',
     'select_embeddings_hint'        => 'All approved KUs from the selected embeddings will be included in this package.',
     'no_approved_kus_in_embedding'  => 'No approved KUs found in the selected embeddings.',
