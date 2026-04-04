@@ -688,6 +688,8 @@ return [
     'embed_key_warning'             => 'このキーは一度しか表示されません。今すぐコピーしてください。',
     'embed_copy_snippet'            => 'scriptをコピー',
     'embed_copy_iframe'             => 'iframeをコピー',
+    'embed_type_fullpage'           => 'フルページ型',
+    'embed_type_widget'             => 'ウィジェット型',
     'embed_delete_confirm'          => 'このAPIキーを完全に削除しますか？',
     'embed_key_deleted'             => 'APIキーを削除しました。',
     'embed_key_no_plaintext'        => 'このキーは平文保存前に作成されました。無効化して新しいキーを作成してください。',

@@ -687,6 +687,8 @@ return [
     'embed_key_warning'             => 'This key will only be shown once. Copy it now.',
     'embed_copy_snippet'            => 'Copy Script',
     'embed_copy_iframe'             => 'Copy iframe',
+    'embed_type_fullpage'           => 'Full-page',
+    'embed_type_widget'             => 'Widget',
     'embed_delete_confirm'          => 'Permanently delete this API key?',
     'embed_key_deleted'             => 'API key deleted.',
     'embed_key_no_plaintext'        => 'This key was created before plaintext storage. Revoke and create a new one to see the embed code.',

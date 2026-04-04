@@ -184,20 +184,26 @@
 
                 var body = '';
                 if (k.status === 'active' && k.api_key) {
+                    var iframeUrl = appUrl + '/embed/chat/' + encodeURIComponent(k.api_key);
+                    var iframeTag = '<' + 'iframe src="' + iframeUrl + '" width="400" height="600" style="border:none;"></' + 'iframe>';
                     var snippet = '<' + 'script src="' + appUrl + '/widget.js"\n'
                         + '        data-key="' + esc(k.api_key) + '"\n'
                         + '        data-title="{{ $package->name }}"\n'
                         + '        data-theme="light">\n'
                         + '</' + 'script>';
-                    var iframeUrl = appUrl + '/embed/chat/' + encodeURIComponent(k.api_key);
-                    var iframeTag = '<' + 'iframe src="' + iframeUrl + '" width="400" height="600" style="border:none;"></' + 'iframe>';
-                    body = '<pre style="background:#f5f5f7;padding:10px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;margin-bottom:8px;">' + esc(snippet) + '</pre>'
-                        + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
-                        + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(snippet).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_snippet") }}</button>'
+
+                    // Row 1: Full-page (iframe)
+                    body = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f2;">'
+                        + '<span style="font-size:13px;font-weight:500;min-width:100px;">{{ __("ui.embed_type_fullpage") }}</span>'
                         + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(iframeTag).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_iframe") }}</button>'
-                        + '<span style="font-size:11px;color:#5f6368;margin-left:8px;">{{ __("ui.demo_preview") }}</span>'
-                        + '<a href="/embed/chat/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;gap:3px;">🖼️ iframe</a>'
-                        + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-primary" style="font-size:11px;gap:3px;">📜 script</a>'
+                        + '<a href="/embed/chat/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.demo_preview") }}</a>'
+                        + '</div>';
+
+                    // Row 2: Widget (script)
+                    body += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;">'
+                        + '<span style="font-size:13px;font-weight:500;min-width:100px;">{{ __("ui.embed_type_widget") }}</span>'
+                        + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(snippet).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_snippet") }}</button>'
+                        + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.demo_preview") }}</a>'
                         + '</div>';
                 } else if (k.status === 'active') {
                     body = '<p style="font-size:12px;color:#86868b;">{{ __("ui.embed_key_no_plaintext") }}</p>';
