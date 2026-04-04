@@ -86,14 +86,6 @@
                     </svg>
                     <span class="upload-label">{{ __('ui.upload_csv') }}</span>
                 </a>
-                <a href="{{ route('knowledge-units.create') }}"
-                   style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 0; background: #fff; color: #1d1d1f; border: 1px solid #d2d2d7; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; transition: background 0.15s; margin-top: 8px;"
-                   onmouseover="this.style.background='#e8e8ea'" onmouseout="this.style.background='#fff'">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;">
-                        <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    <span>{{ __('ui.manual_qa_registration') }}</span>
-                </a>
             </div>
             <div class="sidebar-tree" id="dataset-tree">
                 @forelse($datasets as $ds)
@@ -605,6 +597,17 @@
                             </tbody>
                         </table>
                     </form>
+
+                    {{-- QA Registration action — contextual to the current embedding --}}
+                    <div style="margin-top: 16px;">
+                        <a href="{{ route('knowledge-units.create', ['embedding_id' => $current->id]) }}"
+                           class="btn btn-outline" style="gap: 6px;">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;">
+                                <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            {{ __('ui.manual_qa_registration') }}
+                        </a>
+                    </div>
                 @endif
             @else
                 <div class="empty">

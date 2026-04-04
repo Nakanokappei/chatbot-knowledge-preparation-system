@@ -34,13 +34,14 @@ class ManualKnowledgeUnitController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        // Pre-fill question from query param (linked from Question Insights)
-        // Sanitize length to match the form's maxlength constraint.
+        // Pre-fill from query params (linked from workspace view or Question Insights)
         $prefillQuestion = substr(trim($request->query('question', '')), 0, 2000);
+        $prefillEmbeddingId = $request->query('embedding_id');
 
         return view('dashboard.knowledge_units.create', [
             'embeddings' => $embeddings,
             'prefillQuestion' => $prefillQuestion,
+            'prefillEmbeddingId' => $prefillEmbeddingId,
         ]);
     }
 

@@ -52,7 +52,7 @@
                     <select class="form-input" id="embedding_id" name="embedding_id" required>
                         <option value="">{{ __('ui.manual_qa_select_embedding') }}</option>
                         @foreach($embeddings as $emb)
-                            <option value="{{ $emb->id }}" {{ old('embedding_id') == $emb->id ? 'selected' : '' }}>
+                            <option value="{{ $emb->id }}" {{ old('embedding_id', $prefillEmbeddingId) == $emb->id ? 'selected' : '' }}>
                                 {{ $emb->name }} ({{ $emb->dataset->name ?? 'N/A' }})
                             </option>
                         @endforeach
