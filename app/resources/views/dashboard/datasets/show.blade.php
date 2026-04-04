@@ -242,10 +242,17 @@
             },
             body: JSON.stringify({ allowed_domains: domains }),
         })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (!r.ok) {
+                return r.text().then(function(t) {
+                    try { var d = JSON.parse(t); } catch(e) { throw new Error('Server error ' + r.status); }
+                    var msg = d.error || d.message || (d.errors ? Object.values(d.errors).flat().join(', ') : 'Error ' + r.status);
+                    throw new Error(msg);
+                });
+            }
+            return r.json();
+        })
         .then(function(data) {
-            if (data.error) { alert(data.error); return; }
-
             // Show the plaintext key
             document.getElementById('embed-key-value').textContent = data.key;
             document.getElementById('embed-key-result').style.display = 'block';
@@ -262,6 +269,9 @@
 
             document.getElementById('embed-domains').value = '';
             loadKeys();
+        })
+        .catch(function(err) {
+            alert(err.message || 'An error occurred.');
         });
     };
 
