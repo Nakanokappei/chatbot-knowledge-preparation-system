@@ -100,6 +100,29 @@
             </div>
         </div>
 
+        {{-- Publish Settings — only shown for published packages, before KU table --}}
+        @if($package->isPublished())
+        <div class="card" id="embed-section">
+            <h2>{{ __('ui.publish_settings') }}</h2>
+
+            {{-- Generate new key form --}}
+            <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.embed_domains') }}</label>
+                    <input type="text" id="embed-domains" placeholder="{{ __('ui.embed_domains_placeholder') }}"
+                           style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                    <span style="font-size: 11px; color: #86868b;">{{ __('ui.embed_domains_hint') }}</span>
+                </div>
+                <button onclick="generateApiKey()" class="btn btn-primary" style="white-space: nowrap;">{{ __('ui.embed_generate_key') }}</button>
+            </div>
+
+            {{-- Active keys with embed code --}}
+            <div id="embed-keys-body">
+                <p style="text-align: center; color: #86868b; padding: 20px; font-size: 13px;">{{ __('ui.loading') }}...</p>
+            </div>
+        </div>
+        @endif
+
         {{-- KU items table --}}
         <div class="card">
             <h2>{{ __('ui.knowledge_units') }}</h2>
@@ -132,29 +155,6 @@
                 </tbody>
             </table>
         </div>
-
-        {{-- Embed Settings — only shown for published packages --}}
-        @if($package->isPublished())
-        <div class="card" id="embed-section">
-            <h2>{{ __('ui.embed_settings') }}</h2>
-
-            {{-- Generate new key form --}}
-            <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px;">
-                <div style="flex: 1; min-width: 200px;">
-                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.embed_domains') }}</label>
-                    <input type="text" id="embed-domains" placeholder="{{ __('ui.embed_domains_placeholder') }}"
-                           style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
-                    <span style="font-size: 11px; color: #86868b;">{{ __('ui.embed_domains_hint') }}</span>
-                </div>
-                <button onclick="generateApiKey()" class="btn btn-primary" style="white-space: nowrap;">{{ __('ui.embed_generate_key') }}</button>
-            </div>
-
-            {{-- Active keys with embed code --}}
-            <div id="embed-keys-body">
-                <p style="text-align: center; color: #86868b; padding: 20px; font-size: 13px;">{{ __('ui.loading') }}...</p>
-            </div>
-        </div>
-        @endif
 
     </div>
 </div>
@@ -205,9 +205,11 @@
                         + '        data-theme="light">\n'
                         + '</' + 'script>';
                     body = '<pre style="background:#f5f5f7;padding:10px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;margin-bottom:8px;">' + esc(snippet) + '</pre>'
-                        + '<div style="display:flex;gap:8px;align-items:center;">'
+                        + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
                         + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(snippet).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_snippet") }}</button>'
-                        + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-primary" style="font-size:11px;gap:4px;">🌐 {{ __("ui.demo_site") }}</a>'
+                        + '<span style="font-size:11px;color:#5f6368;margin-left:8px;">{{ __("ui.demo_preview") }}</span>'
+                        + '<a href="/embed/chat/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;gap:3px;">🖼️ iframe</a>'
+                        + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-primary" style="font-size:11px;gap:3px;">📜 script</a>'
                         + '</div>';
                 } else if (k.status === 'active') {
                     body = '<p style="font-size:12px;color:#86868b;">{{ __("ui.embed_key_no_plaintext") }}</p>';

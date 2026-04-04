@@ -688,6 +688,8 @@ return [
     'embed_key_warning'             => 'このキーは一度しか表示されません。今すぐコピーしてください。',
     'embed_copy_snippet'            => 'コードをコピー',
     'embed_key_no_plaintext'        => 'このキーは平文保存前に作成されました。無効化して新しいキーを作成してください。',
+    'publish_settings'              => '公開設定',
+    'demo_preview'                  => '動作確認:',
 
     // ── リンク案内モード (Feature 4) ─────────────────────
     'link_guidance'                 => 'リンク案内',

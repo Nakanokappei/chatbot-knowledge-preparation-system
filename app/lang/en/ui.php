@@ -687,6 +687,8 @@ return [
     'embed_key_warning'             => 'This key will only be shown once. Copy it now.',
     'embed_copy_snippet'            => 'Copy Code',
     'embed_key_no_plaintext'        => 'This key was created before plaintext storage. Revoke and create a new one to see the embed code.',
+    'publish_settings'              => 'Publish Settings',
+    'demo_preview'                  => 'Preview:',
 
     // ── Link Guidance Mode (Feature 4) ─────────────────────
     'link_guidance'                 => 'Link Guidance',
