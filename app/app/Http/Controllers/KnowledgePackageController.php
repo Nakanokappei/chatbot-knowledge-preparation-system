@@ -40,14 +40,16 @@ class KnowledgePackageController extends Controller
     {
         $workspaceId = auth()->user()->workspace_id;
 
-        // Load embeddings that have at least one approved KU
+        // Load embeddings that have at least one approved KU.
+        // PostgreSQL cannot reference subquery aliases in HAVING, so filter in PHP.
         $embeddings = \App\Models\Embedding::where('workspace_id', $workspaceId)
             ->where('status', 'ready')
             ->withCount(['knowledgeUnits as approved_ku_count' => fn($q) => $q->where('review_status', 'approved')])
-            ->having('approved_ku_count', '>', 0)
             ->with('dataset:id,name')
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->filter(fn($e) => $e->approved_ku_count > 0)
+            ->values();
 
         return view('dashboard.datasets.create', compact('embeddings'));
     }
