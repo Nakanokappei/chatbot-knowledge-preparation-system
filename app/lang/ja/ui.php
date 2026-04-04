@@ -779,4 +779,9 @@ return [
     'add_openai_embedding_model'    => 'OpenAI 埋め込みモデルを追加',
     'openai_dim_hint'               => 'デフォルトより小さくできます',
     'provider'                      => 'プロバイダー',
+    'publish'                       => '公開する',
+    'refresh_kus'                   => 'KUを再同期',
+    'refresh_kus_confirm'           => '元のエンベディングの承認済みKUで更新しますか？',
+    'package_kus_refreshed'         => 'KUリストを更新しました（:count 件）。',
+    'no_embeddings_in_package'      => 'このパッケージにエンベディングが見つかりません。',
 ];

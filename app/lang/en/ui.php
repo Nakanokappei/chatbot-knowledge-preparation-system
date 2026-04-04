@@ -778,4 +778,9 @@ return [
     'add_openai_embedding_model'    => 'Add OpenAI Embedding Model',
     'openai_dim_hint'               => 'Can be reduced from default',
     'provider'                      => 'Provider',
+    'publish'                       => 'Publish',
+    'refresh_kus'                   => 'Refresh KUs',
+    'refresh_kus_confirm'           => 'Re-sync with current approved KUs from the source embeddings?',
+    'package_kus_refreshed'         => 'KU list refreshed (:count KUs).',
+    'no_embeddings_in_package'      => 'No source embeddings found in this package.',
 ];

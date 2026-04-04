@@ -46,11 +46,11 @@ class KnowledgePackage extends Model
     }
 
     /**
-     * Only drafts can be edited (publication_requested, published, archived are immutable).
+     * Packages are always editable (simplified workflow).
      */
     public function isEditable(): bool
     {
-        return $this->status === 'draft';
+        return in_array($this->status, ['draft', 'published']);
     }
 
     /**

@@ -36,41 +36,19 @@
         @endif
 
         <div class="actions">
-            {{-- Draft: submit for publication request, or owner can publish directly --}}
-            @if($package->isEditable())
-                <form method="POST" action="{{ route('kp.submit-review', $package) }}">
+            {{-- Draft: publish button --}}
+            @if($package->status === 'draft')
+                <form method="POST" action="{{ route('kp.publish', $package) }}">
                     @csrf
-                    <button type="submit" class="btn btn-primary">{{ __('ui.submit_for_review') }}</button>
+                    <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.publish') }}</button>
                 </form>
-                @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
-                    <form method="POST" action="{{ route('kp.publish', $package) }}">
-                        @csrf
-                        <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.publish_directly') }}</button>
-                    </form>
-                @endif
             @endif
 
-            {{-- Publication requested: owner authorizes or rejects --}}
-            @if($package->isPendingReview())
-                @if(auth()->user()->isOwner() || auth()->user()->isSystemAdmin())
-                    <form method="POST" action="{{ route('kp.publish', $package) }}">
-                        @csrf
-                        <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.approve_publish') }}</button>
-                    </form>
-                    <form method="POST" action="{{ route('kp.reject-review', $package) }}">
-                        @csrf
-                        <button type="submit" class="btn btn-outline">{{ __('ui.reject_review') }}</button>
-                    </form>
-                @else
-                    <span class="pending-note">{{ __('ui.owner_approval_required') }}</span>
-                @endif
-            @endif
-
-            {{-- Published: new version, export, chat --}}
+            {{-- Published: refresh KUs, export, evaluation, chat --}}
             @if($package->isPublished())
-                <form method="POST" action="{{ route('kp.new-version', $package) }}">
+                <form method="POST" action="{{ route('kp.refresh-kus', $package) }}">
                     @csrf
-                    <button type="submit" class="btn btn-primary">{{ __('ui.new_version') }} (v{{ $package->version + 1 }})</button>
+                    <button type="submit" class="btn btn-outline" onclick="return confirm('{{ __('ui.refresh_kus_confirm') }}')">{{ __('ui.refresh_kus') }}</button>
                 </form>
                 <a href="{{ route('kp.export', $package) }}" class="btn btn-outline">{{ __('ui.export_json') }}</a>
                 <a href="{{ route('kp.evaluation', $package) }}" class="btn btn-outline">{{ __('ui.evaluation') }}</a>

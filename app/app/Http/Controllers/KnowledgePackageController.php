@@ -140,9 +140,9 @@ class KnowledgePackageController extends Controller
      */
     public function publish(KnowledgePackage $package)
     {
-        // Owners can publish from draft or publication_requested
-        if (! in_array($package->status, ['draft', 'publication_requested'])) {
-            return back()->withErrors(['status' => 'Only draft or publication-requested packages can be published.']);
+        // Owners can publish from draft, publication_requested, or re-publish
+        if (! in_array($package->status, ['draft', 'publication_requested', 'published'])) {
+            return back()->withErrors(['status' => 'Cannot publish this package.']);
         }
 
         // Non-owners cannot publish directly — they must submit for review
@@ -176,44 +176,49 @@ class KnowledgePackageController extends Controller
     }
 
     /**
-     * Create a new version by cloning items from a published package.
+     * Refresh KU list: re-sync with current approved KUs from the same embeddings.
+     *
+     * Replaces all package items with the latest approved KUs from the
+     * embeddings that the package's current KUs belong to.
      */
-    public function newVersion(KnowledgePackage $package)
+    public function refreshKUs(KnowledgePackage $package)
     {
-        // Only published packages can spawn new versions
-        if ($package->status !== 'published') {
-            return back()->withErrors(['status' => 'Can only create new version from a published package.']);
+        $workspaceId = auth()->user()->workspace_id;
+
+        // Find which embeddings are currently represented in this package
+        $embeddingIds = KnowledgeUnit::whereIn('id',
+            $package->items()->pluck('knowledge_unit_id')
+        )->pluck('embedding_id')->unique()->filter()->values();
+
+        if ($embeddingIds->isEmpty()) {
+            return back()->with('error', __('ui.no_embeddings_in_package'));
         }
 
-        $newPackage = DB::transaction(function () use ($package) {
-            // Clone the package with incremented version
-            $newPackage = KnowledgePackage::create([
-                'workspace_id' => $package->workspace_id,
-                'name' => $package->name,
-                'description' => $package->description,
-                'version' => $package->version + 1,
-                'status' => 'draft',
-                'source_job_ids' => $package->source_job_ids,
-                'ku_count' => $package->ku_count,
-                'created_by' => auth()->id(),
-            ]);
+        DB::transaction(function () use ($package, $workspaceId, $embeddingIds) {
+            // Delete existing items
+            $package->items()->delete();
 
-            // Clone all items, refreshing included_version to current KU version
-            foreach ($package->items()->with('knowledgeUnit')->get() as $item) {
+            // Re-add all approved KUs from those embeddings
+            $approvedKUs = KnowledgeUnit::where('workspace_id', $workspaceId)
+                ->where('review_status', 'approved')
+                ->whereIn('embedding_id', $embeddingIds)
+                ->orderBy('embedding_id')
+                ->orderBy('topic')
+                ->get();
+
+            foreach ($approvedKUs->values() as $index => $ku) {
                 KnowledgePackageItem::create([
-                    'knowledge_package_id' => $newPackage->id,
-                    'knowledge_unit_id' => $item->knowledge_unit_id,
-                    'sort_order' => $item->sort_order,
-                    'included_version' => $item->knowledgeUnit->version,
+                    'knowledge_package_id' => $package->id,
+                    'knowledge_unit_id' => $ku->id,
+                    'sort_order' => $index,
+                    'included_version' => $ku->version,
                 ]);
             }
 
-            return $newPackage;
+            $package->update(['ku_count' => $approvedKUs->count()]);
         });
 
-        return redirect()
-            ->route('kp.show', $newPackage)
-            ->with('success', "New version v{$newPackage->version} created as draft.");
+        return back()->with('success', __('ui.package_kus_refreshed', ['count' => $package->ku_count]));
     }
 
     /**
