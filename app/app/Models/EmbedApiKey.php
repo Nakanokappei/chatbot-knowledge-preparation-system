@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Embed API key for widget/iframe authentication.
  *
- * Each key is scoped to a single Knowledge Package. The plaintext key
- * is shown once at creation; only the SHA-256 hash is stored in DB.
+ * Each key is scoped to a single Knowledge Package. Keys are stored in
+ * plaintext because they are embedded in public <script> tags on customer
+ * websites — they are NOT secret. The hash column is retained for fast
+ * O(1) lookup during authentication.
  */
 class EmbedApiKey extends Model
 {
@@ -18,7 +20,7 @@ class EmbedApiKey extends Model
 
     protected $fillable = [
         'workspace_id', 'knowledge_package_id',
-        'key_hash', 'key_prefix', 'allowed_domains_json',
+        'key_hash', 'key_prefix', 'api_key', 'allowed_domains_json',
         'status', 'expires_at', 'rate_limit_per_minute',
     ];
 
@@ -28,10 +30,10 @@ class EmbedApiKey extends Model
     ];
 
     /**
-     * Generate a new API key and return plaintext + model.
+     * Generate a new API key.
      *
-     * The plaintext key is prefixed with 'kps_' for easy identification
-     * and is 52 characters total (4 prefix + 48 hex).
+     * Stores both the plaintext key (for embed code display) and its
+     * SHA-256 hash (for O(1) authentication lookup).
      */
     public static function generate(int $workspaceId, int $packageId, array $domains): array
     {
@@ -40,6 +42,7 @@ class EmbedApiKey extends Model
         $model = static::create([
             'workspace_id' => $workspaceId,
             'knowledge_package_id' => $packageId,
+            'api_key' => $plainKey,
             'key_hash' => hash('sha256', $plainKey),
             'key_prefix' => substr($plainKey, 0, 8),
             'allowed_domains_json' => $domains,

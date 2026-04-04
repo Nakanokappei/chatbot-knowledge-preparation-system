@@ -149,43 +149,10 @@
                 <button onclick="generateApiKey()" class="btn btn-primary" style="white-space: nowrap;">{{ __('ui.embed_generate_key') }}</button>
             </div>
 
-            {{-- Generated key display (hidden until generated) --}}
-            <div id="embed-key-result" style="display: none; background: #fff3cd; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
-                <p style="font-size: 12px; font-weight: 600; color: #856404; margin-bottom: 6px;">{{ __('ui.embed_key_warning') }}</p>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <code id="embed-key-value" style="flex: 1; font-size: 12px; padding: 6px 10px; background: #fff; border: 1px solid #d2d2d7; border-radius: 6px; word-break: break-all;"></code>
-                    <button onclick="copyKey()" class="btn btn-sm btn-outline">{{ __('ui.embed_copy_key') }}</button>
-                </div>
+            {{-- Active keys with embed code --}}
+            <div id="embed-keys-body">
+                <p style="text-align: center; color: #86868b; padding: 20px; font-size: 13px;">{{ __('ui.loading') }}...</p>
             </div>
-
-            {{-- Embed code snippet + demo link --}}
-            <div id="embed-snippet" style="display: none; margin-bottom: 16px;">
-                <label style="font-size: 12px; font-weight: 600; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.embed_snippet') }}</label>
-                <pre id="embed-snippet-code" style="background: #f5f5f7; padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; white-space: pre-wrap;"></pre>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                    <span style="font-size: 11px; color: #86868b;">{{ __('ui.embed_snippet_hint') }}</span>
-                    <a id="embed-demo-link" href="#" target="_blank" class="btn btn-sm btn-primary" style="font-size: 12px; gap: 4px;">
-                        🌐 {{ __('ui.demo_site') }}
-                    </a>
-                </div>
-            </div>
-
-            {{-- Existing keys table --}}
-            <table id="embed-keys-table">
-                <thead>
-                    <tr>
-                        <th>{{ __('ui.embed_key_prefix') }}</th>
-                        <th>{{ __('ui.embed_domains') }}</th>
-                        <th>{{ __('ui.embed_status') }}</th>
-                        <th>{{ __('ui.embed_total_requests') }}</th>
-                        <th>{{ __('ui.embed_last_used') }}</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="embed-keys-body">
-                    <tr><td colspan="6" style="text-align: center; color: #86868b; padding: 20px;">{{ __('ui.loading') }}...</td></tr>
-                </tbody>
-            </table>
         </div>
         @endif
 
@@ -203,7 +170,7 @@
     loadKeys();
 
     function loadKeys() {
-        var tbody = document.getElementById('embed-keys-body');
+        var container = document.getElementById('embed-keys-body');
         fetch('/knowledge-packages/' + packageId + '/api-keys', {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
@@ -213,23 +180,45 @@
         })
         .then(function(data) {
             if (!data.keys || data.keys.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#86868b;padding:20px;">{{ __("ui.embed_no_keys") }}</td></tr>';
+                container.innerHTML = '<p style="text-align:center;color:#86868b;padding:20px;font-size:13px;">{{ __("ui.embed_no_keys") }}</p>';
                 return;
             }
-            tbody.innerHTML = '';
+            container.innerHTML = '';
             data.keys.forEach(function(k) {
-                var tr = document.createElement('tr');
-                tr.innerHTML = '<td><code style="font-size:12px;">' + esc(k.key_prefix) + '...</code></td>'
-                    + '<td style="font-size:12px;">' + esc(k.allowed_domains.join(', ')) + '</td>'
-                    + '<td><span class="badge badge-' + (k.status === 'active' ? 'approved' : 'rejected') + '">' + esc(k.status) + '</span></td>'
-                    + '<td>' + k.total_requests + '</td>'
-                    + '<td style="font-size:12px;color:#5f6368;">' + (k.last_used_at ? new Date(k.last_used_at).toLocaleDateString() : '-') + '</td>'
-                    + '<td>' + (k.status === 'active' ? '<button onclick="revokeKey(' + k.id + ')" class="btn btn-sm btn-danger">{{ __("ui.embed_revoke") }}</button>' : '') + '</td>';
-                tbody.appendChild(tr);
+                var card = document.createElement('div');
+                card.style.cssText = 'border:1px solid ' + (k.status === 'active' ? '#d2d2d7' : '#f0f0f2') + ';border-radius:10px;padding:14px 18px;margin-bottom:12px;' + (k.status !== 'active' ? 'opacity:0.5;' : '');
+
+                var header = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+                    + '<div style="display:flex;align-items:center;gap:8px;">'
+                    + '<span class="badge badge-' + (k.status === 'active' ? 'approved' : 'rejected') + '">' + esc(k.status) + '</span>'
+                    + '<span style="font-size:12px;color:#5f6368;">' + esc(k.allowed_domains.join(', ')) + '</span>'
+                    + '<span style="font-size:11px;color:#aaa;">' + k.total_requests + ' requests</span>'
+                    + '</div>'
+                    + (k.status === 'active' ? '<button onclick="revokeKey(' + k.id + ')" class="btn btn-sm btn-danger" style="font-size:11px;">{{ __("ui.embed_revoke") }}</button>' : '')
+                    + '</div>';
+
+                var body = '';
+                if (k.status === 'active' && k.api_key) {
+                    var snippet = '<' + 'script src="' + appUrl + '/widget.js"\n'
+                        + '        data-key="' + esc(k.api_key) + '"\n'
+                        + '        data-title="{{ $package->name }}"\n'
+                        + '        data-theme="light">\n'
+                        + '</' + 'script>';
+                    body = '<pre style="background:#f5f5f7;padding:10px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;margin-bottom:8px;">' + esc(snippet) + '</pre>'
+                        + '<div style="display:flex;gap:8px;align-items:center;">'
+                        + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(snippet).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_snippet") }}</button>'
+                        + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-primary" style="font-size:11px;gap:4px;">🌐 {{ __("ui.demo_site") }}</a>'
+                        + '</div>';
+                } else if (k.status === 'active') {
+                    body = '<p style="font-size:12px;color:#86868b;">{{ __("ui.embed_key_no_plaintext") }}</p>';
+                }
+
+                card.innerHTML = header + body;
+                container.appendChild(card);
             });
         })
         .catch(function() {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#86868b;padding:20px;">{{ __("ui.embed_no_keys") }}</td></tr>';
+            container.innerHTML = '<p style="text-align:center;color:#86868b;padding:20px;font-size:13px;">{{ __("ui.embed_no_keys") }}</p>';
         });
     }
 
@@ -258,31 +247,12 @@
             return r.json();
         })
         .then(function(data) {
-            // Show the plaintext key
-            document.getElementById('embed-key-value').textContent = data.key;
-            document.getElementById('embed-key-result').style.display = 'block';
-
-            // Show embed snippet
-            var snippet = '<' + 'script src="' + appUrl + '/widget.js"\n'
-                + '        data-key="' + data.key + '"\n'
-                + '        data-title="{{ $package->name }}"\n'
-                + '        data-theme="light">\n'
-                + '</' + 'script>';
-            document.getElementById('embed-snippet-code').textContent = snippet;
-            document.getElementById('embed-snippet').style.display = 'block';
-            document.getElementById('embed-demo-link').href = '/embed/demo/' + encodeURIComponent(data.key);
-
             document.getElementById('embed-domains').value = '';
             loadKeys();
         })
         .catch(function(err) {
             alert(err.message || 'An error occurred.');
         });
-    };
-
-    window.copyKey = function() {
-        var key = document.getElementById('embed-key-value').textContent;
-        navigator.clipboard.writeText(key);
     };
 
     window.revokeKey = function(id) {

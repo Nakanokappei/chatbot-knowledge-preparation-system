@@ -25,6 +25,7 @@ class EmbedApiKeyController extends Controller
             ->map(fn ($key) => [
                 'id' => $key->id,
                 'key_prefix' => $key->key_prefix,
+                'api_key' => $key->api_key,
                 'allowed_domains' => $key->allowed_domains_json,
                 'status' => $key->status,
                 'last_used_at' => $key->last_used_at?->toIso8601String(),

@@ -686,6 +686,8 @@ return [
     'embed_snippet_hint'            => 'このコードをWebサイトに追加すると、チャットウィジェットが有効になります。',
     'embed_copy_key'                => 'キーをコピー',
     'embed_key_warning'             => 'このキーは一度しか表示されません。今すぐコピーしてください。',
+    'embed_copy_snippet'            => 'コードをコピー',
+    'embed_key_no_plaintext'        => 'このキーは平文保存前に作成されました。無効化して新しいキーを作成してください。',
 
     // ── リンク案内モード (Feature 4) ─────────────────────
     'link_guidance'                 => 'リンク案内',
