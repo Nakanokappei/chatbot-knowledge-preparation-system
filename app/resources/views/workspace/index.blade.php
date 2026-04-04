@@ -519,27 +519,21 @@
                         $totalCount = $knowledgeUnits->count();
                     @endphp
 
-                    {{-- Toolbar: selection controls (left) + status actions (right) --}}
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                        {{-- Selection controls --}}
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button type="button" onclick="kuSelectAll()" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.select_all_btn') }}</button>
-                            <button type="button" onclick="kuDeselectAll()" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.deselect_all') }}</button>
-                            <span id="ku-selection-count" style="font-size: 12px; color: #5f6368;">0 {{ __('ui.selected') }}</span>
-                        </div>
-                        {{-- Status actions (require selection) --}}
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <span style="font-size: 12px; color: #5f6368;">{{ $approvedCount }}/{{ $totalCount }} {{ __('ui.approved_count') }}</span>
-                            <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" id="ku-bulk-form">
-                                @csrf
-                                <input type="hidden" name="ku_ids" id="ku-bulk-ids" value="">
-                                <input type="hidden" name="new_status" id="ku-bulk-status" value="">
-                                <button type="button" onclick="kuBulkAction('approved')" id="ku-btn-approve"
-                                    class="btn btn-sm btn-green" style="font-size: 12px;" disabled>{{ __('ui.approve') }}</button>
-                                <button type="button" onclick="kuBulkAction('draft')" id="ku-btn-exclude"
-                                    class="btn btn-sm btn-outline" style="font-size: 12px;" disabled>{{ __('ui.set_excluded') }}</button>
-                            </form>
-                        </div>
+                    {{-- Toolbar: selection controls + count + status actions (in one row) --}}
+                    <div style="display: flex; align-items: center; margin-bottom: 10px; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="kuSelectAll()" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.select_all_btn') }}</button>
+                        <button type="button" onclick="kuDeselectAll()" class="btn btn-sm btn-outline" style="font-size: 12px;">{{ __('ui.deselect_all') }}</button>
+                        <span id="ku-selection-count" style="font-size: 12px; color: #5f6368;">0 {{ __('ui.selected') }}</span>
+                        <form method="POST" action="{{ route('workspace.ku.bulk-status', $current->id) }}" id="ku-bulk-form" style="display: contents;">
+                            @csrf
+                            <input type="hidden" name="ku_ids" id="ku-bulk-ids" value="">
+                            <input type="hidden" name="new_status" id="ku-bulk-status" value="">
+                            <button type="button" onclick="kuBulkAction('approved')" id="ku-btn-approve"
+                                class="btn btn-sm btn-green" style="font-size: 12px;" disabled>{{ __('ui.approve') }}</button>
+                            <button type="button" onclick="kuBulkAction('draft')" id="ku-btn-exclude"
+                                class="btn btn-sm btn-outline" style="font-size: 12px;" disabled>{{ __('ui.set_excluded') }}</button>
+                        </form>
+                        <span style="margin-left: auto; font-size: 12px; color: #5f6368;">{{ $approvedCount }}/{{ $totalCount }} {{ __('ui.approved_count') }}</span>
                     </div>
 
                     <table class="ku-table">
