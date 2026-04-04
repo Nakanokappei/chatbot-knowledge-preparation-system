@@ -28,6 +28,7 @@ return [
     'enabled' => '有効',
     'disabled' => '無効',
     'loading' => '読み込み中',
+    'saving' => '保存中',
 
     // ── Top navigation ──────────────────────────────────
     'nav_workspace' => 'ワークスペース',

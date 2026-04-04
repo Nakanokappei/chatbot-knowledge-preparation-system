@@ -437,12 +437,12 @@
 
                     <!-- Action buttons -->
                     <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 16px;">
-                        <!-- QA Registration -->
-                        <a href="{{ route('knowledge-units.create', ['embedding_id' => $current->id]) }}"
+                        <!-- QA Registration (opens overlay modal) -->
+                        <button type="button" onclick="openQaModal()"
                            class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;">
                             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                             {{ __('ui.manual_qa_registration') }}
-                        </a>
+                        </button>
                         <!-- Export dropdown: CSV or JSON -->
                         <div style="position: relative; display: inline-block;">
                             <button type="button" class="btn btn-sm btn-outline" style="display: flex; align-items: center; gap: 4px;"
@@ -652,6 +652,97 @@
         </div>
     </div>
 
+    {{-- QA Registration modal: overlay form for adding KUs directly --}}
+    @if($current)
+    <div id="qa-modal-backdrop" onclick="closeQaModal()" style="display: none; position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,0.3);"></div>
+    <div id="qa-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        z-index: 1101; width: 560px; max-height: 80vh; background: #fff; border-radius: 12px;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.2); flex-direction: column; overflow: hidden;">
+
+        <!-- Modal header -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
+            background: #F3F3F3; border-radius: 12px 12px 0 0; flex-shrink: 0;">
+            <span style="font-size: 14px; font-weight: 600; color: #1d1d1f;">{{ __('ui.manual_qa_create') }}</span>
+            <button onclick="closeQaModal()" style="background: none; border: none; cursor: pointer;
+                color: #5f6368; font-size: 18px; line-height: 1; padding: 0 4px;">&times;</button>
+        </div>
+
+        <!-- Modal body (scrollable) -->
+        <div style="padding: 20px; overflow-y: auto; flex: 1;">
+            <div id="qa-modal-error" style="display: none; background: #f8d7da; color: #721c24; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px;"></div>
+            <div id="qa-modal-success" style="display: none; background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px;"></div>
+
+            <form id="qa-modal-form" onsubmit="submitQaForm(event)">
+                <!-- Core QA fields -->
+                <div style="margin-bottom: 14px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.manual_qa_question') }} <span style="color: #ff3b30;">*</span></label>
+                    <textarea id="qa-question" name="question" rows="2" required maxlength="2000" placeholder="{{ __('ui.manual_qa_question_placeholder') }}"
+                        style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.manual_qa_resolution') }} <span style="color: #ff3b30;">*</span></label>
+                    <textarea id="qa-resolution" name="resolution_summary" rows="3" required maxlength="5000" placeholder="{{ __('ui.manual_qa_resolution_placeholder') }}"
+                        style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+
+                <!-- Classification (2-column) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 500; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.topic') }} <span style="color: #ff3b30;">*</span></label>
+                        <input id="qa-topic" name="topic" type="text" required maxlength="200" placeholder="{{ __('ui.manual_qa_topic_placeholder') }}"
+                            style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 500; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.intent') }} <span style="color: #ff3b30;">*</span></label>
+                        <input id="qa-intent" name="intent" type="text" required maxlength="200" placeholder="{{ __('ui.manual_qa_intent_placeholder') }}"
+                            style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <label style="font-size: 12px; font-weight: 500; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.summary') }} <span style="color: #ff3b30;">*</span></label>
+                    <textarea id="qa-summary" name="summary" rows="2" required maxlength="5000"
+                        style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical;"></textarea>
+                </div>
+
+                <!-- Optional fields (collapsed) -->
+                <details style="margin-bottom: 14px;">
+                    <summary style="font-size: 12px; font-weight: 600; color: #5f6368; cursor: pointer; user-select: none;">{{ __('ui.manual_qa_details') }}</summary>
+                    <div style="margin-top: 10px; display: grid; gap: 10px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.primary_filter') }}</label>
+                                <input name="primary_filter" type="text" maxlength="255" placeholder="{{ __('ui.manual_qa_filter_placeholder') }}"
+                                    style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.category') }}</label>
+                                <input name="category" type="text" maxlength="255"
+                                    style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.reference_url') }}</label>
+                            <input name="reference_url" type="url" maxlength="2048" placeholder="https://docs.example.com/..."
+                                style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 3px;">{{ __('ui.keywords') }}</label>
+                            <input name="keywords" type="text" maxlength="1000" placeholder="{{ __('ui.manual_qa_keywords_placeholder') }}"
+                                style="width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Submit -->
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" onclick="closeQaModal()" class="btn btn-outline" style="font-size: 13px;">{{ __('ui.cancel') }}</button>
+                    <button type="submit" id="qa-submit-btn" class="btn btn-primary" style="font-size: 13px;">{{ __('ui.manual_qa_save') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     {{-- Upload processing overlay: full-screen indicator shown while CSV is being uploaded --}}
     <div id="upload-overlay" style="display: none; position: fixed; inset: 0; z-index: 9999;
         background: rgba(255,255,255,0.85); align-items: center; justify-content: center; flex-direction: column;">
@@ -727,6 +818,72 @@
 @endsection
 
 @section('scripts')
+        // ── QA Registration Modal ──────────────────────────────
+        function openQaModal() {
+            document.getElementById('qa-modal-backdrop').style.display = 'block';
+            document.getElementById('qa-modal').style.display = 'flex';
+            document.getElementById('qa-modal-error').style.display = 'none';
+            document.getElementById('qa-modal-success').style.display = 'none';
+            document.getElementById('qa-modal-form').reset();
+            document.getElementById('qa-question').focus();
+        }
+        function closeQaModal() {
+            document.getElementById('qa-modal-backdrop').style.display = 'none';
+            document.getElementById('qa-modal').style.display = 'none';
+        }
+        function submitQaForm(e) {
+            e.preventDefault();
+            var form = document.getElementById('qa-modal-form');
+            var btn = document.getElementById('qa-submit-btn');
+            var errBox = document.getElementById('qa-modal-error');
+            var okBox = document.getElementById('qa-modal-success');
+            errBox.style.display = 'none';
+            okBox.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = '{{ __("ui.saving") }}...';
+
+            var data = new FormData(form);
+            data.append('embedding_id', '{{ $current->id ?? "" }}');
+
+            fetch('{{ route("knowledge-units.store") }}', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: data,
+            })
+            .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+            .then(function(res) {
+                if (res.ok && res.data.success) {
+                    okBox.textContent = res.data.message;
+                    okBox.style.display = 'block';
+                    form.reset();
+                    // Reload page after short delay to show the new KU in the list
+                    setTimeout(function() { window.location.reload(); }, 1200);
+                } else {
+                    var msg = res.data.error || res.data.message || Object.values(res.data.errors || {}).flat().join(', ') || 'Unknown error';
+                    errBox.textContent = msg;
+                    errBox.style.display = 'block';
+                }
+            })
+            .catch(function() {
+                errBox.textContent = 'Network error. Please try again.';
+                errBox.style.display = 'block';
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.textContent = '{{ __("ui.manual_qa_save") }}';
+            });
+        }
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('qa-modal').style.display === 'flex') {
+                closeQaModal();
+            }
+        });
+
         // Close export dropdown when clicking outside
         document.addEventListener('click', function(e) {
             document.querySelectorAll('[data-export-dropdown]').forEach(function(dd) {

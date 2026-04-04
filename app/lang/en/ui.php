@@ -28,6 +28,7 @@ return [
     'enabled' => 'Enabled',
     'disabled' => 'Disabled',
     'loading' => 'Loading',
+    'saving' => 'Saving',
 
     // ── Top navigation ──────────────────────────────────
     'nav_workspace' => 'Workspace',

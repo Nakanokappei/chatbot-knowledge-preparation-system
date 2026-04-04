@@ -6,6 +6,7 @@ use App\Models\Embedding;
 use App\Models\KnowledgeUnit;
 use App\Models\KnowledgeUnitVersion;
 use App\Services\BedrockService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +49,7 @@ class ManualKnowledgeUnitController extends Controller
     /**
      * Validate input, generate embeddings, and store the KU.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): JsonResponse|RedirectResponse
     {
         $workspaceId = auth()->user()->workspace_id;
 
@@ -96,6 +97,9 @@ class ManualKnowledgeUnitController extends Controller
             ])->filter()->implode(' ');
             $broadEmbedding = $bedrock->generateEmbedding($broadText);
         } catch (\Exception $e) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => __('ui.bedrock_unavailable')], 503);
+            }
             return back()->withInput()
                 ->withErrors(['embedding_id' => __('ui.bedrock_unavailable')]);
         }
@@ -105,8 +109,11 @@ class ManualKnowledgeUnitController extends Controller
         $broadEmbedding = array_map('floatval', $broadEmbedding);
 
         if (count($searchEmbedding) !== 1024 || count($broadEmbedding) !== 1024) {
-            return back()->withInput()
-                ->withErrors(['embedding_id' => 'Unexpected embedding dimension from Bedrock.']);
+            $dimError = 'Unexpected embedding dimension from Bedrock.';
+            if ($request->wantsJson()) {
+                return response()->json(['error' => $dimError], 500);
+            }
+            return back()->withInput()->withErrors(['embedding_id' => $dimError]);
         }
 
         // Parse comma-separated keywords into array
@@ -181,6 +188,16 @@ class ManualKnowledgeUnitController extends Controller
 
             return $ku;
         });
+
+        // Return JSON for AJAX (modal), or redirect for full-page form
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => __('ui.manual_qa_saved'),
+                'ku_id' => $ku->id,
+                'topic' => $ku->topic,
+            ]);
+        }
 
         return redirect()->route('knowledge-units.show', $ku)
             ->with('success', __('ui.manual_qa_saved'));
