@@ -158,11 +158,16 @@
                 </div>
             </div>
 
-            {{-- Embed code snippet --}}
+            {{-- Embed code snippet + demo link --}}
             <div id="embed-snippet" style="display: none; margin-bottom: 16px;">
                 <label style="font-size: 12px; font-weight: 600; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.embed_snippet') }}</label>
                 <pre id="embed-snippet-code" style="background: #f5f5f7; padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; white-space: pre-wrap;"></pre>
-                <span style="font-size: 11px; color: #86868b;">{{ __('ui.embed_snippet_hint') }}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                    <span style="font-size: 11px; color: #86868b;">{{ __('ui.embed_snippet_hint') }}</span>
+                    <a id="embed-demo-link" href="#" target="_blank" class="btn btn-sm btn-primary" style="font-size: 12px; gap: 4px;">
+                        🌐 {{ __('ui.demo_site') }}
+                    </a>
+                </div>
             </div>
 
             {{-- Existing keys table --}}
@@ -253,6 +258,7 @@
                 + '</' + 'script>';
             document.getElementById('embed-snippet-code').textContent = snippet;
             document.getElementById('embed-snippet').style.display = 'block';
+            document.getElementById('embed-demo-link').href = '/embed/demo/' + encodeURIComponent(data.key);
 
             document.getElementById('embed-domains').value = '';
             loadKeys();

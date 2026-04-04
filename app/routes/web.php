@@ -61,6 +61,8 @@ Route::post('/invitation/{token}', [InvitationController::class, 'register']);
 // ── Embed routes (public — no session/Sanctum auth) ──────────────
 // Chat page served in iframe (API key is the URL token)
 Route::get('/embed/chat/{token}', [EmbedController::class, 'show'])->name('embed.chat');
+// Demo inquiry page with chat widget (dynamically rendered)
+Route::get('/embed/demo/{token}', [EmbedController::class, 'demo'])->name('embed.demo');
 // Chat API called from within the iframe (API key in Authorization header)
 Route::post('/embed/api/chat', [EmbedChatController::class, 'chat'])
     ->name('embed.api.chat')
