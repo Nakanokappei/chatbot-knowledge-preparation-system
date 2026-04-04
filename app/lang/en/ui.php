@@ -725,4 +725,7 @@ return [
     'no_questions_yet'              => 'No questions have been collected yet.',
     'no_frequent_questions'         => 'No frequently asked questions found in this period.',
     'frequent_questions_hint'       => 'Questions grouped by similarity. Create QA entries for frequently asked questions to improve the knowledge base.',
+    'turns'                         => 'Turns',
+    'turns_label'                   => 'turns',
+    'thread_had_followups'          => 'Thread had :count follow-up message(s)',
 ];

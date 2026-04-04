@@ -11,9 +11,13 @@ use Illuminate\View\View;
 /**
  * Question Aggregation Dashboard — Phase A.
  *
- * Provides visibility into chat questions across both package chat
- * (chat_messages) and workspace embedding chat (chat_turns).
- * Identifies unanswered, low-confidence, and frequently asked questions.
+ * Groups questions by conversation thread (session/conversation), not by
+ * individual turns. Follow-up messages (e.g. slot-filling responses) are
+ * counted as part of the parent thread, not as separate questions.
+ *
+ * Thread resolution:
+ *   - Workspace chat: one row per chat_session (grouped by session_id)
+ *   - Package chat: one row per chat_conversation (grouped by conversation_id)
  */
 class QuestionInsightsController extends Controller
 {
@@ -27,10 +31,8 @@ class QuestionInsightsController extends Controller
         $days = (int) $request->query('days', 30);
         $since = now()->subDays($days);
 
-        // Summary statistics
         $stats = $this->getStats($workspaceId, $since);
 
-        // Tab-specific data with pagination
         $data = match ($tab) {
             'unanswered' => $this->getUnanswered($workspaceId, $since),
             'frequent' => $this->getFrequent($workspaceId, $since),
@@ -46,51 +48,58 @@ class QuestionInsightsController extends Controller
     }
 
     /**
-     * Compute summary stats: total questions, answer rate, unanswered, downvoted.
+     * Compute summary stats at thread level.
      */
     private function getStats(int $workspaceId, Carbon $since): array
     {
-        // Package chat questions
-        $packageQuestions = DB::table('chat_messages')
-            ->join('chat_conversations', 'chat_messages.conversation_id', '=', 'chat_conversations.id')
-            ->where('chat_conversations.workspace_id', $workspaceId)
-            ->where('chat_messages.role', 'user')
-            ->where('chat_messages.created_at', '>=', $since)
+        // Count distinct conversation threads (not individual messages)
+        $packageThreads = DB::table('chat_conversations')
+            ->where('workspace_id', $workspaceId)
+            ->where('created_at', '>=', $since)
             ->count();
 
-        // Workspace chat questions
-        $workspaceQuestions = DB::table('chat_turns')
-            ->join('chat_sessions', 'chat_turns.session_id', '=', 'chat_sessions.id')
-            ->where('chat_sessions.workspace_id', $workspaceId)
-            ->where('chat_turns.role', 'user')
-            ->where('chat_turns.created_at', '>=', $since)
+        $workspaceThreads = DB::table('chat_sessions')
+            ->where('workspace_id', $workspaceId)
+            ->where('created_at', '>=', $since)
             ->count();
 
-        $totalQuestions = $packageQuestions + $workspaceQuestions;
+        $totalQuestions = $packageThreads + $workspaceThreads;
 
-        // Unanswered: package chat with empty sources + workspace chat with no_match action
-        $packageUnanswered = DB::table('chat_messages')
-            ->join('chat_conversations', 'chat_messages.conversation_id', '=', 'chat_conversations.id')
-            ->where('chat_conversations.workspace_id', $workspaceId)
-            ->where('chat_messages.role', 'assistant')
-            ->where('chat_messages.created_at', '>=', $since)
-            ->where(function ($q) {
-                $q->whereNull('chat_messages.sources_json')
-                  ->orWhereRaw("chat_messages.sources_json::text = '[]'");
+        // Unanswered threads: workspace sessions that ended with no_match
+        $workspaceUnanswered = DB::table('chat_sessions')
+            ->where('workspace_id', $workspaceId)
+            ->where('created_at', '>=', $since)
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('chat_turns')
+                  ->whereColumn('chat_turns.session_id', 'chat_sessions.id')
+                  ->where('chat_turns.role', 'assistant')
+                  ->where('chat_turns.action', 'no_match');
             })
             ->count();
 
-        $workspaceUnanswered = DB::table('chat_turns')
-            ->join('chat_sessions', 'chat_turns.session_id', '=', 'chat_sessions.id')
-            ->where('chat_sessions.workspace_id', $workspaceId)
-            ->where('chat_turns.role', 'assistant')
-            ->where('chat_turns.action', 'no_match')
-            ->where('chat_turns.created_at', '>=', $since)
-            ->count();
+        // Package conversations where the last assistant message had no sources
+        $packageUnanswered = (int) DB::selectOne("
+            SELECT COUNT(DISTINCT cc.id) AS cnt
+            FROM chat_conversations cc
+            WHERE cc.workspace_id = ?
+              AND cc.created_at >= ?
+              AND NOT EXISTS (
+                  SELECT 1 FROM chat_messages cm
+                  WHERE cm.conversation_id = cc.id
+                    AND cm.role = 'assistant'
+                    AND cm.sources_json IS NOT NULL
+                    AND cm.sources_json::text != '[]'
+              )
+              AND EXISTS (
+                  SELECT 1 FROM chat_messages cm2
+                  WHERE cm2.conversation_id = cc.id
+                    AND cm2.role = 'user'
+              )
+        ", [$workspaceId, $since])->cnt;
 
         $unanswered = $packageUnanswered + $workspaceUnanswered;
 
-        // Downvoted answers
         $downvoted = AnswerFeedback::where('workspace_id', $workspaceId)
             ->where('vote', 'down')
             ->where('created_at', '>=', $since)
@@ -104,58 +113,86 @@ class QuestionInsightsController extends Controller
     }
 
     /**
-     * All questions: unified view across package chat and workspace chat.
+     * All questions: one row per conversation thread.
+     *
+     * Each row shows:
+     *   - question: the FIRST user message in the thread (the actual question)
+     *   - turn_count: total user messages in the thread (1 = direct answer, 2+ = had follow-ups)
+     *   - status: determined by the thread's final assistant response
      */
     private function getAll(int $workspaceId, Carbon $since): array
     {
-        // Package chat questions (with next assistant message for status)
+        // Package chat: group by conversation, take first user message as the question
         $packageRows = DB::select("
             SELECT
-                cm_user.content AS question,
+                first_msg.content AS question,
                 'package' AS channel,
-                kp.name AS source_name,
+                COALESCE(kp.name, 'Unknown') AS source_name,
+                thread_stats.turn_count,
                 CASE
-                    WHEN cm_asst.sources_json IS NULL OR cm_asst.sources_json::text = '[]' THEN 'unanswered'
-                    ELSE 'answered'
+                    WHEN thread_stats.has_sourced_answer THEN 'answered'
+                    ELSE 'unanswered'
                 END AS status,
-                cm_user.created_at
-            FROM chat_messages cm_user
-            JOIN chat_conversations cc ON cm_user.conversation_id = cc.id
+                cc.created_at
+            FROM chat_conversations cc
+            -- First user message in the conversation (the actual question)
+            JOIN LATERAL (
+                SELECT content FROM chat_messages
+                WHERE conversation_id = cc.id AND role = 'user'
+                ORDER BY created_at ASC LIMIT 1
+            ) first_msg ON true
+            -- Thread statistics: count of user turns and whether any answer had sources
+            JOIN LATERAL (
+                SELECT
+                    COUNT(*) FILTER (WHERE role = 'user') AS turn_count,
+                    BOOL_OR(role = 'assistant' AND sources_json IS NOT NULL AND sources_json::text != '[]') AS has_sourced_answer
+                FROM chat_messages WHERE conversation_id = cc.id
+            ) thread_stats ON true
             LEFT JOIN knowledge_packages kp ON cc.knowledge_package_id = kp.id
-            LEFT JOIN LATERAL (
-                SELECT sources_json FROM chat_messages cm2
-                WHERE cm2.conversation_id = cm_user.conversation_id
-                  AND cm2.role = 'assistant'
-                  AND cm2.created_at > cm_user.created_at
-                ORDER BY cm2.created_at ASC LIMIT 1
-            ) cm_asst ON true
             WHERE cc.workspace_id = ?
-              AND cm_user.role = 'user'
-              AND cm_user.created_at >= ?
+              AND cc.created_at >= ?
+            ORDER BY cc.created_at DESC
         ", [$workspaceId, $since]);
 
-        // Workspace chat questions
+        // Workspace chat: group by session, take first user turn as the question
         $workspaceRows = DB::select("
             SELECT
-                ct.content AS question,
+                first_turn.content AS question,
                 'workspace' AS channel,
                 COALESCE(e.name, 'Unknown') AS source_name,
+                thread_stats.turn_count,
                 CASE
-                    WHEN ct.action = 'no_match' THEN 'unanswered'
-                    WHEN ct.action = 'rejected' THEN 'rejected'
-                    WHEN ct.search_mode IN ('broad_unfiltered', 'none') THEN 'low_confidence'
-                    ELSE 'answered'
+                    WHEN thread_stats.has_no_match AND NOT thread_stats.has_answer THEN 'unanswered'
+                    WHEN thread_stats.has_rejected AND NOT thread_stats.has_answer THEN 'rejected'
+                    WHEN thread_stats.has_broad_only THEN 'low_confidence'
+                    WHEN thread_stats.has_answer THEN 'answered'
+                    ELSE 'unanswered'
                 END AS status,
-                ct.created_at
-            FROM chat_turns ct
-            JOIN chat_sessions cs ON ct.session_id = cs.id
+                cs.created_at
+            FROM chat_sessions cs
+            -- First user turn in the session (the actual question)
+            JOIN LATERAL (
+                SELECT content FROM chat_turns
+                WHERE session_id = cs.id AND role = 'user'
+                ORDER BY created_at ASC LIMIT 1
+            ) first_turn ON true
+            -- Thread statistics: aggregate assistant actions across all turns
+            JOIN LATERAL (
+                SELECT
+                    COUNT(*) FILTER (WHERE role = 'user') AS turn_count,
+                    BOOL_OR(role = 'assistant' AND action IN ('answer', 'answer_broad')) AS has_answer,
+                    BOOL_OR(role = 'assistant' AND action = 'no_match') AS has_no_match,
+                    BOOL_OR(role = 'assistant' AND action = 'rejected') AS has_rejected,
+                    BOOL_OR(role = 'assistant' AND action = 'answer_broad' AND search_mode = 'broad_unfiltered') AS has_broad_only
+                FROM chat_turns WHERE session_id = cs.id
+            ) thread_stats ON true
             LEFT JOIN embeddings e ON cs.embedding_id = e.id
             WHERE cs.workspace_id = ?
-              AND ct.role = 'user'
-              AND ct.created_at >= ?
+              AND cs.created_at >= ?
+            ORDER BY cs.created_at DESC
         ", [$workspaceId, $since]);
 
-        // Merge, sort by date descending, limit to 200
+        // Merge and sort by date descending
         $all = array_merge($packageRows, $workspaceRows);
         usort($all, fn($a, $b) => strcmp($b->created_at, $a->created_at));
 
@@ -163,7 +200,7 @@ class QuestionInsightsController extends Controller
     }
 
     /**
-     * Unanswered questions: no_match, empty sources, or downvoted.
+     * Unanswered threads: threads where the bot could not provide a satisfactory answer.
      */
     private function getUnanswered(int $workspaceId, Carbon $since): array
     {
@@ -175,13 +212,17 @@ class QuestionInsightsController extends Controller
     }
 
     /**
-     * Frequent questions: grouped by normalized text, sorted by count.
+     * Frequent questions: first-messages grouped by normalized text.
+     *
+     * Since we already de-duplicated to thread level, each entry represents
+     * a unique conversation thread. Grouping by text similarity identifies
+     * the same question asked across different sessions.
      */
     private function getFrequent(int $workspaceId, Carbon $since): array
     {
         $all = $this->getAll($workspaceId, $since);
 
-        // Group by normalized text (lowercase, trimmed, first 100 chars)
+        // Group by normalized text of the first question (lowercase, trimmed, first 100 chars)
         $groups = [];
         foreach ($all as $row) {
             $key = mb_strtolower(mb_substr(trim($row->question), 0, 100));
@@ -200,7 +241,6 @@ class QuestionInsightsController extends Controller
             } else {
                 $groups[$key]['unanswered']++;
             }
-            // Keep the most recent date
             if (strcmp($row->created_at, $groups[$key]['last_asked']) > 0) {
                 $groups[$key]['last_asked'] = $row->created_at;
             }
@@ -210,7 +250,6 @@ class QuestionInsightsController extends Controller
         $frequent = array_values(array_filter($groups, fn($g) => $g['count'] > 1));
         usort($frequent, fn($a, $b) => $b['count'] <=> $a['count']);
 
-        // Add answer rate
         foreach ($frequent as &$group) {
             $group['answer_rate'] = $group['count'] > 0
                 ? round($group['answered'] / $group['count'] * 100)

@@ -123,17 +123,25 @@
                         <thead>
                             <tr>
                                 <th>{{ __('ui.question_column') }}</th>
-                                <th style="width: 120px;">{{ __('ui.channel_column') }}</th>
-                                <th style="width: 140px;">{{ __('ui.source') }}</th>
-                                <th style="width: 120px;">{{ __('ui.status_column') }}</th>
-                                <th style="width: 130px;">{{ __('ui.date') }}</th>
-                                <th style="width: 90px;"></th>
+                                <th style="width: 70px;">{{ __('ui.turns') }}</th>
+                                <th style="width: 110px;">{{ __('ui.channel_column') }}</th>
+                                <th style="width: 130px;">{{ __('ui.source') }}</th>
+                                <th style="width: 110px;">{{ __('ui.status_column') }}</th>
+                                <th style="width: 120px;">{{ __('ui.date') }}</th>
+                                <th style="width: 80px;"></th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($questions as $row)
                                 <tr>
                                     <td class="q-text">{{ $row->question }}</td>
+                                    <td style="text-align: center; font-size: 12px;">
+                                        @if($row->turn_count > 1)
+                                            <span style="color: #ff9500;" title="{{ __('ui.thread_had_followups', ['count' => $row->turn_count - 1]) }}">{{ $row->turn_count }} {{ __('ui.turns_label') }}</span>
+                                        @else
+                                            <span style="color: #86868b;">1</span>
+                                        @endif
+                                    </td>
                                     <td><span class="channel-pill">{{ $row->channel === 'package' ? __('ui.channel_package') : __('ui.channel_workspace') }}</span></td>
                                     <td style="font-size: 12px; color: #5f6368;">{{ $row->source_name }}</td>
                                     <td><span class="status-pill status-{{ $row->status }}">{{ __('ui.status_' . $row->status) }}</span></td>

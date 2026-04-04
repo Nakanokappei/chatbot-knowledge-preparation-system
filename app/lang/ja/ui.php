@@ -726,4 +726,7 @@ return [
     'no_questions_yet'              => 'まだ質問が収集されていません。',
     'no_frequent_questions'         => 'この期間に頻出質問は見つかりませんでした。',
     'frequent_questions_hint'       => '類似度でグループ化された質問です。頻出質問に対してQAエントリを作成すると、ナレッジベースが改善されます。',
+    'turns'                         => 'ターン',
+    'turns_label'                   => 'ターン',
+    'thread_had_followups'          => ':count 件のフォローアップメッセージ',
 ];
