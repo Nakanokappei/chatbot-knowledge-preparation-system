@@ -165,12 +165,10 @@
 @endsection
 
 @section('scripts')
-<script>
     // Toggle the collapsible details section
     function toggleDetails(trigger) {
         trigger.classList.toggle('open');
         var body = document.getElementById('details-section');
         body.classList.toggle('open');
     }
-</script>
 @endsection

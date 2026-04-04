@@ -166,13 +166,20 @@
                 var card = document.createElement('div');
                 card.style.cssText = 'border:1px solid ' + (k.status === 'active' ? '#d2d2d7' : '#f0f0f2') + ';border-radius:10px;padding:14px 18px;margin-bottom:12px;' + (k.status !== 'active' ? 'opacity:0.5;' : '');
 
+                var headerActions = '';
+                if (k.status === 'active') {
+                    headerActions = '<button onclick="revokeKey(' + k.id + ')" class="btn btn-sm btn-danger" style="font-size:11px;">{{ __("ui.embed_revoke") }}</button>';
+                } else {
+                    headerActions = '<button onclick="deleteKey(' + k.id + ')" class="btn btn-sm btn-danger" style="font-size:11px;">{{ __("ui.delete") }}</button>';
+                }
+
                 var header = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
                     + '<div style="display:flex;align-items:center;gap:8px;">'
                     + '<span class="badge badge-' + (k.status === 'active' ? 'approved' : 'rejected') + '">' + esc(k.status) + '</span>'
                     + '<span style="font-size:12px;color:#5f6368;">' + esc(k.allowed_domains.join(', ')) + '</span>'
                     + '<span style="font-size:11px;color:#aaa;">' + k.total_requests + ' requests</span>'
                     + '</div>'
-                    + (k.status === 'active' ? '<button onclick="revokeKey(' + k.id + ')" class="btn btn-sm btn-danger" style="font-size:11px;">{{ __("ui.embed_revoke") }}</button>' : '')
+                    + headerActions
                     + '</div>';
 
                 var body = '';
@@ -182,9 +189,12 @@
                         + '        data-title="{{ $package->name }}"\n'
                         + '        data-theme="light">\n'
                         + '</' + 'script>';
+                    var iframeUrl = appUrl + '/embed/chat/' + encodeURIComponent(k.api_key);
+                    var iframeTag = '<' + 'iframe src="' + iframeUrl + '" width="400" height="600" style="border:none;"></' + 'iframe>';
                     body = '<pre style="background:#f5f5f7;padding:10px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;margin-bottom:8px;">' + esc(snippet) + '</pre>'
                         + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
                         + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(snippet).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_snippet") }}</button>'
+                        + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(iframeTag).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_iframe") }}</button>'
                         + '<span style="font-size:11px;color:#5f6368;margin-left:8px;">{{ __("ui.demo_preview") }}</span>'
                         + '<a href="/embed/chat/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;gap:3px;">🖼️ iframe</a>'
                         + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-primary" style="font-size:11px;gap:3px;">📜 script</a>'
@@ -239,6 +249,20 @@
         if (!confirm('{{ __("ui.embed_revoke_confirm") }}')) return;
 
         fetch('/api-keys/' + id, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(function() { loadKeys(); });
+    };
+
+    window.deleteKey = function(id) {
+        if (!confirm('{{ __("ui.embed_delete_confirm") }}')) return;
+
+        fetch('/api-keys/' + id + '/destroy', {
             method: 'DELETE',
             headers: {
                 'Accept': 'application/json',

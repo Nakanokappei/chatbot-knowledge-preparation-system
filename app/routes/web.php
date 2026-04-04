@@ -146,6 +146,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/knowledge-packages/{package}/api-keys', [EmbedApiKeyController::class, 'index'])->name('kp.api-keys.index');
         Route::post('/knowledge-packages/{package}/api-keys', [EmbedApiKeyController::class, 'store'])->name('kp.api-keys.store');
         Route::delete('/api-keys/{apiKey}', [EmbedApiKeyController::class, 'revoke'])->name('api-keys.revoke');
+        Route::delete('/api-keys/{apiKey}/destroy', [EmbedApiKeyController::class, 'destroy'])->name('api-keys.destroy');
     });
 
     // Usage dashboard — owner only (system_admin redirected, member → 403)

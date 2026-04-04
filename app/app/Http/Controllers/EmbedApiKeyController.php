@@ -91,4 +91,18 @@ class EmbedApiKeyController extends Controller
             'message' => __('ui.embed_key_revoked'),
         ]);
     }
+
+    /**
+     * Permanently delete an API key (hard delete).
+     */
+    public function destroy(EmbedApiKey $apiKey): JsonResponse
+    {
+        abort_if($apiKey->workspace_id !== auth()->user()->workspace_id, 403);
+
+        $apiKey->delete();
+
+        return response()->json([
+            'message' => __('ui.embed_key_deleted'),
+        ]);
+    }
 }
