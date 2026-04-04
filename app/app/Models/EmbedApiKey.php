@@ -27,6 +27,7 @@ class EmbedApiKey extends Model
     protected $casts = [
         'allowed_domains_json' => 'array',
         'expires_at' => 'datetime',
+        'last_used_at' => 'datetime',
     ];
 
     /**

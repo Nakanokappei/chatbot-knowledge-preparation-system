@@ -737,13 +737,13 @@ return [
 
     // ── 承認ワークフロー簡素化 ────────────────────────
     'approved'                      => '承認済み',
-    'excluded'                      => '除外',
+    'excluded'                      => '未承認',
     'approve_all'                   => 'すべて承認',
-    'exclude_all'                   => 'すべて除外',
+    'exclude_all'                   => 'すべて未承認にする',
     'approved_count'                => '承認済み',
-    'click_to_exclude'              => 'クリックで除外',
+    'click_to_exclude'              => 'クリックで未承認にする',
     'click_to_approve'              => 'クリックで承認',
-    'set_excluded'                  => '除外する',
+    'set_excluded'                  => '未承認にする',
     'select_embeddings'             => 'ナレッジ（エンベディング）を選択',
     'select_embeddings_hint'        => '選択したエンベディングの承認済みKUがすべてこのパッケージに含まれます。',
     'no_approved_kus_in_embedding'  => '選択したエンベディングに承認済みKUがありません。',
