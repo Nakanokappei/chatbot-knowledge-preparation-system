@@ -35,6 +35,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Set PostgreSQL RLS workspace scope for API requests after Sanctum auth
         $middleware->appendToGroup('api', \App\Http\Middleware\SetWorkspaceScope::class);
 
+        // Exclude embed chat API from CSRF verification (no session/cookie auth)
+        $middleware->validateCsrfTokens(except: [
+            'embed/api/*',
+        ]);
+
         // Role-based access control and Sanctum ability aliases
         $middleware->alias([
             'budget'             => \App\Http\Middleware\EnforceBudget::class,
@@ -43,6 +48,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability'            => \App\Http\Middleware\CheckTokenAbility::class,
             'workspace_owner'    => \App\Http\Middleware\RequireWorkspaceOwner::class,
             'redirect_sysadmin'  => \App\Http\Middleware\RedirectSystemAdmin::class,
+            'embed.apikey'       => \App\Http\Middleware\EmbedApiKeyAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

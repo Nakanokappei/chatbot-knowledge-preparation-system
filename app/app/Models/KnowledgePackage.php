@@ -20,11 +20,13 @@ class KnowledgePackage extends Model
 
     protected $fillable = [
         'workspace_id', 'name', 'description', 'version', 'status',
+        'response_mode', 'embed_config_json',
         'source_job_ids', 'ku_count', 'created_by',
     ];
 
     protected $casts = [
         'source_job_ids' => 'array',
+        'embed_config_json' => 'array',
     ];
 
     /**
@@ -65,6 +67,18 @@ class KnowledgePackage extends Model
     public function isApprovable(): bool
     {
         return $this->status === 'publication_requested';
+    }
+
+    /** Whether this package is in link-only response mode. */
+    public function isLinkOnly(): bool
+    {
+        return $this->response_mode === 'link_only';
+    }
+
+    /** Whether this package prefers link responses over LLM answers. */
+    public function prefersLinks(): bool
+    {
+        return in_array($this->response_mode, ['prefer_link', 'link_only']);
     }
 
     /** The KU items included in this package, ordered by sort position. */

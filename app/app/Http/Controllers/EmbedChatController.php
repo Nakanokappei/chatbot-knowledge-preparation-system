@@ -1,84 +1,67 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
-use App\Models\KnowledgePackage;
-use App\Models\LlmModel;
 use App\Services\BedrockService;
 use App\Services\CostTrackingService;
+use App\Services\RagService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
- * Minimal RAG Chat API — Phase 4 verification endpoint.
+ * Chat API for embedded widget/iframe — authenticated via EmbedApiKeyAuth middleware.
  *
- * CTO directive: this is a RAG verification API, not a full conversational UI.
- * Process: Retrieve top-K KUs → Build augmented prompt → Generate LLM response.
+ * Reuses RagService and BedrockService from the existing chat implementation.
+ * Conversations are anonymous (no user_id) since end-users are unauthenticated.
  */
-class ChatController extends Controller
+class EmbedChatController extends Controller
 {
-    // Maximum conversation history messages to include in context
+    // Maximum conversation history messages to include in LLM context
     private const MAX_HISTORY_MESSAGES = 10;
 
     /**
-     * Process a chat message using RAG against a published dataset.
+     * Process a chat message against the package linked to the API key.
      */
     public function chat(Request $request): JsonResponse
     {
         $request->validate([
             'message' => 'required|string|max:4000',
-            'package_id' => 'required|integer|exists:knowledge_packages,id',
             'conversation_id' => 'nullable|uuid',
-            'top_k' => 'integer|min:1|max:10',
         ]);
 
-        $workspaceId = $request->user()->workspace_id;
-        $topK = $request->input('top_k', 5);
+        $packageId = $request->attributes->get('embed_package_id');
+        $workspaceId = $request->attributes->get('embed_workspace_id');
 
-        // Verify package is published
-        $package = KnowledgePackage::where('id', $request->package_id)
-            ->where('workspace_id', $workspaceId)
-            ->where('status', 'published')
-            ->first();
-
-        if (! $package) {
-            return response()->json(['error' => 'Package not found or not published.'], 404);
-        }
-
-        $rag = new \App\Services\RagService();
+        $rag = new RagService();
         $bedrock = new BedrockService();
 
-        // Step 1: Two-stage vector search (precise → broad fallback)
-        $searchResult = $rag->searchPackageKnowledgeUnits($request->message, $package->id, $topK);
-        $retrievedKUs = $searchResult['results'];
+        // Two-stage vector search against the published package
+        $searchResult = $rag->searchPackageKnowledgeUnits($request->message, $packageId, 5);
 
-        if (empty($retrievedKUs)) {
+        if (empty($searchResult['results'])) {
             return response()->json([
                 'message' => 'No matching knowledge found for your question.',
                 'sources' => [],
             ]);
         }
 
-        // Step 2: Determine response strategy (link guidance mode)
+        $retrievedKUs = $searchResult['results'];
+        $package = $request->attributes->get('embed_package');
+
+        // Determine response strategy (link guidance mode)
         $responseStrategy = $rag->buildResponseStrategy($retrievedKUs, $package->response_mode ?? 'default_answer');
 
-        $sources = array_map(function ($ku) use ($searchResult) {
-            return [
-                'knowledge_unit_id' => $ku->id,
-                'topic' => $ku->topic,
-                'similarity' => round((float) $ku->similarity, 4),
-                'search_mode' => $searchResult['mode'],
-            ];
-        }, $retrievedKUs);
+        $sources = array_map(fn($ku) => [
+            'knowledge_unit_id' => $ku->id,
+            'topic' => $ku->topic,
+            'similarity' => round((float) $ku->similarity, 4),
+        ], $retrievedKUs);
 
-        // Step 3: Get or create conversation
+        // Get or create anonymous conversation
         $conversation = $this->getOrCreateConversation(
-            $request->conversation_id, $workspaceId, $package->id, $request->user()->id
+            $request->conversation_id, $workspaceId, $packageId
         );
 
         // Save user message
@@ -88,7 +71,7 @@ class ChatController extends Controller
             'content' => $request->message,
         ]);
 
-        // Step 4: Link-only mode — return links without LLM invocation
+        // Link-only mode — return links without LLM invocation
         if ($responseStrategy['skip_llm']) {
             $linksMessage = $rag->formatLinksOnlyMessage($responseStrategy['links']);
 
@@ -104,26 +87,29 @@ class ChatController extends Controller
                 'message' => $linksMessage,
                 'links' => $responseStrategy['links'],
                 'sources' => $sources,
-                'model' => null,
-                'usage' => ['input_tokens' => 0, 'output_tokens' => 0],
                 'latency_ms' => 0,
             ]);
         }
 
-        // Step 5: Build RAG context and invoke LLM
+        // Normal / mixed mode — invoke LLM
         $contextKUs = !empty($responseStrategy['answer_kus']) ? $responseStrategy['answer_kus'] : $retrievedKUs;
         $knowledgeContext = $rag->buildContext($contextKUs);
-
         $messages = $this->buildMessagesArray($conversation, $request->message);
 
         $systemPrompt = !empty($responseStrategy['links'])
             ? $rag->buildSystemPromptWithLinks($knowledgeContext, $responseStrategy['links'])
             : $rag->buildSystemPrompt($knowledgeContext);
 
-        $modelId = $rag->resolveModelId($workspaceId) ?? $this->getActiveModelId($workspaceId);
-        $llmResult = $bedrock->invokeChat($modelId, $systemPrompt, $messages);
+        $modelId = $rag->resolveModelId($workspaceId)
+            ?? 'ap-northeast-1.anthropic.claude-3-5-haiku-20251001-v1:0';
 
-        // Step 6: Save assistant message with source attribution
+        try {
+            $llmResult = $bedrock->invokeChat($modelId, $systemPrompt, $messages);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Service temporarily unavailable.'], 503);
+        }
+
+        // Save assistant message with metadata
         ChatMessage::create([
             'conversation_id' => $conversation->id,
             'role' => 'assistant',
@@ -134,9 +120,9 @@ class ChatController extends Controller
             'latency_ms' => $llmResult['latency_ms'],
         ]);
 
-        // Record token usage for cost tracking
+        // Track cost under 'embed_chat' endpoint category
         (new CostTrackingService())->recordUsage(
-            $workspaceId, $request->user()->id, 'chat',
+            $workspaceId, null, 'embed_chat',
             $llmResult['model_id'],
             $llmResult['input_tokens'], $llmResult['output_tokens'],
         );
@@ -146,24 +132,19 @@ class ChatController extends Controller
             'message' => $llmResult['content'],
             'links' => $responseStrategy['links'],
             'sources' => $sources,
-            'model' => $llmResult['model_id'],
-            'usage' => [
-                'input_tokens' => $llmResult['input_tokens'],
-                'output_tokens' => $llmResult['output_tokens'],
-            ],
             'latency_ms' => $llmResult['latency_ms'],
         ]);
     }
 
     /**
-     * Get existing conversation or create a new one.
+     * Get existing conversation or create a new anonymous one.
      */
-    private function getOrCreateConversation(?string $conversationId, int $workspaceId, int $packageId, int $userId): ChatConversation
+    private function getOrCreateConversation(?string $conversationId, int $workspaceId, int $packageId): ChatConversation
     {
-        // Attempt to resume an existing conversation if an ID was provided
         if ($conversationId) {
             $existing = ChatConversation::where('id', $conversationId)
                 ->where('workspace_id', $workspaceId)
+                ->where('knowledge_package_id', $packageId)
                 ->first();
 
             if ($existing) {
@@ -171,10 +152,11 @@ class ChatController extends Controller
             }
         }
 
+        // Anonymous conversation (user_id = null for embed users)
         return ChatConversation::create([
             'workspace_id' => $workspaceId,
             'knowledge_package_id' => $packageId,
-            'user_id' => $userId,
+            'user_id' => null,
         ]);
     }
 
@@ -183,17 +165,16 @@ class ChatController extends Controller
      */
     private function buildMessagesArray(ChatConversation $conversation, string $currentMessage): array
     {
-        // Load recent history (excluding the message we just saved)
         $history = $conversation->messages()
             ->orderByDesc('created_at')
-            ->limit(self::MAX_HISTORY_MESSAGES + 1) // +1 for the user message we just saved
+            ->limit(self::MAX_HISTORY_MESSAGES + 1)
             ->get()
             ->reverse()
             ->values();
 
         $messages = [];
 
-        // Add history messages (skip the last one which is the current user message)
+        // Add history messages (skip the last one, which is the current user message)
         foreach ($history->slice(0, -1) as $msg) {
             $messages[] = [
                 'role' => $msg->role,
@@ -208,19 +189,5 @@ class ChatController extends Controller
         ];
 
         return $messages;
-    }
-
-    /**
-     * Get the active LLM model ID for this workspace.
-     */
-    private function getActiveModelId(int $workspaceId): string
-    {
-        $model = LlmModel::where('workspace_id', $workspaceId)
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->first();
-
-        // Default fallback if no model is configured
-        return $model?->model_id ?? 'ap-northeast-1.anthropic.claude-3-5-haiku-20251001-v1:0';
     }
 }

@@ -25,15 +25,26 @@
     <div class="page-container">
 
         <div style="margin-bottom: 4px; font-size: 13px;">
-            <a href="{{ route('dashboard.knowledge-units', $ku->pipeline_job_id) }}" style="color: #0071e3; text-decoration: none;">← {{ __('ui.back_to_knowledge_units') }}</a>
+            @if($ku->pipeline_job_id)
+                <a href="{{ route('dashboard.knowledge-units', $ku->pipeline_job_id) }}" style="color: #0071e3; text-decoration: none;">&larr; {{ __('ui.back_to_knowledge_units') }}</a>
+            @else
+                <a href="{{ route('workspace.index') }}" style="color: #0071e3; text-decoration: none;">&larr; {{ __('ui.back_to_workspace') }}</a>
+            @endif
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
-            <h1 style="font-size: 20px; font-weight: 600;">KU #{{ $ku->id }} — {{ $ku->topic }}</h1>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h1 style="font-size: 20px; font-weight: 600;">KU #{{ $ku->id }} — {{ $ku->topic }}</h1>
+                @if($ku->isManual())
+                    <span class="badge" style="background: #e8f0fe; color: #1a73e8; font-size: 11px; padding: 2px 8px;">{{ __('ui.source_type_manual') }}</span>
+                @endif
+            </div>
             <span class="badge badge-{{ $ku->review_status }}" style="font-size: 12px; padding: 3px 10px;">{{ $ku->review_status }}</span>
         </div>
         <p style="color: #5f6368; font-size: 13px; margin-bottom: 20px;">
-            {{ $ku->intent }} &middot; v{{ $ku->version }} &middot; {{ $ku->row_count }} rows &middot; Cluster #{{ $ku->cluster_id }}
+            {{ $ku->intent }} &middot; v{{ $ku->version }}
+            @if($ku->row_count > 0) &middot; {{ $ku->row_count }} rows @endif
+            @if($ku->cluster_id) &middot; Cluster #{{ $ku->cluster_id }} @endif
         </p>
 
         @if(session('success'))
@@ -115,6 +126,19 @@
                     <label class="form-label" for="notes">{{ __('ui.notes') }}</label>
                     <textarea class="form-input" id="notes" name="notes" rows="2" @if(!$ku->isEditable()) disabled @endif>{{ $ku->notes }}</textarea>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="reference_url">{{ __('ui.reference_url') }}</label>
+                        <input class="form-input" type="url" id="reference_url" name="reference_url" value="{{ $ku->reference_url }}" placeholder="https://docs.example.com/..." @if(!$ku->isEditable()) disabled @endif>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="response_mode">{{ __('ui.response_mode') }}</label>
+                        <select class="form-input" id="response_mode" name="response_mode" @if(!$ku->isEditable()) disabled @endif>
+                            <option value="answer" {{ ($ku->response_mode ?? 'answer') === 'answer' ? 'selected' : '' }}>{{ __('ui.response_mode_answer') }}</option>
+                            <option value="link_only" {{ ($ku->response_mode ?? 'answer') === 'link_only' ? 'selected' : '' }}>{{ __('ui.response_mode_link_only') }}</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label class="form-label" for="edit_comment">{{ __('ui.edit_comment') }}</label>
                     <input class="form-input" type="text" id="edit_comment" name="edit_comment" placeholder="What did you change?" @if(!$ku->isEditable()) disabled @endif>
@@ -133,7 +157,11 @@
                 <div>{{ __('ui.row_count') }}: <strong>{{ $ku->row_count }}</strong></div>
                 <div>{{ __('ui.confidence') }}: <strong>{{ $ku->confidence }}</strong></div>
                 <div>{{ __('ui.version') }}: <strong>{{ $ku->version }}</strong></div>
-                <div>{{ __('ui.pipeline_job') }}: <strong>#{{ $ku->pipeline_job_id }}</strong></div>
+                @if($ku->pipeline_job_id)
+                    <div>{{ __('ui.pipeline_job') }}: <strong>#{{ $ku->pipeline_job_id }}</strong></div>
+                @else
+                    <div>{{ __('ui.source') }}: <strong>{{ __('ui.source_type_' . $ku->source_type) }}</strong></div>
+                @endif
                 <div>{{ __('ui.created') }}: <strong>{{ $ku->created_at->format('Y-m-d H:i') }}</strong></div>
                 @if($ku->edited_at)
                     <div>{{ __('ui.last_edited') }}: <strong>{{ $ku->edited_at->format('Y-m-d H:i') }}</strong></div>

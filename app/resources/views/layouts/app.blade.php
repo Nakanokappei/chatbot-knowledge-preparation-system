@@ -7,6 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', __('ui.app_name'))</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -142,6 +143,7 @@
                      Members work entirely within the sidebar on the main workspace view. --}}
                 @if(auth()->user()->isOwner())
                 <a href="{{ route('kp.index') }}" class="{{ request()->routeIs('kp.*') || request()->routeIs('knowledge-units.*') ? 'active' : '' }}">{{ __('ui.datasets') }}</a>
+                <a href="{{ route('question-insights.index') }}" class="{{ request()->routeIs('question-insights.*') ? 'active' : '' }}">{{ __('ui.question_insights') }}</a>
                 <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>
                 <a href="{{ route('settings.index') }}" class="{{ request()->routeIs('settings.*') ? 'active' : '' }}">{{ __('ui.nav_settings') }}</a>
                 @endif

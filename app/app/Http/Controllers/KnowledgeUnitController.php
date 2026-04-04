@@ -75,6 +75,8 @@ class KnowledgeUnitController extends Controller
             'primary_filter' => 'nullable|string|max:255',
             'category' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:5000',
+            'reference_url' => 'nullable|url|max:2048',
+            'response_mode' => 'nullable|string|in:answer,link_only',
             'edit_comment' => 'nullable|string|max:500',
         ]);
 
@@ -97,6 +99,8 @@ class KnowledgeUnitController extends Controller
                 'primary_filter' => $request->input('primary_filter'),
                 'category' => $request->input('category'),
                 'notes' => $request->input('notes'),
+                'reference_url' => $request->input('reference_url'),
+                'response_mode' => $request->input('response_mode', 'answer'),
                 'version' => $newVersion,
                 'edited_by_user_id' => $userId,
                 'edited_at' => now(),

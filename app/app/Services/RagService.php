@@ -151,6 +151,7 @@ class RagService
             SELECT
                 ku.id, ku.topic, ku.intent, ku.summary, ku.question,
                 ku.symptoms, ku.root_cause, ku.cause_summary, ku.resolution_summary,
+                ku.reference_url, ku.response_mode,
                 1 - (ku.{$embeddingColumn} <=> ?::vector) AS similarity
             FROM knowledge_units ku
             JOIN knowledge_package_items kpi ON kpi.knowledge_unit_id = ku.id
@@ -659,5 +660,129 @@ PROMPT;
         if (!$text || strlen(trim($text)) < 10) return false;
         if (preg_match('/^(\w+\s+){1,4}\w+\.;\s/', $text)) return false;
         return true;
+    }
+
+    // ── Link Guidance Mode ─────────────────────────────────
+
+    /**
+     * Determine response strategy based on package and KU response modes.
+     *
+     * Returns: ['type' => 'answer'|'links'|'mixed', 'links' => array,
+     *           'skip_llm' => bool, 'answer_kus' => array]
+     */
+    public function buildResponseStrategy(array $retrievedKUs, string $packageResponseMode): array
+    {
+        // Extract KUs that have reference URLs
+        $linkKUs = array_filter($retrievedKUs, fn($ku) =>
+            !empty($ku->reference_url)
+        );
+        $answerKUs = array_filter($retrievedKUs, fn($ku) =>
+            ($ku->response_mode ?? 'answer') !== 'link_only'
+        );
+
+        // Package-level link_only: return only links, skip LLM entirely
+        if ($packageResponseMode === 'link_only') {
+            return [
+                'type' => 'links',
+                'links' => $this->buildLinksArray($linkKUs),
+                'skip_llm' => true,
+                'answer_kus' => [],
+            ];
+        }
+
+        // Package-level prefer_link: links first, answer as supplement
+        if ($packageResponseMode === 'prefer_link') {
+            $links = $this->buildLinksArray($linkKUs);
+            $nonLinkKUs = array_values(array_filter($retrievedKUs, fn($ku) =>
+                ($ku->response_mode ?? 'answer') !== 'link_only'
+            ));
+
+            return [
+                'type' => !empty($links) ? 'mixed' : 'answer',
+                'links' => $links,
+                'skip_llm' => !empty($links) && empty($nonLinkKUs),
+                'answer_kus' => $nonLinkKUs,
+            ];
+        }
+
+        // Default: normal answer mode, but respect KU-level link_only
+        $kuLevelLinks = array_filter($retrievedKUs, fn($ku) =>
+            ($ku->response_mode ?? 'answer') === 'link_only' && !empty($ku->reference_url)
+        );
+
+        return [
+            'type' => 'answer',
+            'links' => $this->buildLinksArray($kuLevelLinks),
+            'skip_llm' => false,
+            'answer_kus' => array_values($answerKUs),
+        ];
+    }
+
+    /**
+     * Build links array from KUs with reference_url.
+     */
+    private function buildLinksArray(array $kus): array
+    {
+        return array_values(array_map(fn($ku) => [
+            'knowledge_unit_id' => $ku->id,
+            'topic' => $ku->topic,
+            'url' => $ku->reference_url,
+            'summary' => $ku->summary,
+            'similarity' => round((float) $ku->similarity, 4),
+        ], $kus));
+    }
+
+    /**
+     * Build system prompt with link guidance instructions.
+     *
+     * Used when package mode is prefer_link and both links and answer KUs exist.
+     */
+    public function buildSystemPromptWithLinks(string $knowledgeContext, array $links): string
+    {
+        $linkSection = '';
+        if (!empty($links)) {
+            $linkSection = "\n\n## Reference Links\n";
+            foreach ($links as $link) {
+                $linkSection .= "- [{$link['topic']}]({$link['url']})\n";
+            }
+        }
+
+        return <<<PROMPT
+You are an expert support assistant. Answer the user's question based ONLY on the knowledge base below.
+When reference links are available, include them in your response as clickable Markdown links.
+Prioritize directing the user to the reference link for detailed information.
+
+## Knowledge Base
+{$knowledgeContext}
+{$linkSection}
+
+## Response Guidelines
+- Respond in the SAME LANGUAGE as the user's question
+- When a reference link exists for a topic, include it prominently: "For details, see [Topic](URL)"
+- Provide a brief summary alongside the link
+- Format in Markdown
+- If the knowledge base does not contain relevant information, clearly state that
+- Do NOT fabricate information or URLs not present in the knowledge base
+PROMPT;
+    }
+
+    /**
+     * Format a links-only response message (no LLM invocation).
+     */
+    public function formatLinksOnlyMessage(array $links): string
+    {
+        if (empty($links)) {
+            return 'No documentation available for this question.';
+        }
+
+        $lines = [];
+        foreach ($links as $link) {
+            $lines[] = "- **{$link['topic']}**: [{$link['url']}]({$link['url']})";
+            if (!empty($link['summary'])) {
+                $lines[] = "  {$link['summary']}";
+            }
+        }
+
+        return implode("\n", $lines);
     }
 }

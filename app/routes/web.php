@@ -20,8 +20,13 @@ use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetWizardController;
 use App\Http\Controllers\EmbeddingController;
+use App\Http\Controllers\EmbedApiKeyController;
+use App\Http\Controllers\EmbedChatController;
+use App\Http\Controllers\EmbedController;
+use App\Http\Controllers\QuestionInsightsController;
 use App\Http\Controllers\KnowledgePackageController;
 use App\Http\Controllers\KnowledgeUnitController;
+use App\Http\Controllers\ManualKnowledgeUnitController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -52,6 +57,20 @@ Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']
 // Invitation registration (public — accessed via emailed link)
 Route::get('/invitation/{token}', [InvitationController::class, 'showRegisterForm'])->name('invitation.register');
 Route::post('/invitation/{token}', [InvitationController::class, 'register']);
+
+// ── Embed routes (public — no session/Sanctum auth) ──────────────
+// Chat page served in iframe (API key is the URL token)
+Route::get('/embed/chat/{token}', [EmbedController::class, 'show'])->name('embed.chat');
+// Chat API called from within the iframe (API key in Authorization header)
+Route::post('/embed/api/chat', [EmbedChatController::class, 'chat'])
+    ->name('embed.api.chat')
+    ->middleware(['embed.apikey', 'throttle:60,1']);
+// CORS preflight for embed API (no auth required for OPTIONS)
+Route::options('/embed/api/chat', fn () => response('', 204)
+    ->header('Access-Control-Allow-Origin', '*')
+    ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+    ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Embed-Key')
+    ->header('Access-Control-Max-Age', '3600'));
 
 // All application routes require authentication
 Route::middleware('auth')->group(function () {
@@ -90,6 +109,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/jobs/{pipelineJob}/knowledge-units', [DashboardController::class, 'knowledgeUnits'])->name('dashboard.knowledge-units');
         Route::get('/jobs/{pipelineJob}/knowledge-units/export', [DashboardController::class, 'exportKnowledgeUnits'])->name('dashboard.knowledge-units.export');
 
+        // Manual QA registration: create KU without pipeline
+        Route::get('/knowledge-units/create', [ManualKnowledgeUnitController::class, 'create'])->name('knowledge-units.create');
+        Route::post('/knowledge-units', [ManualKnowledgeUnitController::class, 'store'])->name('knowledge-units.store');
+
         // Knowledge Unit: detail, edit, versions (owner+member); review is owner-only
         Route::get('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'show'])->name('knowledge-units.show');
         Route::put('/knowledge-units/{knowledgeUnit}', [KnowledgeUnitController::class, 'update'])->name('knowledge-units.update');
@@ -115,10 +138,20 @@ Route::middleware('auth')->group(function () {
         Route::get('/knowledge-packages/{package}/export', [KnowledgePackageController::class, 'export'])->name('kp.export');
         Route::get('/knowledge-packages/{package}/chat', [KnowledgePackageController::class, 'chat'])->name('kp.chat');
         Route::get('/knowledge-packages/{package}/evaluation', [KnowledgePackageController::class, 'evaluation'])->name('kp.evaluation');
+
+        // Embed API key management (per-package)
+        Route::get('/knowledge-packages/{package}/api-keys', [EmbedApiKeyController::class, 'index'])->name('kp.api-keys.index');
+        Route::post('/knowledge-packages/{package}/api-keys', [EmbedApiKeyController::class, 'store'])->name('kp.api-keys.store');
+        Route::delete('/api-keys/{apiKey}', [EmbedApiKeyController::class, 'revoke'])->name('api-keys.revoke');
     });
 
     // Usage dashboard — owner only (system_admin redirected, member → 403)
     Route::get('/usage', [UsageController::class, 'index'])->name('usage')->middleware('workspace_owner');
+
+    // Question Insights — owner only
+    Route::get('/question-insights', [QuestionInsightsController::class, 'index'])
+        ->name('question-insights.index')
+        ->middleware('workspace_owner');
 
     // Chat & Retrieve (web session auth, used by browser UI)
     Route::post('/web-api/retrieve', [\App\Http\Controllers\Api\RetrievalController::class, 'retrieve'])->name('web.retrieve');
