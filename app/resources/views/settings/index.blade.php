@@ -150,7 +150,7 @@
                                         <option value="{{ $sysEmb->model_id }}"
                                             data-display="{{ $sysEmb->display_name }}"
                                             data-dimension="{{ $sysEmb->dimension }}">
-                                            {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
+                                            [{{ ucfirst($sysEmb->provider ?? 'bedrock') }}] {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
                                         </option>
                                     @endforeach
                                 </select>
@@ -180,13 +180,14 @@
                 @else
                     <table>
                         <thead>
-                            <tr><th>{{ __('ui.display_name') }}</th><th>{{ __('ui.model_id') }}</th><th>{{ __('ui.dimension') }}</th><th>{{ __('ui.status') }}</th><th></th></tr>
+                            <tr><th>{{ __('ui.display_name') }}</th><th>{{ __('ui.model_id') }}</th><th>{{ __('ui.provider') }}</th><th>{{ __('ui.dimension') }}</th><th>{{ __('ui.status') }}</th><th></th></tr>
                         </thead>
                         <tbody>
                             @foreach($embeddingModels as $em)
                             <tr @if(!$em->is_active) style="opacity: 0.5;" @endif>
                                 <td style="font-weight: 500;">{{ $em->display_name }}</td>
                                 <td><span class="mono">{{ $em->model_id }}</span></td>
+                                <td><span class="badge {{ ($em->provider ?? 'bedrock') === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?? 'bedrock') }}</span></td>
                                 <td style="text-align: center;">{{ $em->dimension }}</td>
                                 <td>
                                     @if($em->is_default)

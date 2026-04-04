@@ -553,6 +553,7 @@ class SettingsController extends Controller
             'workspace_id' => $workspaceId,
             'display_name' => $displayName,
             'model_id' => $modelId,
+            'provider' => $template->provider ?? 'bedrock',
             'dimension' => $dimension,
             'is_default' => $isFirst,
             'sort_order' => $maxSort + 1,
