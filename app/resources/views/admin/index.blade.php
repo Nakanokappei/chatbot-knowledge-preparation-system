@@ -134,7 +134,7 @@
 
         {{-- Main content: pipeline job list or usage stats --}}
         <div class="main">
-            @if(session('success'))
+            @if(session('success') && !$selectedWorkspace)
                 <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✓ {{ session('success') }}</div>
             @endif
 
@@ -264,7 +264,7 @@
                                 <tr>
                                     <td>{{ $member->name }}</td>
                                     <td style="font-size: 13px; color: #5f6368;">{{ $member->email }}</td>
-                                    <td><span class="badge badge-{{ $member->role === 'owner' ? 'approved' : 'draft' }}">{{ $member->role }}</span></td>
+                                    <td><span class="badge badge-{{ $member->role === 'owner' ? 'approved' : 'draft' }}">{{ __('ui.role_' . $member->role) }}</span></td>
                                     <td style="font-size: 13px; color: #5f6368;">{{ $member->created_at->format('Y-m-d') }}</td>
                                 </tr>
                             @endforeach

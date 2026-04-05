@@ -869,6 +869,10 @@ return [
     'back_to_dashboard'             => 'ダッシュボードに戻る',
     'tab_users'                     => 'ユーザー',
     'tab_manage'                    => '管理',
+    'role'                          => '権限',
+    'role_owner'                    => 'オーナー',
+    'role_member'                   => 'メンバー',
+    'role_system_admin'             => 'システム管理者',
 
     // ── チャット分析（使用状況ダッシュボード）──────────────
     'chat_analytics'                => 'チャット分析',

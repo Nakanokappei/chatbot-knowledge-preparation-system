@@ -868,6 +868,10 @@ return [
     'back_to_dashboard'             => 'Back to Dashboard',
     'tab_users'                     => 'Users',
     'tab_manage'                    => 'Manage',
+    'role'                          => 'Role',
+    'role_owner'                    => 'Owner',
+    'role_member'                   => 'Member',
+    'role_system_admin'             => 'System Admin',
 
     // ── Chat Analytics (Usage Dashboard) ────────────────────
     'chat_analytics'                => 'Chat Analytics',
