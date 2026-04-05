@@ -458,6 +458,11 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
 
     pipeline_config = kwargs.get("pipeline_config") or {}
 
+    # Resolve embedding model so search/broad embeddings match the pipeline's
+    # main embedding vectors (e.g., OpenAI 3072d instead of default Titan 1024d)
+    embedding_model_id = pipeline_config.get("embedding_model")
+    embedding_dimension = pipeline_config.get("embedding_dimension")
+
     # Step 1: Load analyzed clusters
     clusters = load_analyzed_clusters(job_id)
     logger.info("Loaded %d analyzed clusters for KU generation", len(clusters))
@@ -529,7 +534,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         # Precise embedding: question only (high-quality match)
         if question:
             try:
-                search_embedding = generate_embedding(question)
+                search_embedding = generate_embedding(
+                    question, model_id=embedding_model_id, dimension=embedding_dimension,
+                )
                 logger.info("Generated search embedding for cluster %d", cluster["id"])
             except Exception as e:
                 logger.warning("Failed to generate search embedding for cluster %d: %s", cluster["id"], e)
@@ -544,7 +551,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         broad_text = "\n".join(part for part in broad_text_parts if part)
         if broad_text.strip():
             try:
-                broad_embedding = generate_embedding(broad_text)
+                broad_embedding = generate_embedding(
+                    broad_text, model_id=embedding_model_id, dimension=embedding_dimension,
+                )
                 logger.info("Generated broad embedding for cluster %d", cluster["id"])
             except Exception as e:
                 logger.warning("Failed to generate broad embedding for cluster %d: %s", cluster["id"], e)
