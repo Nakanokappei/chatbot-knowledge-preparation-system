@@ -274,25 +274,22 @@
                                     <td style="font-size: 13px; color: #5f6368;">{{ $member->created_at->format('Y-m-d') }}</td>
                                 </tr>
                             @endforeach
+                            @foreach($workspaceInvitations as $inv)
+                                <tr style="opacity: 0.7;">
+                                    <td style="color: #86868b; font-style: italic;">{{ __('ui.invited') }}</td>
+                                    <td style="font-size: 13px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $inv->email }}</td>
+                                    <td><span class="badge badge-{{ $inv->isExpired() ? 'rejected' : 'pending' }}">{{ $inv->isExpired() ? __('ui.expired') : __('ui.pending') }}</span></td>
+                                    <td style="font-size: 13px;">
+                                        <form method="POST" action="{{ route('admin.invitations.cancel', $inv) }}" style="display: inline;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-danger" style="font-size: 11px; padding: 2px 8px;" onclick="return confirm('{{ __('ui.cancel_invitation_confirm') }}')">{{ __('ui.cancel') }}</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
                             </tbody>
                         </table>
-
-                        {{-- Pending invitations --}}
-                        @if($workspaceInvitations->isNotEmpty())
-                        <h4 style="font-size: 13px; font-weight: 600; margin-top: 16px; margin-bottom: 8px; color: #5f6368;">{{ __('ui.pending_invitations') }}</h4>
-                        @foreach($workspaceInvitations as $inv)
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px;">
-                                <span>{{ $inv->email }}</span>
-                                <span class="badge badge-{{ $inv->isExpired() ? 'rejected' : 'pending' }}">{{ $inv->isExpired() ? __('ui.expired') : __('ui.pending') }}</span>
-                                <span style="color: #86868b; font-size: 11px;">{{ $inv->created_at->format('m/d') }}</span>
-                                <form method="POST" action="{{ route('admin.invitations.cancel', $inv) }}" style="display: inline;">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger" style="font-size: 11px; padding: 2px 8px;" onclick="return confirm('{{ __('ui.cancel_invitation_confirm') }}')">{{ __('ui.cancel') }}</button>
-                                </form>
-                            </div>
-                        @endforeach
-                        @endif
                     </div>
 
                     {{-- Invite form --}}
