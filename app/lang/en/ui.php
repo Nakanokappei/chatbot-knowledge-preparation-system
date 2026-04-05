@@ -838,6 +838,7 @@ return [
     'appearance_greeting_placeholder' => 'e.g. Welcome! How can I help you today?',
     'appearance_icon_url'           => 'Bot Icon URL',
     'appearance_icon'               => 'Bot Icon',
+    'preview'                       => 'Preview',
     'upload_icon'                   => 'Upload Icon',
     'icon_uploaded'                 => 'Uploaded',
     'icon_too_large'                => 'File too large (max 2MB)',

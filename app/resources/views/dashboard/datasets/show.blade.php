@@ -100,107 +100,152 @@
             <h2>{{ __('ui.chatbot_appearance') }}</h2>
             <p style="font-size: 13px; color: #86868b; margin-bottom: 16px;">{{ __('ui.chatbot_appearance_hint') }}</p>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                {{-- Title --}}
-                <div>
-                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_title') }}</label>
-                    <input type="text" id="cfg-title" maxlength="100"
-                           placeholder="{{ $package->name }}"
-                           value="{{ $package->embed_config_json['title'] ?? '' }}"
-                           style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
-                </div>
-                {{-- Theme --}}
-                <div>
-                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_theme') }}</label>
-                    <select id="cfg-theme" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; background: #fff;">
-                        <option value="light" {{ ($package->embed_config_json['theme'] ?? 'light') === 'light' ? 'selected' : '' }}>Light</option>
-                        <option value="dark" {{ ($package->embed_config_json['theme'] ?? '') === 'dark' ? 'selected' : '' }}>Dark</option>
-                    </select>
-                </div>
-                {{-- Accent color --}}
-                <div>
-                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_color') }}</label>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="color" id="cfg-color" value="{{ $package->embed_config_json['color'] ?? '#0071e3' }}"
-                               style="width: 40px; height: 36px; border: 1px solid #d2d2d7; border-radius: 8px; padding: 2px; cursor: pointer;">
-                        <input type="text" id="cfg-color-text" value="{{ $package->embed_config_json['color'] ?? '#0071e3' }}" maxlength="7"
-                               style="flex: 1; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; font-family: monospace;">
+            <div style="display: flex; gap: 24px; align-items: flex-start;">
+            {{-- Left: settings form --}}
+            <div style="flex: 1; min-width: 0;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    {{-- Title --}}
+                    <div>
+                        <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_title') }}</label>
+                        <input type="text" id="cfg-title" maxlength="100"
+                               placeholder="{{ $package->name }}"
+                               value="{{ $package->embed_config_json['title'] ?? '' }}"
+                               oninput="updatePreview()"
+                               style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                    </div>
+                    {{-- Theme --}}
+                    <div>
+                        <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_theme') }}</label>
+                        <select id="cfg-theme" onchange="updatePreview()" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; background: #fff;">
+                            <option value="light" {{ ($package->embed_config_json['theme'] ?? 'light') === 'light' ? 'selected' : '' }}>Light</option>
+                            <option value="dark" {{ ($package->embed_config_json['theme'] ?? '') === 'dark' ? 'selected' : '' }}>Dark</option>
+                        </select>
+                    </div>
+                    {{-- Accent color --}}
+                    <div>
+                        <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_color') }}</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="color" id="cfg-color" value="{{ $package->embed_config_json['color'] ?? '#0071e3' }}"
+                                   oninput="updatePreview()"
+                                   style="width: 40px; height: 36px; border: 1px solid #d2d2d7; border-radius: 8px; padding: 2px; cursor: pointer;">
+                            <input type="text" id="cfg-color-text" value="{{ $package->embed_config_json['color'] ?? '#0071e3' }}" maxlength="7"
+                                   oninput="updatePreview()"
+                                   style="flex: 1; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; font-family: monospace;">
+                        </div>
+                    </div>
+                    {{-- Placeholder --}}
+                    <div>
+                        <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_placeholder') }}</label>
+                        <input type="text" id="cfg-placeholder" maxlength="200"
+                               placeholder="Type your question..."
+                               value="{{ $package->embed_config_json['placeholder'] ?? '' }}"
+                               oninput="updatePreview()"
+                               style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
                     </div>
                 </div>
-                {{-- Placeholder --}}
-                <div>
-                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_placeholder') }}</label>
-                    <input type="text" id="cfg-placeholder" maxlength="200"
-                           placeholder="Type your question..."
-                           value="{{ $package->embed_config_json['placeholder'] ?? '' }}"
-                           style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+
+                {{-- Greeting --}}
+                <div style="margin-top: 16px;">
+                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_greeting') }}</label>
+                    <textarea id="cfg-greeting" maxlength="500" rows="2"
+                              placeholder="{{ __('ui.appearance_greeting_placeholder') }}"
+                              oninput="updatePreview()"
+                              style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; resize: vertical;">{{ $package->embed_config_json['greeting'] ?? '' }}</textarea>
                 </div>
-            </div>
 
-            {{-- Greeting --}}
-            <div style="margin-top: 16px;">
-                <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_greeting') }}</label>
-                <textarea id="cfg-greeting" maxlength="500" rows="2"
-                          placeholder="{{ __('ui.appearance_greeting_placeholder') }}"
-                          style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; resize: vertical;">{{ $package->embed_config_json['greeting'] ?? '' }}</textarea>
-            </div>
-
-            {{-- Bot icon upload --}}
-            <div style="margin-top: 16px;">
-                <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_icon') }}</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <div id="icon-preview" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #d2d2d7; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #f5f5f7;">
+                {{-- Bot icon upload --}}
+                <div style="margin-top: 16px;">
+                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_icon') }}</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div id="icon-preview" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #d2d2d7; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #f5f5f7;">
+                            @if(!empty($package->embed_config_json['icon_url']))
+                                <img src="{{ $package->embed_config_json['icon_url'] }}" id="icon-preview-img" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">
+                            @else
+                                <span id="icon-placeholder" style="font-size: 10px; color: #aaa;">N/A</span>
+                            @endif
+                        </div>
+                        <label class="btn btn-sm btn-outline" style="cursor: pointer; font-size: 12px;">
+                            {{ __('ui.upload_icon') }}
+                            <input type="file" id="cfg-icon-file" accept="image/*" style="display: none;" onchange="uploadIcon(this)">
+                        </label>
                         @if(!empty($package->embed_config_json['icon_url']))
-                            <img src="{{ $package->embed_config_json['icon_url'] }}" id="icon-preview-img" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">
+                            <span id="icon-status" style="font-size: 11px; color: #34c759;">{{ __('ui.icon_uploaded') }}</span>
                         @else
-                            <span id="icon-placeholder" style="font-size: 10px; color: #aaa;">N/A</span>
+                            <span id="icon-status" style="font-size: 11px; color: #5f6368;"></span>
                         @endif
                     </div>
-                    <label class="btn btn-sm btn-outline" style="cursor: pointer; font-size: 12px;">
-                        {{ __('ui.upload_icon') }}
-                        <input type="file" id="cfg-icon-file" accept="image/*" style="display: none;" onchange="uploadIcon(this)">
-                    </label>
-                    @if(!empty($package->embed_config_json['icon_url']))
-                        <span id="icon-status" style="font-size: 11px; color: #34c759;">{{ __('ui.icon_uploaded') }}</span>
-                    @else
-                        <span id="icon-status" style="font-size: 11px; color: #5f6368;"></span>
+                    <input type="hidden" id="cfg-icon-url" value="{{ $package->embed_config_json['icon_url'] ?? '' }}">
+                </div>
+
+                {{-- Openers (suggested questions) --}}
+                <div style="margin-top: 16px;">
+                    <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_openers') }}</label>
+                    <span style="font-size: 11px; color: #86868b; display: block; margin-bottom: 8px;">{{ __('ui.appearance_openers_hint') }}</span>
+                    @for($i = 0; $i < 3; $i++)
+                    <input type="text" class="cfg-opener" maxlength="200"
+                           placeholder="{{ __('ui.appearance_opener_placeholder', ['n' => $i + 1]) }}"
+                           value="{{ $package->embed_config_json['openers'][$i] ?? '' }}"
+                           oninput="updatePreview()"
+                           style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; margin-bottom: 6px;">
+                    @endfor
+                    @php
+                        $topKUs = $package->items
+                            ->map(fn($item) => $item->knowledgeUnit)
+                            ->filter(fn($ku) => $ku && ($ku->row_count ?? 0) > 0)
+                            ->sortByDesc('row_count')
+                            ->take(5);
+                    @endphp
+                    @if($topKUs->isNotEmpty())
+                    <div style="margin-top: 4px; font-size: 11px; color: #86868b;">
+                        💡 {{ __('ui.appearance_openers_suggestion') }}
+                        @foreach($topKUs as $ku)
+                            <span style="background: #f0f0f2; padding: 2px 8px; border-radius: 10px; margin: 2px; display: inline-block; cursor: pointer;" onclick="fillOpener('{{ addslashes($ku->question ?: $ku->topic) }}')">{{ Str::limit($ku->question ?: $ku->topic, 40) }} ({{ $ku->row_count }})</span>
+                        @endforeach
+                    </div>
                     @endif
                 </div>
-                <input type="hidden" id="cfg-icon-url" value="{{ $package->embed_config_json['icon_url'] ?? '' }}">
-            </div>
 
-            {{-- Openers (suggested questions) --}}
-            <div style="margin-top: 16px;">
-                <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_openers') }}</label>
-                <span style="font-size: 11px; color: #86868b; display: block; margin-bottom: 8px;">{{ __('ui.appearance_openers_hint') }}</span>
-                @for($i = 0; $i < 3; $i++)
-                <input type="text" class="cfg-opener" maxlength="200"
-                       placeholder="{{ __('ui.appearance_opener_placeholder', ['n' => $i + 1]) }}"
-                       value="{{ $package->embed_config_json['openers'][$i] ?? '' }}"
-                       style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; margin-bottom: 6px;">
-                @endfor
-                {{-- Hint: top KU topics by usage_count --}}
-                @php
-                    $topKUs = $package->items
-                        ->map(fn($item) => $item->knowledgeUnit)
-                        ->filter(fn($ku) => $ku && ($ku->row_count ?? 0) > 0)
-                        ->sortByDesc('row_count')
-                        ->take(5);
-                @endphp
-                @if($topKUs->isNotEmpty())
-                <div style="margin-top: 4px; font-size: 11px; color: #86868b;">
-                    💡 {{ __('ui.appearance_openers_suggestion') }}
-                    @foreach($topKUs as $ku)
-                        <span style="background: #f0f0f2; padding: 2px 8px; border-radius: 10px; margin: 2px; display: inline-block; cursor: pointer;" onclick="fillOpener('{{ addslashes($ku->question ?: $ku->topic) }}')">{{ Str::limit($ku->question ?: $ku->topic, 40) }} ({{ $ku->row_count }})</span>
-                    @endforeach
+                {{-- Save button --}}
+                <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
+                    <button onclick="saveAppearance()" class="btn btn-primary">{{ __('ui.save') }}</button>
+                    <span id="appearance-status" style="font-size: 13px; color: #34c759; display: none;">{{ __('ui.saved') }}</span>
                 </div>
-                @endif
             </div>
 
-            {{-- Save button --}}
-            <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
-                <button onclick="saveAppearance()" class="btn btn-primary">{{ __('ui.save') }}</button>
-                <span id="appearance-status" style="font-size: 13px; color: #34c759; display: none;">{{ __('ui.saved') }}</span>
+            {{-- Right: live widget preview --}}
+            <div style="width: 320px; flex-shrink: 0; position: sticky; top: 80px;">
+                <div style="font-size: 11px; color: #5f6368; text-align: center; margin-bottom: 8px;">{{ __('ui.preview') }}</div>
+                <div id="widget-preview" style="border: 1px solid #e0e0e2; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.12); height: 460px; display: flex; flex-direction: column;">
+                    {{-- Header --}}
+                    <div id="wp-header" style="padding: 14px 16px; color: #fff; display: flex; align-items: center; gap: 10px;">
+                        <div id="wp-icon" style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.2); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 16px;">🤖</span>
+                        </div>
+                        <span id="wp-title" style="font-size: 15px; font-weight: 600;"></span>
+                    </div>
+                    {{-- Body --}}
+                    <div id="wp-body" style="flex: 1; padding: 16px; overflow-y: auto;">
+                        {{-- Greeting bubble --}}
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                            <div id="wp-body-icon" style="width: 28px; height: 28px; border-radius: 50%; background: #f0f0f2; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 14px;">🤖</span>
+                            </div>
+                            <div id="wp-greeting" style="background: #f0f0f2; border-radius: 12px 12px 12px 4px; padding: 10px 14px; font-size: 13px; max-width: 220px; line-height: 1.4;"></div>
+                        </div>
+                        {{-- Openers --}}
+                        <div id="wp-openers" style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;"></div>
+                    </div>
+                    {{-- Input --}}
+                    <div id="wp-input-area" style="padding: 10px 12px; border-top: 1px solid #e0e0e2;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <div id="wp-input" style="flex: 1; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 20px; font-size: 13px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                            <div id="wp-send-btn" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 14L14 8L2 2V6.5L10 8L2 9.5V14Z" fill="white"/></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             </div>
         </div>
 
@@ -303,6 +348,7 @@
                     preview.innerHTML = '<img src="' + esc(data.icon_url) + '" style="width:100%;height:100%;object-fit:cover;">';
                     status.textContent = '{{ __("ui.icon_uploaded") }}';
                     status.style.color = '#34c759';
+                    updatePreview();
                 } else {
                     status.textContent = '{{ __("ui.upload_failed") }}';
                     status.style.color = '#ff3b30';
@@ -323,6 +369,74 @@
         // All full: replace the last one
         inputs[inputs.length - 1].value = text;
     };
+
+    // Live preview updater: reads all config fields and renders the widget mock
+    window.updatePreview = function() {
+        var title = document.getElementById('cfg-title').value.trim() || '{{ addslashes($package->name) }}';
+        var theme = document.getElementById('cfg-theme').value;
+        var color = document.getElementById('cfg-color').value || '#0071e3';
+        var colorText = document.getElementById('cfg-color-text').value;
+        if (/^#[0-9a-fA-F]{3,6}$/.test(colorText)) color = colorText;
+        var greeting = document.getElementById('cfg-greeting').value.trim() || '{{ addslashes(__("ui.appearance_greeting_placeholder")) }}';
+        var placeholder = document.getElementById('cfg-placeholder').value.trim() || 'Type your question...';
+        var iconUrl = document.getElementById('cfg-icon-url').value.trim();
+        var isDark = theme === 'dark';
+
+        // Header
+        var header = document.getElementById('wp-header');
+        header.style.background = color;
+        document.getElementById('wp-title').textContent = title;
+
+        // Icon in header and body
+        var iconHtml = iconUrl
+            ? '<img src="' + esc(iconUrl) + '" style="width:100%;height:100%;object-fit:cover;">'
+            : '<span style="font-size:16px;">🤖</span>';
+        document.getElementById('wp-icon').innerHTML = iconHtml;
+        var bodyIcon = document.getElementById('wp-body-icon');
+        bodyIcon.innerHTML = iconUrl
+            ? '<img src="' + esc(iconUrl) + '" style="width:100%;height:100%;object-fit:cover;">'
+            : '<span style="font-size:14px;">🤖</span>';
+
+        // Body background
+        var body = document.getElementById('wp-body');
+        body.style.background = isDark ? '#1a1a1a' : '#fff';
+
+        // Greeting bubble
+        var greetEl = document.getElementById('wp-greeting');
+        greetEl.textContent = greeting;
+        greetEl.style.background = isDark ? '#2a2a2a' : '#f0f0f2';
+        greetEl.style.color = isDark ? '#e0e0e0' : '#1d1d1f';
+
+        // Openers
+        var openersEl = document.getElementById('wp-openers');
+        openersEl.innerHTML = '';
+        document.querySelectorAll('.cfg-opener').forEach(function(input) {
+            var text = input.value.trim();
+            if (text) {
+                var chip = document.createElement('div');
+                chip.textContent = text;
+                chip.style.cssText = 'border: 1px solid ' + color + '; color: ' + color + '; border-radius: 16px; padding: 6px 14px; font-size: 12px; cursor: pointer; text-align: center;';
+                if (isDark) chip.style.borderColor = chip.style.color = '#aaa';
+                openersEl.appendChild(chip);
+            }
+        });
+
+        // Input area
+        var inputArea = document.getElementById('wp-input-area');
+        inputArea.style.background = isDark ? '#1a1a1a' : '#fff';
+        inputArea.style.borderColor = isDark ? '#333' : '#e0e0e2';
+        var inputEl = document.getElementById('wp-input');
+        inputEl.textContent = placeholder;
+        inputEl.style.background = isDark ? '#2a2a2a' : '#fff';
+        inputEl.style.borderColor = isDark ? '#444' : '#d2d2d7';
+        inputEl.style.color = isDark ? '#666' : '#aaa';
+
+        // Send button
+        document.getElementById('wp-send-btn').style.background = color;
+    };
+
+    // Initialize preview on page load
+    updatePreview();
 
     // Save appearance config via AJAX
     window.saveAppearance = function() {

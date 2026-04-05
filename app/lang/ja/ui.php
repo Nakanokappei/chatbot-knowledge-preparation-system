@@ -839,6 +839,7 @@ return [
     'appearance_greeting_placeholder' => '例: ようこそ！ご質問はございますか？',
     'appearance_icon_url'           => 'ボットアイコンURL',
     'appearance_icon'               => 'ボットアイコン',
+    'preview'                       => 'プレビュー',
     'upload_icon'                   => 'アイコンをアップロード',
     'icon_uploaded'                 => 'アップロード済み',
     'icon_too_large'                => 'ファイルサイズが大きすぎます（最大2MB）',
