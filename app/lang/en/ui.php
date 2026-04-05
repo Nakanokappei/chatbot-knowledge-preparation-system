@@ -866,6 +866,8 @@ return [
     'workspace_suspended_message'   => 'Your workspace has been suspended pending settlement. Please contact your administrator to restore access.',
     'workspace_suspended_login_error' => 'Your workspace has been suspended. Please contact your administrator.',
     'back_to_dashboard'             => 'Back to Dashboard',
+    'tab_users'                     => 'Users',
+    'tab_manage'                    => 'Manage',
 
     // ── Chat Analytics (Usage Dashboard) ────────────────────
     'chat_analytics'                => 'Chat Analytics',

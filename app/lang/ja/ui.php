@@ -867,6 +867,8 @@ return [
     'workspace_suspended_message'   => '精算待ちのため、ワークスペースが停止されています。アクセスの復旧については管理者にお問い合わせください。',
     'workspace_suspended_login_error' => 'ワークスペースが停止されています。管理者にお問い合わせください。',
     'back_to_dashboard'             => 'ダッシュボードに戻る',
+    'tab_users'                     => 'ユーザー',
+    'tab_manage'                    => '管理',
 
     // ── チャット分析（使用状況ダッシュボード）──────────────
     'chat_analytics'                => 'チャット分析',
