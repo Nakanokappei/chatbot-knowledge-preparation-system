@@ -123,7 +123,7 @@ class KnowledgePackageController extends Controller
      */
     public function show(KnowledgePackage $package)
     {
-        $package->load(['items.knowledgeUnit', 'creator']);
+        $package->load(['items.knowledgeUnit', 'creator', 'embeddingModel']);
 
         return view('dashboard.datasets.show', compact('package'));
     }
@@ -160,15 +160,108 @@ class KnowledgePackageController extends Controller
             return back()->withErrors(['status' => __('ui.owner_approval_required')]);
         }
 
+        // Ensure the package has an embedding model (use workspace default if not set)
+        if (! $package->embedding_model_id) {
+            $defaultModel = \App\Models\EmbeddingModel::where('workspace_id', $package->workspace_id)
+                ->where('is_default', true)
+                ->first();
+            if (! $defaultModel) {
+                return back()->withErrors(['embedding' => __('ui.no_embedding_model_configured')]);
+            }
+            $package->embedding_model_id = $defaultModel->id;
+        }
+
+        // Build vector index using the package's embedding model
+        $embModel = $package->embeddingModel;
+        if (! $embModel) {
+            return back()->withErrors(['embedding' => __('ui.no_embedding_model_configured')]);
+        }
+
+        try {
+            $this->buildPackageVectors($package, $embModel);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Package vector build failed: " . $e->getMessage());
+            return back()->withErrors(['embedding' => 'Vector index build failed: ' . $e->getMessage()]);
+        }
+
         // Demote any existing published package with the same name to archived
         KnowledgePackage::where('workspace_id', $package->workspace_id)
             ->where('name', $package->name)
             ->where('status', 'published')
+            ->where('id', '!=', $package->id)
             ->update(['status' => 'archived']);
 
         $package->update(['status' => 'published']);
 
         return back()->with('success', "Package \"{$package->name}\" v{$package->version} is now published.");
+    }
+
+    /**
+     * Build the package_vectors index by embedding all approved KU texts
+     * using the package's embedding model.
+     */
+    private function buildPackageVectors(KnowledgePackage $package, \App\Models\EmbeddingModel $embModel): void
+    {
+        $bedrock = new \App\Services\BedrockService();
+        $modelId = $embModel->model_id;
+        $dimension = $embModel->dimension;
+
+        // Clear any existing vectors for this package (supports re-publish)
+        \App\Models\PackageVector::where('package_id', $package->id)->delete();
+
+        // Get all approved KUs linked to this package
+        $kus = \App\Models\KnowledgeUnit::query()
+            ->join('knowledge_package_items', 'knowledge_units.id', '=', 'knowledge_package_items.knowledge_unit_id')
+            ->where('knowledge_package_items.knowledge_package_id', $package->id)
+            ->where('knowledge_units.review_status', 'approved')
+            ->select('knowledge_units.id', 'knowledge_units.question', 'knowledge_units.topic',
+                     'knowledge_units.symptoms', 'knowledge_units.summary')
+            ->get();
+
+        foreach ($kus as $ku) {
+            // Search vector: question text only
+            $searchVec = $bedrock->generateEmbedding($ku->question, $modelId, $dimension);
+
+            // Broad vector: enriched text (question + topic + symptoms + summary)
+            $broadText = implode(' ', array_filter([
+                $ku->question, $ku->topic, $ku->symptoms, $ku->summary,
+            ]));
+            $broadVec = $bedrock->generateEmbedding($broadText, $modelId, $dimension);
+
+            $searchStr = '[' . implode(',', $searchVec) . ']';
+            $broadStr = '[' . implode(',', $broadVec) . ']';
+
+            $pv = \App\Models\PackageVector::create([
+                'package_id' => $package->id,
+                'knowledge_unit_id' => $ku->id,
+            ]);
+
+            DB::statement(
+                'UPDATE package_vectors SET search_vector = ?::vector, broad_vector = ?::vector WHERE id = ?',
+                [$searchStr, $broadStr, $pv->id]
+            );
+        }
+    }
+
+    /**
+     * Delete a knowledge package and its associated vectors and items.
+     *
+     * Published packages cannot be deleted — archive them first.
+     */
+    public function destroy(KnowledgePackage $package)
+    {
+        if ($package->status === 'published') {
+            return back()->withErrors(['status' => __('ui.cannot_delete_published')]);
+        }
+
+        $name = $package->name;
+        $version = $package->version;
+
+        // Cascade: package_vectors and knowledge_package_items are ON DELETE CASCADE
+        $package->delete();
+
+        return redirect()->route('kp.index')
+            ->with('success', __('ui.package_deleted', ['name' => "{$name} v{$version}"]));
     }
 
     /**

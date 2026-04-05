@@ -133,12 +133,14 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     pipeline_config = kwargs.get("pipeline_config") or {}
     column_config = pipeline_config.get("column_config")
     dataset_name = pipeline_config.get("dataset_name", f"Embedding (job {job_id})")
+    embedding_model = pipeline_config.get("embedding_model", "amazon.titan-embed-text-v2:0")
     embedding_id = create_or_get_embedding(
         job_id=job_id,
         tenant_id=tenant_id,
         dataset_id=dataset_id,
         name=dataset_name,
         column_config=column_config,
+        embedding_model=embedding_model,
     )
     # Pass embedding_id through pipeline_config for downstream steps
     pipeline_config["embedding_id"] = embedding_id

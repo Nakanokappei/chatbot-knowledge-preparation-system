@@ -286,9 +286,9 @@
                             @csrf @method('PUT')
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <input type="text" name="name" value="{{ $current->name }}" id="rename-input"
-                                       style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 14px; width: 300px;">
-                                <button type="submit" class="btn btn-sm btn-primary">{{ __('ui.save') }}</button>
-                                <button type="button" class="btn btn-sm btn-outline" onclick="cancelRename()">{{ __('ui.cancel') }}</button>
+                                       style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 14px; width: 200px;">
+                                <button type="submit" class="btn btn-sm btn-primary" style="white-space: nowrap;">{{ __('ui.save') }}</button>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="cancelRename()" style="white-space: nowrap;">{{ __('ui.cancel') }}</button>
                             </div>
                         </form>
 
@@ -535,9 +535,9 @@
                             <input type="hidden" name="ku_ids" id="ku-bulk-ids" value="">
                             <input type="hidden" name="new_status" id="ku-bulk-status" value="">
                             <button type="button" onclick="kuBulkAction('approved')" id="ku-btn-approve"
-                                class="btn btn-sm btn-green" style="font-size: 12px;" disabled>{{ __('ui.approve') }}</button>
+                                class="btn btn-sm btn-outline" style="font-size: 12px; border-color: #30d158; color: #30d158;" disabled>{{ __('ui.approve') }}</button>
                             <button type="button" onclick="kuBulkAction('draft')" id="ku-btn-exclude"
-                                class="btn btn-sm btn-outline" style="font-size: 12px;" disabled>{{ __('ui.set_excluded') }}</button>
+                                class="btn btn-sm btn-outline" style="font-size: 12px; border-color: #ff9500; color: #ff9500;" disabled>{{ __('ui.set_excluded') }}</button>
                         </form>
                         <span style="margin-left: auto; font-size: 12px; color: #5f6368;">{{ $approvedCount }}/{{ $totalCount }} {{ __('ui.approved_count') }}</span>
                     </div>

@@ -26,7 +26,9 @@ import boto3
 import numpy as np
 import pandas as pd
 
-from src.bedrock_client import EMBEDDING_DIMENSION, MODEL_ID, generate_embeddings_batch
+from src.bedrock_client import EMBEDDING_DIMENSION as DEFAULT_EMBEDDING_DIMENSION
+from src.bedrock_client import MODEL_ID as DEFAULT_MODEL_ID
+from src.bedrock_client import generate_embeddings_batch
 from src.config import S3_BUCKET, S3_REGION
 from src.db import get_connection, update_job_status, update_job_step_outputs, global_progress
 from src.step_chain import dispatch_next_step
@@ -40,14 +42,16 @@ NORMALIZATION_VERSION = "v1.0"
 S3_CACHE_WORKERS = 10
 
 
-def compute_cache_key(text: str) -> str:
+def compute_cache_key(text: str, model_id: str = None, dimension: int = None) -> str:
     """
     Compute a SHA-256 cache key for an embedding.
 
     Key includes normalized_text + model + dimension to ensure cache
     invalidation when any of these change.
     """
-    payload = f"{text}|{NORMALIZATION_VERSION}|{MODEL_ID}|{EMBEDDING_DIMENSION}"
+    mid = model_id or DEFAULT_MODEL_ID
+    dim = dimension or DEFAULT_EMBEDDING_DIMENSION
+    payload = f"{text}|{NORMALIZATION_VERSION}|{mid}|{dim}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -177,8 +181,8 @@ def save_cache_batch(entries: list[dict]):
                        (embedding_hash, normalization_version, model_name, dimension, s3_path, created_at, updated_at)
                        VALUES (%s, %s, %s, %s, %s, %s, %s)
                        ON CONFLICT (embedding_hash) DO NOTHING""",
-                    (entry["hash"], NORMALIZATION_VERSION, MODEL_ID,
-                     EMBEDDING_DIMENSION, entry["s3_path"], now, now),
+                    (entry["hash"], NORMALIZATION_VERSION, entry.get("model_id", DEFAULT_MODEL_ID),
+                     entry.get("dimension", DEFAULT_EMBEDDING_DIMENSION), entry["s3_path"], now, now),
                 )
             conn.commit()
         logger.info("Saved %d embeddings to cache (S3 + DB)", len(entries))
@@ -228,6 +232,12 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     logger.info("Embedding step started for job %d", job_id)
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 10))
 
+    # Resolve embedding model from pipeline config (or use defaults)
+    pipeline_config = kwargs.get("pipeline_config") or {}
+    model_id = pipeline_config.get("embedding_model", DEFAULT_MODEL_ID)
+    embedding_dimension = pipeline_config.get("embedding_dimension", DEFAULT_EMBEDDING_DIMENSION)
+    logger.info("Using embedding model: %s (%dd)", model_id, embedding_dimension)
+
     # Step 1: Load normalized data from S3
     df = download_parquet_from_s3(input_s3_path)
     logger.info("Loaded %d rows from %s", len(df), input_s3_path)
@@ -235,7 +245,9 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 15))
 
     # Step 2: Compute cache keys and check cache (parallel S3 reads)
-    df["cache_key"] = df["normalized_text"].apply(compute_cache_key)
+    df["cache_key"] = df["normalized_text"].apply(
+        lambda t: compute_cache_key(t, model_id, embedding_dimension)
+    )
     all_keys = df["cache_key"].tolist()
 
     cached_embeddings = check_cache_batch(all_keys)
@@ -268,6 +280,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
             uncached_texts,
             max_workers=8,
             progress_callback=progress_cb,
+            model_id=model_id,
+            dimension=embedding_dimension,
         )
 
         # Build cache entries for new embeddings
@@ -282,6 +296,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
                 "hash": key,
                 "embedding": vector,
                 "s3_path": s3_cache_path,
+                "model_id": model_id,
+                "dimension": embedding_dimension,
             })
 
         # Step 4: Save to cache (parallel S3 writes + single DB transaction)
@@ -325,8 +341,8 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         "cache_hits": cache_hits,
         "cache_misses": cache_misses,
         "cache_hit_rate": round(cache_hits / len(all_keys) * 100, 1) if all_keys else 0,
-        "embedding_dimension": EMBEDDING_DIMENSION,
-        "model": MODEL_ID,
+        "embedding_dimension": embedding_dimension,
+        "model": model_id,
         "output_s3_path": output_s3_path,
         "row_ids_s3_path": row_ids_path,
     })

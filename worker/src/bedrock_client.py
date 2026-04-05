@@ -103,30 +103,36 @@ def _relax_rate_limit():
         _min_interval = max(_min_interval * 0.9, 0.05)
 
 
-def generate_embedding(text: str, client=None) -> list[float]:
+def generate_embedding(text: str, client=None,
+                       model_id: str = None, dimension: int = None) -> list[float]:
     """
-    Generate a single embedding vector using Titan Text Embeddings V2.
+    Generate a single embedding vector using a Bedrock embedding model.
 
-    Includes adaptive rate limiting: waits before each request based on
-    observed throttling patterns, and backs off when throttled.
+    Supports dynamic model/dimension selection for multi-model architecture.
+    Defaults to Titan Embed v2 (1024d) when not specified.
 
     Args:
         text: The input text to embed (should be normalized).
         client: Optional pre-created Bedrock client (for reuse in batch calls).
+        model_id: Bedrock model ID (default: MODEL_ID constant).
+        dimension: Vector dimension (default: EMBEDDING_DIMENSION constant).
 
     Returns:
-        A list of floats representing the embedding vector (1024 dimensions).
+        A list of floats representing the embedding vector.
 
     Raises:
         RuntimeError: After MAX_RETRIES failures.
     """
+    mid = model_id or MODEL_ID
+    dim = dimension or EMBEDDING_DIMENSION
+
     # Lazily create a client if none was provided by the caller
     if client is None:
         client = get_bedrock_client()
 
     body = json.dumps({
         "inputText": text,
-        "dimensions": EMBEDDING_DIMENSION,
+        "dimensions": dim,
         "normalize": True,
     })
 
@@ -137,7 +143,7 @@ def generate_embedding(text: str, client=None) -> list[float]:
 
         try:
             response = client.invoke_model(
-                modelId=MODEL_ID,
+                modelId=mid,
                 body=body,
                 contentType="application/json",
                 accept="application/json",
@@ -183,42 +189,43 @@ def generate_embeddings_batch(
     texts: list[str],
     max_workers: int = 8,
     progress_callback=None,
+    model_id: str = None,
+    dimension: int = None,
 ) -> list[list[float]]:
     """
     Generate embeddings for multiple texts using thread pool parallelism.
 
-    Titan Embed v2 accepts one text per API call, so we parallelize
-    with a ThreadPoolExecutor. The adaptive rate limiter coordinates
-    request timing across all threads to avoid throttling.
+    Supports dynamic model/dimension selection. The adaptive rate limiter
+    coordinates request timing across all threads to avoid throttling.
 
     Args:
         texts: List of normalized text strings.
-        max_workers: Number of parallel threads (default: 8, Bedrock
-                     rate limits are typically hundreds of req/sec).
+        max_workers: Number of parallel threads (default: 8).
         progress_callback: Optional callable(completed, total) for progress updates.
+        model_id: Bedrock model ID (default: MODULE_ID constant).
+        dimension: Vector dimension (default: EMBEDDING_DIMENSION constant).
 
     Returns:
         List of embedding vectors in the same order as input texts.
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    # Each thread creates its own client to avoid signature expiration.
-    # boto3 clients cache credentials internally, so creating new clients
-    # is cheap and avoids stale signatures after long-running batches.
+    mid = model_id or MODEL_ID
+    dim = dimension or EMBEDDING_DIMENSION
+
     results = [None] * len(texts)
     completed_count = 0
 
     logger.info(
         "Generating embeddings for %d texts (workers=%d, model=%s, dim=%d)",
-        len(texts), max_workers, MODEL_ID, EMBEDDING_DIMENSION,
+        len(texts), max_workers, mid, dim,
     )
 
     start_time = time.monotonic()
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all tasks — each call creates a fresh client
         future_to_idx = {
-            executor.submit(generate_embedding, text, None): idx
+            executor.submit(generate_embedding, text, None, mid, dim): idx
             for idx, text in enumerate(texts)
         }
 

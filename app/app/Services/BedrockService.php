@@ -18,9 +18,9 @@ class BedrockService
     private BedrockRuntimeClient $client;
     private string $region;
 
-    // Titan Embed v2 configuration — must match worker/src/bedrock_client.py
-    private const EMBEDDING_MODEL = 'amazon.titan-embed-text-v2:0';
-    private const EMBEDDING_DIMENSIONS = 1024;
+    // Default embedding model — used when no specific model is requested
+    private const DEFAULT_EMBEDDING_MODEL = 'amazon.titan-embed-text-v2:0';
+    private const DEFAULT_EMBEDDING_DIMENSIONS = 1024;
 
     /**
      * Initialize the Bedrock Runtime client using the configured AWS region.
@@ -38,17 +38,21 @@ class BedrockService
     /**
      * Generate an embedding vector for a text query.
      *
-     * Returns a 1024-dimensional float array compatible with pgvector.
+     * Accepts optional model ID and dimension override for multi-model support.
+     * Defaults to Titan Embed v2 (1024d) for backward compatibility.
      */
-    public function generateEmbedding(string $text): array
+    public function generateEmbedding(string $text, ?string $modelId = null, ?int $dimensions = null): array
     {
+        $model = $modelId ?? self::DEFAULT_EMBEDDING_MODEL;
+        $dims = $dimensions ?? self::DEFAULT_EMBEDDING_DIMENSIONS;
+
         $response = $this->client->invokeModel([
-            'modelId' => self::EMBEDDING_MODEL,
+            'modelId' => $model,
             'contentType' => 'application/json',
             'accept' => 'application/json',
             'body' => json_encode([
                 'inputText' => $text,
-                'dimensions' => self::EMBEDDING_DIMENSIONS,
+                'dimensions' => $dims,
                 'normalize' => true,
             ]),
         ]);

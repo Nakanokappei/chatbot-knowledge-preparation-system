@@ -55,6 +55,15 @@
                 <a href="{{ route('kp.evaluation', $package) }}" class="btn btn-outline">{{ __('ui.evaluation') }}</a>
                 <a href="{{ route('kp.chat', $package) }}" class="btn btn-primary">{{ __('ui.chat') }}</a>
             @endif
+
+            {{-- Delete: available for draft and archived packages (not published) --}}
+            @if($package->status !== 'published')
+                <form method="POST" action="{{ route('kp.destroy', $package) }}" style="margin-left: auto;">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="btn btn-sm btn-danger"
+                        onclick="return confirm('{{ __('ui.delete_package_confirm', ['name' => $package->name . ' v' . $package->version]) }}')">{{ __('ui.delete') }}</button>
+                </form>
+            @endif
         </div>
 
         {{-- Stats --}}
@@ -75,6 +84,10 @@
                 <div>
                     <div class="meta-label">{{ __('ui.created_by') }}</div>
                     <div class="meta-value" style="font-size: 15px; font-weight: 500;">{{ $package->creator?->name ?? 'System' }}</div>
+                </div>
+                <div>
+                    <div class="meta-label">{{ __('ui.embedding_model_used') }}</div>
+                    <div class="meta-value" style="font-size: 13px; font-weight: 500;">{{ $package->embeddingModel?->display_name ?? '—' }}</div>
                 </div>
             </div>
         </div>

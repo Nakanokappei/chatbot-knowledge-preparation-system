@@ -20,7 +20,7 @@ class KnowledgePackage extends Model
 
     protected $fillable = [
         'workspace_id', 'name', 'description', 'version', 'status',
-        'response_mode', 'embed_config_json',
+        'response_mode', 'embed_config_json', 'embedding_model_id',
         'source_job_ids', 'ku_count', 'created_by',
     ];
 
@@ -79,6 +79,18 @@ class KnowledgePackage extends Model
     public function prefersLinks(): bool
     {
         return in_array($this->response_mode, ['prefer_link', 'link_only']);
+    }
+
+    /** The embedding model used for this package's vector index. */
+    public function embeddingModel(): BelongsTo
+    {
+        return $this->belongsTo(EmbeddingModel::class);
+    }
+
+    /** Pre-computed vectors for search (built at publish time). */
+    public function vectors(): HasMany
+    {
+        return $this->hasMany(PackageVector::class, 'package_id');
     }
 
     /** The KU items included in this package, ordered by sort position. */

@@ -97,21 +97,29 @@ class RagService
     }
 
     /**
-     * Two-stage vector search for published KnowledgePackage (API chat).
+     * Two-stage vector search for published KnowledgePackage.
      *
-     * Searches KUs linked to a package via knowledge_package_items JOIN.
+     * Uses the package_vectors table (pre-built at publish time) and
+     * generates the query vector using the package's own embedding model.
      */
     public function searchPackageKnowledgeUnits(
         string $queryText,
         int $packageId,
         int $topK = self::TOP_K,
     ): array {
-        $queryEmbedding = $this->bedrock->generateEmbedding($queryText);
+        // Look up the package's embedding model for query vectorization
+        $package = \App\Models\KnowledgePackage::with('embeddingModel')->find($packageId);
+        $embModel = $package?->embeddingModel;
+
+        // Generate query vector using the package's embedding model (or default)
+        $modelId = $embModel?->model_id;
+        $dimension = $embModel?->dimension;
+        $queryEmbedding = $this->bedrock->generateEmbedding($queryText, $modelId, $dimension);
         $vectorString = '[' . implode(',', $queryEmbedding) . ']';
 
-        // Stage 1: Precise search
+        // Stage 1: Precise search using search_vector
         $results = $this->packageVectorSearch(
-            $vectorString, $packageId, 'search_embedding',
+            $vectorString, $packageId, 'search_vector',
             self::PRECISE_THRESHOLD, $topK,
         );
 
@@ -119,9 +127,9 @@ class RagService
             return ['results' => $results, 'mode' => 'precise'];
         }
 
-        // Stage 2: Broad fallback
+        // Stage 2: Broad fallback using broad_vector
         $results = $this->packageVectorSearch(
-            $vectorString, $packageId, 'broad_embedding',
+            $vectorString, $packageId, 'broad_vector',
             self::BROAD_THRESHOLD, $topK,
         );
 
@@ -133,18 +141,19 @@ class RagService
     }
 
     /**
-     * Vector search against KUs linked to a knowledge package.
-     * Table/column names use legacy values until Phase 3 DB rename.
+     * Vector search against the package_vectors index table.
+     *
+     * Joins back to knowledge_units for content fields needed by the LLM prompt.
      */
     private function packageVectorSearch(
         string $vectorString,
         int $packageId,
-        string $embeddingColumn,
+        string $vectorColumn,
         float $threshold,
         int $topK,
     ): array {
-        if (!in_array($embeddingColumn, ['search_embedding', 'broad_embedding'])) {
-            throw new \InvalidArgumentException("Invalid embedding column: {$embeddingColumn}");
+        if (!in_array($vectorColumn, ['search_vector', 'broad_vector'])) {
+            throw new \InvalidArgumentException("Invalid vector column: {$vectorColumn}");
         }
 
         return DB::select("
@@ -152,14 +161,13 @@ class RagService
                 ku.id, ku.topic, ku.intent, ku.summary, ku.question,
                 ku.symptoms, ku.root_cause, ku.cause_summary, ku.resolution_summary,
                 ku.reference_url, ku.response_mode,
-                1 - (ku.{$embeddingColumn} <=> ?::vector) AS similarity
-            FROM knowledge_units ku
-            JOIN knowledge_package_items kpi ON kpi.knowledge_unit_id = ku.id
-            WHERE kpi.knowledge_package_id = ?
-              AND ku.review_status = 'approved'
-              AND ku.{$embeddingColumn} IS NOT NULL
-              AND 1 - (ku.{$embeddingColumn} <=> ?::vector) >= ?
-            ORDER BY ku.{$embeddingColumn} <=> ?::vector
+                1 - (pv.{$vectorColumn} <=> ?::vector) AS similarity
+            FROM package_vectors pv
+            JOIN knowledge_units ku ON ku.id = pv.knowledge_unit_id
+            WHERE pv.package_id = ?
+              AND pv.{$vectorColumn} IS NOT NULL
+              AND 1 - (pv.{$vectorColumn} <=> ?::vector) >= ?
+            ORDER BY pv.{$vectorColumn} <=> ?::vector
             LIMIT ?
         ", [$vectorString, $packageId, $vectorString, $threshold, $vectorString, $topK]);
     }

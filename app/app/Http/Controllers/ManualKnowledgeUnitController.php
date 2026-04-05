@@ -81,12 +81,24 @@ class ManualKnowledgeUnitController extends Controller
             ->where('workspace_id', $workspaceId)
             ->firstOrFail();
 
-        // Generate embedding vectors via Bedrock Titan
+        // Determine embedding model: use the Embedding record's model (from clustering)
         $bedrock = new BedrockService();
         $question = $request->input('question');
 
+        // Use the embedding model that was used for this knowledge (clustering)
+        $embModelId = $embedding->embedding_model ?? null;
+        $embDimension = null;
+
+        // Look up dimension from embedding_models table if available
+        if ($embModelId) {
+            $embModelRecord = \App\Models\EmbeddingModel::withoutGlobalScope('workspace')
+                ->where('model_id', $embModelId)
+                ->first();
+            $embDimension = $embModelRecord?->dimension;
+        }
+
         try {
-            $searchEmbedding = $bedrock->generateEmbedding($question);
+            $searchEmbedding = $bedrock->generateEmbedding($question, $embModelId, $embDimension);
 
             // Broad embedding: enriched text combining multiple fields
             $broadText = collect([
@@ -95,7 +107,7 @@ class ManualKnowledgeUnitController extends Controller
                 $request->input('symptoms'),
                 $request->input('summary'),
             ])->filter()->implode(' ');
-            $broadEmbedding = $bedrock->generateEmbedding($broadText);
+            $broadEmbedding = $bedrock->generateEmbedding($broadText, $embModelId, $embDimension);
         } catch (\Exception $e) {
             if ($request->wantsJson()) {
                 return response()->json(['error' => __('ui.bedrock_unavailable')], 503);
@@ -108,8 +120,9 @@ class ManualKnowledgeUnitController extends Controller
         $searchEmbedding = array_map('floatval', $searchEmbedding);
         $broadEmbedding = array_map('floatval', $broadEmbedding);
 
-        if (count($searchEmbedding) !== 1024 || count($broadEmbedding) !== 1024) {
-            $dimError = 'Unexpected embedding dimension from Bedrock.';
+        $expectedDim = $embDimension ?? 1024;
+        if (count($searchEmbedding) !== $expectedDim || count($broadEmbedding) !== $expectedDim) {
+            $dimError = "Unexpected embedding dimension: got " . count($searchEmbedding) . ", expected {$expectedDim}.";
             if ($request->wantsJson()) {
                 return response()->json(['error' => $dimError], 500);
             }

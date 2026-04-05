@@ -57,6 +57,7 @@
         .btn-orange { background: #ff9500; color: #fff; }
         .btn-orange:hover { background: #e68600; }
         .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .btn:disabled, .btn[disabled] { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
         .badge-draft { background: #f0f0f2; color: #5f6368; }
         .badge-reviewed { background: #cce5ff; color: #004085; }

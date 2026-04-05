@@ -276,8 +276,8 @@ class DashboardController extends Controller
         $pipelineConfig = [
             'phase' => '2',
             'llm_model_id' => $request->input('llm_model_id', $defaultLlmModel),
-            'embedding_model' => 'amazon.titan-embed-text-v2:0',
-            'embedding_dimension' => 1024,
+            'embedding_model' => $request->input('embedding_model_id', 'amazon.titan-embed-text-v2:0'),
+            'embedding_dimension' => (int) ($request->input('embedding_dimension', 1024)),
             'clustering_method' => $clusteringMethod,
             'clustering_params' => $clusteringParams,
             'remove_language_bias' => $request->has('remove_language_bias'),

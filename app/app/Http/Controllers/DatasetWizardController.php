@@ -410,6 +410,7 @@ class DatasetWizardController extends Controller
             'selected_columns' => 'required|array|min:1',
             'column_labels' => 'required|array',
             'llm_model_id' => 'nullable|string|max:100',
+            'embedding_model_id' => 'nullable|string|max:200',
             'clustering_method' => 'nullable|in:hdbscan,kmeans,agglomerative,leiden',
         ]);
 
@@ -576,6 +577,18 @@ class DatasetWizardController extends Controller
             $pipelineConfig['llm_fallback'] = $request->boolean('llm_fallback', true);
             $pipelineConfig['dataset_description'] = $datasetDescription;
             $pipelineConfig['column_descriptions'] = $columnDescriptions;
+
+            // Pass selected embedding model to the worker
+            $embeddingModelId = $request->input('embedding_model_id');
+            if ($embeddingModelId) {
+                $pipelineConfig['embedding_model'] = $embeddingModelId;
+                // Look up dimension from the embedding_models table
+                $embRecord = \App\Models\EmbeddingModel::withoutGlobalScope('workspace')
+                    ->where('model_id', $embeddingModelId)->first();
+                if ($embRecord) {
+                    $pipelineConfig['embedding_dimension'] = $embRecord->dimension;
+                }
+            }
 
             // Persist pipeline config snapshot for reproducibility
             $pipelineJob->update(['pipeline_config_snapshot_json' => $pipelineConfig]);
