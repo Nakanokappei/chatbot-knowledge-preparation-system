@@ -7,17 +7,17 @@ use App\Services\CostTrackingService;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Usage dashboard — monthly usage by workspace, endpoint, model, and daily trend.
+ * Usage dashboard — monthly usage by workspace, endpoint, model, daily trend,
+ * and chat analytics (sessions, response time, action breakdown, channels).
  */
 class UsageController extends Controller
 {
     /**
      * Display the cost dashboard with monthly summary, daily trend,
-     * and breakdowns by endpoint and model for the last 30 days.
+     * breakdowns by endpoint/model, and chat analytics for the last 30 days.
      */
     public function index()
     {
-
         $workspaceId = auth()->user()->workspace_id;
         $costService = new CostTrackingService();
 
@@ -58,8 +58,99 @@ class UsageController extends Controller
             ->limit(10)
             ->get(['id', 'topic', 'intent', 'usage_count']);
 
+        // Chat analytics: summary, daily action trend, and channel breakdown
+        $chatAnalytics = $this->buildChatAnalytics($workspaceId, $thirtyDaysAgo);
+
         return view('dashboard.usage', compact(
-            'monthly', 'dailyTrend', 'byEndpoint', 'byModel', 'topKUs'
+            'monthly', 'dailyTrend', 'byEndpoint', 'byModel', 'topKUs', 'chatAnalytics'
         ));
+    }
+
+    /**
+     * Public accessor for chat analytics — used by AdminUsageController.
+     */
+    public function buildChatAnalyticsPublic(int $workspaceId, $since): array
+    {
+        return $this->buildChatAnalytics($workspaceId, $since);
+    }
+
+    /**
+     * Build chat analytics from chat_sessions and chat_turns tables.
+     *
+     * Returns summary stats, daily action trend, and channel breakdown
+     * for the given workspace over the last 30 days.
+     */
+    private function buildChatAnalytics(int $workspaceId, $since): array
+    {
+        // Summary: session count, avg turns, avg response time, resolution rate
+        $summary = DB::selectOne("
+            SELECT
+                COUNT(DISTINCT cs.id) AS total_sessions,
+                COUNT(ct.id) FILTER (WHERE ct.role = 'assistant') AS total_assistant_turns,
+                ROUND(AVG(ct.response_ms) FILTER (WHERE ct.role = 'assistant' AND ct.response_ms IS NOT NULL)) AS avg_response_ms,
+                COUNT(ct.id) FILTER (WHERE ct.action IN ('answer', 'answer_broad')) AS answered,
+                COUNT(ct.id) FILTER (WHERE ct.action IN ('answer', 'answer_broad', 'no_match', 'rejected')) AS total_actionable
+            FROM chat_sessions cs
+            LEFT JOIN chat_turns ct ON ct.session_id = cs.id
+            WHERE cs.workspace_id = ? AND cs.created_at >= ?
+        ", [$workspaceId, $since]);
+
+        // Compute derived metrics safely
+        $totalSessions = (int) ($summary->total_sessions ?? 0);
+        $totalTurns = (int) ($summary->total_assistant_turns ?? 0);
+        $avgTurns = $totalSessions > 0 ? round($totalTurns / $totalSessions, 1) : 0;
+        $avgResponseMs = (int) ($summary->avg_response_ms ?? 0);
+        $answered = (int) ($summary->answered ?? 0);
+        $totalActionable = (int) ($summary->total_actionable ?? 0);
+        $resolutionRate = $totalActionable > 0 ? round(($answered / $totalActionable) * 100, 1) : 0;
+
+        // Daily action trend: grouped by date and action type
+        $dailyActions = DB::select("
+            SELECT
+                DATE(ct.created_at AT TIME ZONE 'Asia/Tokyo') AS date,
+                ct.action,
+                COUNT(*) AS count
+            FROM chat_turns ct
+            JOIN chat_sessions cs ON cs.id = ct.session_id
+            WHERE cs.workspace_id = ? AND ct.role = 'assistant' AND ct.created_at >= ?
+            GROUP BY date, ct.action
+            ORDER BY date
+        ", [$workspaceId, $since]);
+
+        // Daily session count for overlay line
+        $dailySessions = DB::select("
+            SELECT DATE(created_at AT TIME ZONE 'Asia/Tokyo') AS date, COUNT(*) AS count
+            FROM chat_sessions
+            WHERE workspace_id = ? AND created_at >= ?
+            GROUP BY date ORDER BY date
+        ", [$workspaceId, $since]);
+
+        // Channel breakdown: workspace chat vs embed widget
+        $channels = DB::select("
+            SELECT
+                CASE
+                    WHEN cs.knowledge_package_id IS NOT NULL THEN 'embed'
+                    ELSE 'workspace'
+                END AS channel,
+                COUNT(DISTINCT cs.id) AS sessions,
+                COUNT(ct.id) FILTER (WHERE ct.role = 'assistant') AS turns,
+                ROUND(AVG(ct.response_ms) FILTER (WHERE ct.role = 'assistant' AND ct.response_ms IS NOT NULL)) AS avg_ms,
+                COUNT(ct.id) FILTER (WHERE ct.action IN ('answer', 'answer_broad')) AS answered,
+                COUNT(ct.id) FILTER (WHERE ct.action IN ('answer', 'answer_broad', 'no_match', 'rejected')) AS total_actionable
+            FROM chat_sessions cs
+            LEFT JOIN chat_turns ct ON ct.session_id = cs.id
+            WHERE cs.workspace_id = ? AND cs.created_at >= ?
+            GROUP BY channel
+        ", [$workspaceId, $since]);
+
+        return [
+            'total_sessions' => $totalSessions,
+            'avg_turns' => $avgTurns,
+            'avg_response_ms' => $avgResponseMs,
+            'resolution_rate' => $resolutionRate,
+            'daily_actions' => $dailyActions,
+            'daily_sessions' => $dailySessions,
+            'channels' => $channels,
+        ];
     }
 }

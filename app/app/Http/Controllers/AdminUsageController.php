@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\KnowledgeUnit;
 use App\Models\Workspace;
 use App\Services\CostTrackingService;
 use Illuminate\Support\Facades\DB;
@@ -109,11 +110,23 @@ class AdminUsageController extends Controller
             ->orderByDesc('cost')
             ->get();
 
+        // Chat analytics for this workspace (reuse UsageController logic)
+        $chatAnalytics = (new UsageController())->buildChatAnalyticsPublic($workspace->id, $thirtyDaysAgo);
+
+        // Top KUs for this workspace
+        $topKUs = KnowledgeUnit::where('workspace_id', $workspace->id)
+            ->where('usage_count', '>', 0)
+            ->orderByDesc('usage_count')
+            ->limit(10)
+            ->get(['id', 'topic', 'intent', 'usage_count']);
+
         return view('dashboard.usage', [
             'monthly' => $monthly,
             'dailyTrend' => $dailyTrend,
             'byEndpoint' => $byEndpoint,
             'byModel' => $byModel,
+            'chatAnalytics' => $chatAnalytics,
+            'topKUs' => $topKUs,
             'isAdminView' => true,
             'workspaceName' => $workspace->name,
         ]);

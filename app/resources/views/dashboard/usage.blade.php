@@ -69,6 +69,71 @@
                 </div>
             </div>
 
+            {{-- Chat Analytics section --}}
+            @if(isset($chatAnalytics))
+            <h2 style="font-size: 17px; font-weight: 600; margin-bottom: 12px; margin-top: 8px;">{{ __('ui.chat_analytics') }}</h2>
+
+            {{-- Chat summary cards --}}
+            <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+                <div class="stat">
+                    <div class="stat-value">{{ number_format($chatAnalytics['total_sessions']) }}</div>
+                    <div class="stat-label">{{ __('ui.chat_sessions_30days') }}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ $chatAnalytics['avg_turns'] }}</div>
+                    <div class="stat-label">{{ __('ui.avg_turns_per_session') }}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ $chatAnalytics['avg_response_ms'] > 0 ? number_format($chatAnalytics['avg_response_ms'] / 1000, 1) . 's' : '—' }}</div>
+                    <div class="stat-label">{{ __('ui.avg_response_time') }}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{{ $chatAnalytics['resolution_rate'] }}%</div>
+                    <div class="stat-label">{{ __('ui.resolution_rate') }}</div>
+                </div>
+            </div>
+
+            {{-- Action breakdown chart --}}
+            <div style="margin-bottom: 20px;">
+                <div class="card">
+                    <h2>{{ __('ui.chat_action_breakdown') }}</h2>
+                    <div class="chart-container" style="height: 240px;"><canvas id="actionChart"></canvas></div>
+                    <div class="chart-legend">
+                        <span style="--c: #34c759;">{{ __('ui.action_answer') }}</span>
+                        <span style="--c: #ff9f0a;">{{ __('ui.action_answer_broad') }}</span>
+                        <span style="--c: #8e8e93;">{{ __('ui.action_no_match') }}</span>
+                        <span style="--c: #ff3b30;">{{ __('ui.action_rejected') }}</span>
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 14px; height: 2px; background: #0071e3; border-radius: 1px;"></span> {{ __('ui.sessions') }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Chat by channel table --}}
+            <div class="card" style="margin-bottom: 20px;">
+                <h2>{{ __('ui.chat_by_channel') }}</h2>
+                <table>
+                    <thead><tr><th>{{ __('ui.channel') }}</th><th>{{ __('ui.sessions') }}</th><th>{{ __('ui.turns') }}</th><th>{{ __('ui.resolution_rate') }}</th><th>{{ __('ui.avg_response_time') }}</th></tr></thead>
+                    <tbody>
+                    @forelse($chatAnalytics['channels'] as $ch)
+                        @php
+                            $chResolution = ($ch->total_actionable ?? 0) > 0 ? round(($ch->answered / $ch->total_actionable) * 100, 1) : 0;
+                            $chAvgMs = $ch->avg_ms ?? 0;
+                        @endphp
+                        <tr>
+                            <td>{{ $ch->channel === 'embed' ? __('ui.channel_embed') : __('ui.channel_workspace') }}</td>
+                            <td>{{ number_format($ch->sessions) }}</td>
+                            <td>{{ number_format($ch->turns) }}</td>
+                            <td>{{ $chResolution }}%</td>
+                            <td>{{ $chAvgMs > 0 ? number_format($chAvgMs / 1000, 1) . 's' : '—' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="empty">{{ __('ui.no_chat_data') }}</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @endif
+
             {{-- Breakdown tables --}}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                 <div class="card">
@@ -408,4 +473,146 @@
     }
 
     drawFeedbackChart('feedbackChart', days);
+
+    // Action breakdown chart: stacked bars by action type + session count line
+    @if(isset($chatAnalytics))
+    (function() {
+        const rawActions = @json($chatAnalytics['daily_actions']);
+        const rawSessions = @json($chatAnalytics['daily_sessions']);
+
+        // Build date-indexed maps for quick lookup
+        const actionMap = {};
+        rawActions.forEach(function(r) {
+            if (!actionMap[r.date]) actionMap[r.date] = {};
+            actionMap[r.date][r.action] = Number(r.count) || 0;
+        });
+        const sessionMap = {};
+        rawSessions.forEach(function(r) { sessionMap[r.date] = Number(r.count) || 0; });
+
+        // Fill 30-day range
+        const actionDays = [];
+        const today = new Date();
+        for (let i = 29; i >= 0; i--) {
+            const dt = new Date(today);
+            dt.setDate(dt.getDate() - i);
+            const key = dt.toISOString().slice(0, 10);
+            const dayActions = actionMap[key] || {};
+            actionDays.push({
+                date: key,
+                answer: dayActions['answer'] || 0,
+                answer_broad: dayActions['answer_broad'] || 0,
+                no_match: dayActions['no_match'] || 0,
+                rejected: dayActions['rejected'] || 0,
+                sessions: sessionMap[key] || 0,
+            });
+        }
+
+        // Define action colors
+        const actionColors = {
+            answer: '#34c759',
+            answer_broad: '#ff9f0a',
+            no_match: '#8e8e93',
+            rejected: '#ff3b30',
+        };
+
+        drawActionChart('actionChart', actionDays, actionColors);
+
+        function drawActionChart(canvasId, days, colors) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = rect.height;
+            const pad = { top: 20, right: 50, bottom: 30, left: 50 };
+            const chartW = W - pad.left - pad.right;
+            const chartH = H - pad.top - pad.bottom;
+
+            // Compute max values for axes
+            const maxTurns = Math.max(1, ...days.map(function(d) {
+                return d.answer + d.answer_broad + d.no_match + d.rejected;
+            }));
+            const maxSessions = Math.max(1, ...days.map(function(d) { return d.sessions; }));
+
+            // Nice rounding for axis
+            function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v || 1))); return Math.ceil(v / p) * p || 1; }
+            const nMaxT = niceMax(maxTurns);
+            const nMaxS = niceMax(maxSessions);
+
+            // Y-axis labels
+            ctx.fillStyle = '#5f6368';
+            ctx.font = '10px -apple-system, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(nMaxT, pad.left - 6, pad.top + 8);
+            ctx.fillText('0', pad.left - 6, pad.top + chartH);
+            ctx.textAlign = 'left';
+            ctx.fillText(nMaxS, W - pad.right + 6, pad.top + 8);
+
+            // Grid lines
+            ctx.strokeStyle = '#f0f0f2';
+            for (let i = 0; i <= 4; i++) {
+                const y = pad.top + chartH - (chartH * i / 4);
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(W - pad.right, y);
+                ctx.stroke();
+            }
+
+            // Bars
+            const gap = 2;
+            const barW = Math.max(4, (chartW - gap * days.length) / days.length);
+            const segments = ['rejected', 'no_match', 'answer_broad', 'answer'];
+
+            days.forEach(function(day, i) {
+                const x = pad.left + i * (barW + gap) + gap / 2;
+                let yOffset = 0;
+                segments.forEach(function(seg) {
+                    const val = day[seg] || 0;
+                    if (val > 0) {
+                        const h = (val / nMaxT) * chartH;
+                        ctx.fillStyle = colors[seg];
+                        ctx.fillRect(x, pad.top + chartH - yOffset - h, barW, h);
+                        yOffset += h;
+                    }
+                });
+
+                // X-axis labels
+                if (i % 5 === 0 || i === days.length - 1) {
+                    ctx.fillStyle = '#aaa';
+                    ctx.textAlign = 'center';
+                    ctx.font = '9px -apple-system, sans-serif';
+                    ctx.fillText(day.date.slice(5), x + barW / 2, H - 6);
+                }
+            });
+
+            // Session count line overlay
+            ctx.beginPath();
+            ctx.strokeStyle = '#0071e3';
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            days.forEach(function(day, i) {
+                const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                const y = pad.top + chartH - (day.sessions / nMaxS) * chartH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Session data points
+            ctx.fillStyle = '#0071e3';
+            days.forEach(function(day, i) {
+                if (day.sessions > 0) {
+                    const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
+                    const y = pad.top + chartH - (day.sessions / nMaxS) * chartH;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+    })();
+    @endif
 @endsection

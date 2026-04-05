@@ -827,4 +827,22 @@ return [
 
     // ── FAQエクスポート ─────────────────────────────────────
     'export_faq'                    => 'FAQ出力',
+
+    // ── チャット分析（使用状況ダッシュボード）──────────────
+    'chat_analytics'                => 'チャット分析',
+    'chat_sessions_30days'          => 'セッション数（30日）',
+    'avg_turns_per_session'         => '平均ターン数/セッション',
+    'avg_response_time'             => '平均応答時間',
+    'resolution_rate'               => '解決率',
+    'chat_action_breakdown'         => 'アクション別内訳（30日間）',
+    'action_answer'                 => '回答',
+    'action_answer_broad'           => '類似回答',
+    'action_no_match'               => '該当なし',
+    'action_rejected'               => '対象外',
+    'sessions'                      => 'セッション',
+    'chat_by_channel'               => 'チャネル別チャット',
+    'channel'                       => 'チャネル',
+    'channel_workspace'             => 'ワークスペースチャット',
+    'channel_embed'                 => '埋め込みウィジェット',
+    'no_chat_data'                  => 'この期間のチャットデータがありません。',
 ];

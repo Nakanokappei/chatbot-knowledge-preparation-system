@@ -826,4 +826,22 @@ return [
 
     // ── FAQ Export ──────────────────────────────────────────
     'export_faq'                    => 'Export FAQ',
+
+    // ── Chat Analytics (Usage Dashboard) ────────────────────
+    'chat_analytics'                => 'Chat Analytics',
+    'chat_sessions_30days'          => 'Sessions (30d)',
+    'avg_turns_per_session'         => 'Avg Turns / Session',
+    'avg_response_time'             => 'Avg Response Time',
+    'resolution_rate'               => 'Resolution Rate',
+    'chat_action_breakdown'         => 'Action Breakdown (30 days)',
+    'action_answer'                 => 'Answer',
+    'action_answer_broad'           => 'Broad Match',
+    'action_no_match'               => 'No Match',
+    'action_rejected'               => 'Rejected',
+    'sessions'                      => 'Sessions',
+    'chat_by_channel'               => 'Chat by Channel',
+    'channel'                       => 'Channel',
+    'channel_workspace'             => 'Workspace Chat',
+    'channel_embed'                 => 'Embed Widget',
+    'no_chat_data'                  => 'No chat data in this period.',
 ];
