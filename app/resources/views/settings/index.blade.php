@@ -188,7 +188,7 @@
                             <tr @if(!$em->is_active) style="opacity: 0.5;" @endif>
                                 <td style="font-weight: 500;">{{ $em->display_name }}</td>
                                 <td><span class="mono">{{ $em->model_id }}</span></td>
-                                <td><span class="badge {{ ($em->provider ?? 'bedrock') === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?? 'bedrock') }}</span></td>
+                                <td><span class="badge {{ ($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) }}</span></td>
                                 <td style="text-align: center;">{{ $em->dimension }}</td>
                                 <td>
                                     @if($em->is_default)

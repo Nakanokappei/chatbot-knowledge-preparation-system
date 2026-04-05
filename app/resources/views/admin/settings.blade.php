@@ -154,7 +154,8 @@
                             <tr @if(!$em->is_active) style="opacity: 0.5;" @endif>
                                 <td style="font-weight: 500;">{{ $em->display_name }}</td>
                                 <td><span class="mono">{{ $em->model_id }}</span></td>
-                                <td><span class="badge {{ ($em->provider ?? 'bedrock') === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?? 'bedrock') }}</span></td>
+                                @php $emProvider = $em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock'); @endphp
+                                <td><span class="badge {{ $emProvider === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($emProvider) }}</span></td>
                                 <td style="text-align: center;">{{ $em->dimension }}</td>
                                 <td style="white-space: nowrap; font-size: 12px;">
                                     <form method="POST" action="{{ route('admin.settings.embedding.update', $em) }}#embedding-section" style="display: inline; margin: 0;">

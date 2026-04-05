@@ -317,8 +317,9 @@
                         @endphp
                         <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                             @foreach($embeddingModels as $em)
+                                @php $provider = $em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock'); @endphp
                                 <option value="{{ $em->model_id }}" @if($em->dimension === $maxDim) selected @endif>
-                                    [{{ ucfirst($em->provider ?? 'bedrock') }}] {{ $em->display_name }} ({{ $em->dimension }}d){{ $em->dimension === $maxDim ? ' 🌟' : '' }}
+                                    [{{ ucfirst($provider) }}] {{ $em->display_name }} ({{ $em->dimension }}d){{ $em->dimension === $maxDim ? ' 🌟' : '' }}
                                 </option>
                             @endforeach
                         </select>
