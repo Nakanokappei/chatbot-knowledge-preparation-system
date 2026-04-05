@@ -117,11 +117,12 @@
 
             {{-- Summary stats --}}
             <div class="stats-grid" style="grid-template-columns: repeat({{ $showCost ? 3 : 2 }}, 1fr);">
+                @php $periodLabel = $periods[$currentPeriod] ?? $currentPeriod; @endphp
                 @if($showCost)
-                <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">{{ __('ui.cost_30days') }}</div></div>
+                <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">{{ __('ui.cost') }} ({{ $periodLabel }})</div></div>
                 @endif
-                <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">{{ __('ui.requests_30days') }}</div></div>
-                <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">{{ __('ui.tokens_30days') }}</div></div>
+                <div class="stat"><div class="stat-value">{{ number_format($monthly['requests']) }}</div><div class="stat-label">{{ __('ui.requests') }} ({{ $periodLabel }})</div></div>
+                <div class="stat"><div class="stat-value">{{ number_format($monthly['tokens']) }}</div><div class="stat-label">{{ __('ui.tokens') }} ({{ $periodLabel }})</div></div>
             </div>
 
             {{-- Daily chart --}}
@@ -165,7 +166,7 @@
             <h2 style="font-size: 17px; font-weight: 600; margin-bottom: 12px; margin-top: 8px;">{{ __('ui.chat_analytics') }}</h2>
 
             <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
-                <div class="stat"><div class="stat-value">{{ number_format($chatAnalytics['total_sessions']) }}</div><div class="stat-label">{{ __('ui.chat_sessions_30days') }}</div></div>
+                <div class="stat"><div class="stat-value">{{ number_format($chatAnalytics['total_sessions']) }}</div><div class="stat-label">{{ __('ui.sessions') }} ({{ $periodLabel }})</div></div>
                 <div class="stat"><div class="stat-value">{{ $chatAnalytics['avg_turns'] }}</div><div class="stat-label">{{ __('ui.avg_turns_per_session') }}</div></div>
                 <div class="stat"><div class="stat-value">{{ $chatAnalytics['avg_response_ms'] > 0 ? number_format($chatAnalytics['avg_response_ms'] / 1000, 1) . 's' : '—' }}</div><div class="stat-label">{{ __('ui.avg_response_time') }}</div></div>
                 <div class="stat"><div class="stat-value">{{ $chatAnalytics['resolution_rate'] }}%</div><div class="stat-label">{{ __('ui.resolution_rate') }}</div></div>

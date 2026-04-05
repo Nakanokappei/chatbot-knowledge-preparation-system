@@ -311,10 +311,14 @@
                 <div class="pipeline-options">
                     <div>
                         <label>{{ __('ui.embedding_model') }}</label>
+                        @php
+                            // Recommend the model with the highest dimension among active models
+                            $maxDim = $embeddingModels->max('dimension');
+                        @endphp
                         <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                             @foreach($embeddingModels as $em)
-                                <option value="{{ $em->model_id }}" @if($em->is_default) selected @endif>
-                                    {{ $em->display_name }} ({{ $em->dimension }}d)
+                                <option value="{{ $em->model_id }}" @if($em->dimension === $maxDim) selected @endif>
+                                    {{ $em->display_name }} ({{ $em->dimension }}d){{ $em->dimension === $maxDim ? ' 🌟' : '' }}
                                 </option>
                             @endforeach
                         </select>
@@ -330,10 +334,10 @@
                     <div>
                         <label>{{ __('ui.clustering_method') }}</label>
                         <select name="clustering_method" id="clustering-method" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            <option value="hdbscan" selected>{{ __('ui.clustering_hdbscan') }}</option>
+                            <option value="hdbscan">{{ __('ui.clustering_hdbscan') }}</option>
                             <option value="kmeans">{{ __('ui.clustering_kmeans') }}</option>
                             <option value="agglomerative">{{ __('ui.clustering_agglomerative') }}</option>
-                            <option value="leiden">{{ __('ui.clustering_leiden') }}</option>
+                            <option value="leiden" selected>{{ __('ui.clustering_leiden') }} 🌟</option>
                         </select>
                     </div>
                 </div>

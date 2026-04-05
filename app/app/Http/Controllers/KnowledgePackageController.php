@@ -417,6 +417,44 @@ class KnowledgePackageController extends Controller
     }
 
     /**
+     * Upload a bot icon image to S3 and return the CloudFront URL.
+     *
+     * Stores the image at s3://bucket/assets/icons/{workspace_id}/{hash}.{ext}
+     * and returns the public CloudFront URL for the icon.
+     */
+    public function uploadIcon(Request $request, KnowledgePackage $package): JsonResponse
+    {
+        $request->validate([
+            'icon' => 'required|image|max:2048', // 2MB max, must be image
+        ]);
+
+        $file = $request->file('icon');
+        $ext = $file->getClientOriginalExtension() ?: 'png';
+        $hash = md5_file($file->getRealPath());
+        $workspaceId = auth()->user()->workspace_id;
+
+        // Store in S3 under assets/icons/ prefix (CloudFront origin_path = /assets)
+        $s3Path = "assets/icons/{$workspaceId}/{$hash}.{$ext}";
+        \Illuminate\Support\Facades\Storage::disk('s3')->put($s3Path, file_get_contents($file->getRealPath()), 'private');
+
+        // Build CloudFront URL: origin_path strips /assets, so the CDN path is /icons/{ws}/{hash}.{ext}
+        $cdnDomain = config('services.cdn.domain');
+        if ($cdnDomain) {
+            $iconUrl = "https://{$cdnDomain}/icons/{$workspaceId}/{$hash}.{$ext}";
+        } else {
+            // Fallback: direct S3 URL (for local dev without CloudFront)
+            $iconUrl = \Illuminate\Support\Facades\Storage::disk('s3')->url($s3Path);
+        }
+
+        // Save the icon_url to the package's embed config
+        $existing = $package->embed_config_json ?? [];
+        $existing['icon_url'] = $iconUrl;
+        $package->update(['embed_config_json' => $existing]);
+
+        return response()->json(['success' => true, 'icon_url' => $iconUrl]);
+    }
+
+    /**
      * Export the package as a frequency-sorted FAQ document in Markdown format.
      *
      * KUs are sorted by row_count descending (proxy for inquiry frequency).

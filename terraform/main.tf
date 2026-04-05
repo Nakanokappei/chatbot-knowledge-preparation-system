@@ -57,6 +57,16 @@ module "s3" {
   common_tags = local.common_tags
 }
 
+module "cdn" {
+  source = "./modules/cdn"
+
+  name_prefix               = local.name_prefix
+  s3_bucket_id              = module.s3.bucket_name
+  s3_bucket_arn             = module.s3.bucket_arn
+  s3_bucket_regional_domain = module.s3.bucket_regional_domain_name
+  common_tags               = local.common_tags
+}
+
 # ------------------------------------------------------------------
 # Phase 4: Secrets — Secrets Manager + SSM Parameter Store
 # ------------------------------------------------------------------
@@ -172,6 +182,7 @@ module "ecs_service_app" {
   s3_bucket          = module.s3.bucket_name
   aws_region         = var.aws_region
   alb_dns_name       = module.alb.alb_dns_name
+  cdn_domain         = module.cdn.domain_name
 }
 
 module "ecs_service_worker" {

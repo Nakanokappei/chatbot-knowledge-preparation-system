@@ -59,6 +59,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "AWS_DEFAULT_REGION", value = var.aws_region },
         { name = "S3_BUCKET",          value = var.s3_bucket },
         { name = "CSV_DISK_DRIVER",   value = "s3" },
+        { name = "CDN_DOMAIN",         value = var.cdn_domain },
         { name = "APP_URL",            value = "http://${var.alb_dns_name}" },
       ]
 

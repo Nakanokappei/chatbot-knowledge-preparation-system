@@ -39,6 +39,10 @@ return [
         'region' => env('AWS_BEDROCK_REGION', 'ap-northeast-1'),
     ],
 
+    'cdn' => [
+        'domain' => env('CDN_DOMAIN'), // CloudFront domain (e.g. d1234abcdef.cloudfront.net)
+    ],
+
     // System health metrics: CloudWatch ECS + RDS identifiers
     'system_metrics' => [
         'ecs_cluster'  => env('AWS_ECS_CLUSTER',  'kps-dev-cluster'),

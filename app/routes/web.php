@@ -147,6 +147,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/knowledge-packages/{package}/chat', [KnowledgePackageController::class, 'chat'])->name('kp.chat');
         Route::get('/knowledge-packages/{package}/evaluation', [KnowledgePackageController::class, 'evaluation'])->name('kp.evaluation');
         Route::delete('/knowledge-packages/{package}', [KnowledgePackageController::class, 'destroy'])->name('kp.destroy');
+        Route::post('/knowledge-packages/{package}/upload-icon', [KnowledgePackageController::class, 'uploadIcon'])->name('kp.upload-icon');
 
         // Embed API key management (per-package)
         Route::get('/knowledge-packages/{package}/api-keys', [EmbedApiKeyController::class, 'index'])->name('kp.api-keys.index');

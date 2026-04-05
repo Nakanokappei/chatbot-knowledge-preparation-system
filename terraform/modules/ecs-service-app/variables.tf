@@ -130,3 +130,9 @@ variable "alb_dns_name" {
   description = "Public DNS name of the ALB, used to construct APP_URL."
   type        = string
 }
+
+variable "cdn_domain" {
+  description = "CloudFront distribution domain for public asset URLs."
+  type        = string
+  default     = ""
+}

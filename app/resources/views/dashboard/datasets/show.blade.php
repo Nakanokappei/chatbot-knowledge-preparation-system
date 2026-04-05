@@ -145,22 +145,28 @@
                           style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; resize: vertical;">{{ $package->embed_config_json['greeting'] ?? '' }}</textarea>
             </div>
 
-            {{-- Bot icon URL --}}
+            {{-- Bot icon upload --}}
             <div style="margin-top: 16px;">
-                <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_icon_url') }}</label>
+                <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.appearance_icon') }}</label>
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="url" id="cfg-icon-url" maxlength="500"
-                           placeholder="https://example.com/bot-icon.png"
-                           value="{{ $package->embed_config_json['icon_url'] ?? '' }}"
-                           style="flex: 1; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
-                    <div id="icon-preview" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid #d2d2d7; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #f5f5f7;">
+                    <div id="icon-preview" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #d2d2d7; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #f5f5f7;">
                         @if(!empty($package->embed_config_json['icon_url']))
-                            <img src="{{ $package->embed_config_json['icon_url'] }}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">
+                            <img src="{{ $package->embed_config_json['icon_url'] }}" id="icon-preview-img" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'">
                         @else
-                            <span style="font-size: 10px; color: #aaa;">N/A</span>
+                            <span id="icon-placeholder" style="font-size: 10px; color: #aaa;">N/A</span>
                         @endif
                     </div>
+                    <label class="btn btn-sm btn-outline" style="cursor: pointer; font-size: 12px;">
+                        {{ __('ui.upload_icon') }}
+                        <input type="file" id="cfg-icon-file" accept="image/*" style="display: none;" onchange="uploadIcon(this)">
+                    </label>
+                    @if(!empty($package->embed_config_json['icon_url']))
+                        <span id="icon-status" style="font-size: 11px; color: #34c759;">{{ __('ui.icon_uploaded') }}</span>
+                    @else
+                        <span id="icon-status" style="font-size: 11px; color: #5f6368;"></span>
+                    @endif
                 </div>
+                <input type="hidden" id="cfg-icon-url" value="{{ $package->embed_config_json['icon_url'] ?? '' }}">
             </div>
 
             {{-- Openers (suggested questions) --}}
@@ -274,18 +280,39 @@
         });
     }
 
-    // Live preview for icon URL
-    var iconInput = document.getElementById('cfg-icon-url');
-    if (iconInput) {
-        iconInput.addEventListener('change', function() {
-            var preview = document.getElementById('icon-preview');
-            if (this.value) {
-                preview.innerHTML = '<img src="' + esc(this.value) + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML=\'<span style=\\\'font-size:10px;color:#aaa\\\'>Error</span>\'">';
-            } else {
-                preview.innerHTML = '<span style="font-size:10px;color:#aaa;">N/A</span>';
-            }
-        });
-    }
+    // Upload icon file to server, update preview and hidden input
+    window.uploadIcon = function(input) {
+        if (!input.files || !input.files[0]) return;
+        var file = input.files[0];
+        if (file.size > 2 * 1024 * 1024) { alert('{{ __("ui.icon_too_large") }}'); return; }
+
+        var status = document.getElementById('icon-status');
+        status.textContent = '{{ __("ui.uploading") }}...';
+        status.style.color = '#5f6368';
+
+        var formData = new FormData();
+        formData.append('icon', file);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+
+        fetch('{{ route("kp.upload-icon", $package) }}', { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.icon_url) {
+                    document.getElementById('cfg-icon-url').value = data.icon_url;
+                    var preview = document.getElementById('icon-preview');
+                    preview.innerHTML = '<img src="' + esc(data.icon_url) + '" style="width:100%;height:100%;object-fit:cover;">';
+                    status.textContent = '{{ __("ui.icon_uploaded") }}';
+                    status.style.color = '#34c759';
+                } else {
+                    status.textContent = '{{ __("ui.upload_failed") }}';
+                    status.style.color = '#ff3b30';
+                }
+            })
+            .catch(function() {
+                status.textContent = '{{ __("ui.upload_failed") }}';
+                status.style.color = '#ff3b30';
+            });
+    };
 
     // Fill opener from suggestion chip
     window.fillOpener = function(text) {
