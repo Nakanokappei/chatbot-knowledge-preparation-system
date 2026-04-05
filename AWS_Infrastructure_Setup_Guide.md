@@ -1,7 +1,7 @@
 # AWS Infrastructure Setup Guide
 
 **Project:** Chatbot Knowledge Preparation System (CKPS)
-**Last Updated:** 2026-03-30
+**Last Updated:** 2026-04-05
 **Author:** Senior Engineer
 
 ---
@@ -11,8 +11,13 @@
 ```
 Internet
     ↓
-ALB (Public Subnets)
-    ↓
+┌───────────────┐    ┌──────────────┐
+│ ALB           │    │ CloudFront   │
+│ (Public       │    │ (Bot icons,  │
+│  Subnets)     │    │  public      │
+│               │    │  assets)     │
+└───────┬───────┘    └──────┬───────┘
+        ↓                   ↓
 ┌─────────────────────────────────────────┐
 │          Private Subnets                 │
 │                                          │
@@ -26,8 +31,8 @@ ALB (Public Subnets)
 │       ├────────┬───────────┤             │
 │       ↓        ↓           ↓             │
 │    RDS       SQS          S3             │
-│  (PG 17+    (Pipeline    (CSV           │
-│   pgvector)  + DLQ)      Uploads)       │
+│  (PG 17+    (Pipeline    (CSV + Public  │
+│   pgvector)  + DLQ)      Assets)        │
 │                                          │
 │       ↓ (via NAT Gateway)               │
 │    AWS Bedrock                           │
@@ -47,7 +52,8 @@ ALB (Public Subnets)
 | ALB | Load balancer (HTTPS + HTTP→HTTPS redirect) |
 | ACM | TLS certificate (wildcard) |
 | Route 53 | DNS (custom domain) |
-| Bedrock | LLM (Claude) + Embeddings (Titan) |
+| Bedrock | LLM (Claude) + Embeddings (Titan, OpenAI) |
+| CloudFront | CDN for public assets (bot icons) |
 | Secrets Manager | DB password, APP_KEY |
 | SSM Parameter Store | Configuration values |
 | CloudWatch | Logs + Alarms |
@@ -169,7 +175,8 @@ terraform/
     ├── security-groups/ # ALB, App, Worker, RDS SGs
     ├── ecr/             # Container registries
     ├── sqs/             # Pipeline queue + DLQ
-    ├── s3/              # CSV uploads bucket
+    ├── s3/              # CSV uploads + assets bucket
+    ├── cdn/             # CloudFront distribution (public assets)
     ├── secrets/         # Secrets Manager entries
     ├── ssm-parameters/  # Configuration parameters
     ├── iam/             # Task execution + task roles + GitHub OIDC
@@ -189,7 +196,7 @@ Terraform handles dependencies automatically, but the logical order is:
 ```
 Phase 1: terraform init
 Phase 2: VPC + Security Groups
-Phase 3: ECR + SQS + S3
+Phase 3: ECR + SQS + S3 + CloudFront CDN
 Phase 4: Secrets Manager + SSM Parameters
 Phase 5: IAM Roles
 Phase 6: RDS (PostgreSQL + pgvector)
@@ -477,6 +484,7 @@ Both repositories are configured to retain the last 10 images. Older images are 
 | SQS_QUEUE_URL | SSM Parameter |
 | S3_BUCKET | SSM Parameter |
 | AWS_DEFAULT_REGION | ap-northeast-1 |
+| CDN_DOMAIN | CloudFront distribution domain |
 | APP_URL | ALB DNS name |
 
 ### 8.2 Worker Service
@@ -540,6 +548,14 @@ Failure (3x) → Route to DLQ → CloudWatch alarm
 | CORS | PUT allowed from any origin |
 | Versioning | Not enabled |
 
+**Path Structure:**
+
+| Prefix | Purpose | Access |
+|--------|---------|--------|
+| `assets/icons/` | Bot icon images (uploaded by users) | Public via CloudFront |
+| `{workspace_id}/` | CSV uploads, pipeline artifacts | Private (ECS task role) |
+| `cache/embeddings/` | Embedding vector cache | Private (worker task role) |
+
 **Lifecycle Rules** (`infra/s3-lifecycle.json`):
 
 | Rule | Prefix | Transition | Expiration |
@@ -547,6 +563,25 @@ Failure (3x) → Route to DLQ → CloudWatch alarm
 | EmbeddingDataLifecycle | `embeddings/` | 30d → STANDARD_IA, 90d → GLACIER | — |
 | PreprocessDataCleanup | `preprocess/` | — | Delete after 90 days |
 | ExportsLifecycle | `exports/` | 30d → STANDARD_IA | — |
+
+---
+
+## 10.5 CloudFront CDN
+
+| Setting | Value |
+|---------|-------|
+| Origin | S3 bucket `/assets` prefix |
+| Access | Origin Access Control (OAC) — S3 stays private |
+| Price Class | PriceClass_200 (US, Europe, Asia) |
+| Protocol | HTTPS only (redirect) |
+| Caching | Default 1 day, max 1 year |
+| Certificate | CloudFront default (`*.cloudfront.net`) |
+
+**Purpose:** Serves public assets (bot icons) with edge caching. The App uploads images to `s3://bucket/assets/icons/{workspace_id}/{hash}.{ext}` and returns a CloudFront URL (`https://d1234.cloudfront.net/icons/{workspace_id}/{hash}.{ext}`).
+
+**Terraform module:** `terraform/modules/cdn/`
+
+**Post-apply:** After `terraform apply`, set the `CDN_DOMAIN` environment variable in the ECS task definition to the CloudFront domain name (output: `module.cdn.domain_name`).
 
 ---
 
@@ -870,6 +905,7 @@ cd terraform/ && terraform state list
 | SQS | < 1M requests | ~$0 |
 | ECR | < 5 GB images | ~$0.50 |
 | CloudWatch | Logs + alarms | ~$5 |
+| CloudFront | CDN (minimal traffic in dev) | ~$0 |
 | **Total** | | **~$100/month** |
 
 > NAT Gateway is the largest fixed cost. For dev, consider NAT instance (t4g.nano ~$3/month) as alternative.
@@ -890,4 +926,5 @@ terraform output
 # rds_endpoint     = RDS connection endpoint
 # sqs_queue_url    = SQS pipeline queue URL
 # s3_bucket_name   = S3 bucket name
+# cdn_domain       = CloudFront distribution domain
 ```
