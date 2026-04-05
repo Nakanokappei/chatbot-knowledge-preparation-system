@@ -1,6 +1,7 @@
 {{-- System admin settings: manage system-level model templates.
      Same layout as settings/index.blade.php but no "Set Default" button,
-     and uses admin layout with purple theme. --}}
+     and uses admin layout with purple theme.
+     Section order: registered first, then add forms (for both LLM and embedding). --}}
 @extends('layouts.admin')
 @section('title', __('ui.system_models') . ' — KPS')
 
@@ -35,46 +36,9 @@
                 <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">✗ {{ session('error') }}</div>
             @endif
 
-            {{-- Add LLM model form --}}
-            <div class="card">
-                <h2>{{ __('ui.add_model') }}</h2>
-                <form method="POST" action="{{ route('admin.settings.store') }}">
-                    @csrf
-                    <div class="form-row">
-                        <div class="form-group" style="flex: 2;">
-                            <label for="model_id">{{ __('ui.select_model') }}</label>
-                            <select id="model_id" name="model_id" required
-                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                onchange="updateDisplayName(this)">
-                                <option value="">{{ __('ui.choose_model') }}</option>
-                                @php $prevProvider = ''; @endphp
-                                @foreach($bedrockModels as $bedrockModel)
-                                    @if($bedrockModel['provider'] !== $prevProvider)
-                                        @if($prevProvider !== '') </optgroup> @endif
-                                        <optgroup label="{{ $bedrockModel['provider'] }}">
-                                        @php $prevProvider = $bedrockModel['provider']; @endphp
-                                    @endif
-                                    @if(!$models->contains('model_id', $bedrockModel['model_id']))
-                                    @php $modelPricing = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bedrockModel['model_id']); @endphp
-                                    <option value="{{ $bedrockModel['model_id'] }}"
-                                        data-display="{{ $bedrockModel['provider'] }} {{ $bedrockModel['display_name'] }}">
-                                        {{ $bedrockModel['display_name'] }}@if($modelPricing) — In: ${{ number_format($modelPricing['input'], 6) }} / Out: ${{ number_format($modelPricing['output'] ?? 0, 6) }} per {{ $modelPricing['unit'] ?? '1K tokens' }}@endif
-                                    </option>
-                                    @endif
-                                @endforeach
-                                @if($prevProvider !== '') </optgroup> @endif
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1;">
-                            <label for="display_name">{{ __('ui.display_name_auto') }}</label>
-                            <input type="text" id="display_name" name="display_name" placeholder="Auto-generated from selection">
-                        </div>
-                        <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
-                    </div>
-                </form>
-            </div>
+            {{-- ═══ System LLM Models ═══════════════════════════════════ --}}
 
-            {{-- Registered system LLM models --}}
+            {{-- 1. Registered system LLM models --}}
             <div class="card">
                 <h2>{{ __('ui.registered_models') }}</h2>
                 @if($models->isEmpty())
@@ -116,7 +80,6 @@
                                 </td>
                                 <td>
                                     <div class="actions">
-                                        {{-- No "Set Default" button for system admin --}}
                                         <form method="POST" action="{{ route('admin.settings.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
                                         @if(in_array($model->model_id, $usedModelIds))
                                             <button type="button" class="btn btn-sm btn-danger" disabled title="In use by a workspace" style="opacity:0.4;cursor:not-allowed;">{{ __('ui.delete') }}</button>
@@ -132,54 +95,51 @@
                 @endif
             </div>
 
-            {{-- Embedding models section --}}
-            <hr id="embedding-section" style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
-            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.embedding_models') }}</h1>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.embedding_models_desc') }}</p>
-
+            {{-- 2. Add LLM model from AWS Bedrock --}}
             <div class="card">
-                <h2>{{ __('ui.add_embedding_model') }}</h2>
-                <form method="POST" action="{{ route('admin.settings.embedding.store') }}#embedding-section">
+                <h2>{{ __('ui.add_model') }}</h2>
+                <form method="POST" action="{{ route('admin.settings.store') }}">
                     @csrf
                     <div class="form-row">
                         <div class="form-group" style="flex: 2;">
-                            <label for="emb_model_id">{{ __('ui.select_model') }}</label>
-                            <select id="emb_model_id" name="model_id" required
+                            <label for="model_id">{{ __('ui.select_model') }}</label>
+                            <select id="model_id" name="model_id" required
                                 style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
-                                onchange="updateEmbDisplayName(this)">
-                                <option value="">{{ __('ui.choose_embedding_model') }}</option>
-                                @php $prevEmbProvider = ''; @endphp
-                                @foreach($bedrockEmbeddingModels as $bm)
-                                    @if($bm['provider'] !== $prevEmbProvider)
-                                        @if($prevEmbProvider !== '') </optgroup> @endif
-                                        <optgroup label="{{ $bm['provider'] }}">
-                                        @php $prevEmbProvider = $bm['provider']; @endphp
+                                onchange="updateDisplayName(this)">
+                                <option value="">{{ __('ui.choose_model') }}</option>
+                                @php $prevProvider = ''; @endphp
+                                @foreach($bedrockModels as $bedrockModel)
+                                    @if($bedrockModel['provider'] !== $prevProvider)
+                                        @if($prevProvider !== '') </optgroup> @endif
+                                        <optgroup label="{{ $bedrockModel['provider'] }}">
+                                        @php $prevProvider = $bedrockModel['provider']; @endphp
                                     @endif
-                                    @if(!$embeddingModels->contains('model_id', $bm['model_id']))
-                                    @php $ep = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bm['model_id']); @endphp
-                                    <option value="{{ $bm['model_id'] }}"
-                                        data-display="{{ $bm['provider'] }} {{ $bm['display_name'] }}">
-                                        {{ $bm['display_name'] }}@if($ep && $ep['input']) — ${{ number_format($ep['input'], 6) }} per {{ $ep['unit'] ?? '1K tokens' }}@endif
+                                    @if(!$models->contains('model_id', $bedrockModel['model_id']))
+                                    @php $modelPricing = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bedrockModel['model_id']); @endphp
+                                    <option value="{{ $bedrockModel['model_id'] }}"
+                                        data-display="{{ $bedrockModel['provider'] }} {{ $bedrockModel['display_name'] }}">
+                                        {{ $bedrockModel['display_name'] }}@if($modelPricing) — In: ${{ number_format($modelPricing['input'], 6) }} / Out: ${{ number_format($modelPricing['output'] ?? 0, 6) }} per {{ $modelPricing['unit'] ?? '1K tokens' }}@endif
                                     </option>
                                     @endif
                                 @endforeach
-                                @if($prevEmbProvider !== '') </optgroup> @endif
+                                @if($prevProvider !== '') </optgroup> @endif
                             </select>
                         </div>
                         <div class="form-group" style="flex: 1;">
-                            <label for="emb_display_name">{{ __('ui.display_name') }}</label>
-                            <input type="text" id="emb_display_name" name="display_name" placeholder="Auto-generated">
-                        </div>
-                        <div class="form-group" style="width: 90px; flex: none;">
-                            <label for="emb_dimension">{{ __('ui.dimension') }}</label>
-                            <input type="number" id="emb_dimension" name="dimension" value="1024" min="1" max="8192"
-                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
+                            <label for="display_name">{{ __('ui.display_name_auto') }}</label>
+                            <input type="text" id="display_name" name="display_name" placeholder="Auto-generated from selection">
                         </div>
                         <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
                     </div>
                 </form>
             </div>
 
+            {{-- ═══ Embedding Models ════════════════════════════════════ --}}
+            <hr id="embedding-section" style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
+            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.embedding_models') }}</h1>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.embedding_models_desc') }}</p>
+
+            {{-- 1. Registered embedding models (Bedrock + OpenAI together) --}}
             <div class="card">
                 <h2>{{ __('ui.registered_models') }}</h2>
                 @if($embeddingModels->isEmpty())
@@ -228,19 +188,61 @@
                 @endif
             </div>
 
-            {{-- OpenAI Embedding Models section --}}
-            <hr id="openai-section" style="border: none; border-top: 1px solid #e0e0e2; margin: 40px 0 24px;">
-            <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.openai_embedding_models') }}</h1>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.openai_embedding_models_desc') }}</p>
-
-            {{-- OpenAI API Key --}}
+            {{-- 2. Add embedding model from AWS Bedrock --}}
             <div class="card">
-                <h2>{{ __('ui.openai_api_key') }}</h2>
-                <form method="POST" action="{{ route('admin.settings.openai-key') }}#openai-section">
+                <h2>{{ __('ui.add_embedding_model') }}</h2>
+                <form method="POST" action="{{ route('admin.settings.embedding.store') }}#embedding-section">
+                    @csrf
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label for="emb_model_id">{{ __('ui.select_model') }}</label>
+                            <select id="emb_model_id" name="model_id" required
+                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;"
+                                onchange="updateEmbDisplayName(this)">
+                                <option value="">{{ __('ui.choose_embedding_model') }}</option>
+                                @php $prevEmbProvider = ''; @endphp
+                                @foreach($bedrockEmbeddingModels as $bm)
+                                    @if($bm['provider'] !== $prevEmbProvider)
+                                        @if($prevEmbProvider !== '') </optgroup> @endif
+                                        <optgroup label="{{ $bm['provider'] }}">
+                                        @php $prevEmbProvider = $bm['provider']; @endphp
+                                    @endif
+                                    @if(!$embeddingModels->contains('model_id', $bm['model_id']))
+                                    @php $ep = \App\Http\Controllers\SettingsController::findPricingForModel($pricing, $bm['model_id']); @endphp
+                                    <option value="{{ $bm['model_id'] }}"
+                                        data-display="{{ $bm['provider'] }} {{ $bm['display_name'] }}">
+                                        {{ $bm['display_name'] }}@if($ep && $ep['input']) — ${{ number_format($ep['input'], 6) }} per {{ $ep['unit'] ?? '1K tokens' }}@endif
+                                    </option>
+                                    @endif
+                                @endforeach
+                                @if($prevEmbProvider !== '') </optgroup> @endif
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="emb_display_name">{{ __('ui.display_name') }}</label>
+                            <input type="text" id="emb_display_name" name="display_name" placeholder="Auto-generated">
+                        </div>
+                        <div class="form-group" style="width: 90px; flex: none;">
+                            <label for="emb_dimension">{{ __('ui.dimension') }}</label>
+                            <input type="number" id="emb_dimension" name="dimension" value="1024" min="1" max="8192"
+                                style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px; width: 100%;">
+                        </div>
+                        <div><button type="submit" class="btn btn-primary">{{ __('ui.add') }}</button></div>
+                    </div>
+                </form>
+            </div>
+
+            {{-- 3. OpenAI Embedding Models --}}
+            <div class="card" id="openai-section">
+                <h2>{{ __('ui.openai_embedding_models') }}</h2>
+                <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.openai_embedding_models_desc') }}</p>
+
+                {{-- OpenAI API Key --}}
+                <form method="POST" action="{{ route('admin.settings.openai-key') }}#openai-section" style="margin-bottom: 20px;">
                     @csrf
                     <div style="display: flex; gap: 8px; align-items: flex-end;">
                         <div style="flex: 1;">
-                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">API Key</label>
+                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.openai_api_key') }}</label>
                             <input type="password" name="openai_api_key" placeholder="{{ $openAiKeySet ? '••••••••  (configured)' : 'sk-...' }}"
                                 style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;"
                                 {{ $openAiKeySet ? '' : 'required' }}>
@@ -251,11 +253,8 @@
                         <p style="font-size: 11px; color: #34c759; margin-top: 6px;">✓ {{ __('ui.openai_key_configured') }}</p>
                     @endif
                 </form>
-            </div>
 
-            {{-- Add OpenAI Embedding Model --}}
-            <div class="card">
-                <h2>{{ __('ui.add_openai_embedding_model') }}</h2>
+                {{-- Add OpenAI Embedding Model --}}
                 @if(!$openAiKeySet)
                     <p style="color: #ff9500; font-size: 13px;">{{ __('ui.openai_key_required_first') }}</p>
                 @else
