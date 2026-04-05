@@ -846,6 +846,7 @@ return [
     'delete_workspace_name_mismatch' => 'The workspace name does not match.',
     'workspace_deleted'             => 'Workspace ":name" has been deleted.',
     'user_already_in_workspace'     => 'This user is already a member of this workspace.',
+    'invitation_sent'               => 'Invitation sent successfully.',
     'invitation_already_pending'    => 'An invitation for this email is already pending.',
 
     // ── Workspace Lifecycle Status ──────────────────────────

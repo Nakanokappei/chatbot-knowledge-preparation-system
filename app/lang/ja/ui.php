@@ -847,6 +847,7 @@ return [
     'delete_workspace_name_mismatch' => 'ワークスペース名が一致しません。',
     'workspace_deleted'             => 'ワークスペース \":name\" を削除しました。',
     'user_already_in_workspace'     => 'このユーザーは既にこのワークスペースのメンバーです。',
+    'invitation_sent'               => '招待を送信しました。',
     'invitation_already_pending'    => 'このメールアドレスへの招待は既に保留中です。',
 
     // ── ワークスペースライフサイクルステータス ─────────────
