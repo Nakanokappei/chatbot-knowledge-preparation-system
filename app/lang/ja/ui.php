@@ -848,6 +848,7 @@ return [
     'workspace_deleted'             => 'ワークスペース \":name\" を削除しました。',
     'user_already_in_workspace'     => 'このユーザーは既にこのワークスペースのメンバーです。',
     'invitation_sent'               => '招待を送信しました。',
+    'cancel_invitation_confirm'     => 'この招待をキャンセルしますか？',
     'invitation_already_pending'    => 'このメールアドレスへの招待は既に保留中です。',
 
     // ── ワークスペースライフサイクルステータス ─────────────

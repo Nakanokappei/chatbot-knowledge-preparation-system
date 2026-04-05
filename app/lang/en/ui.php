@@ -847,6 +847,7 @@ return [
     'workspace_deleted'             => 'Workspace ":name" has been deleted.',
     'user_already_in_workspace'     => 'This user is already a member of this workspace.',
     'invitation_sent'               => 'Invitation sent successfully.',
+    'cancel_invitation_confirm'     => 'Cancel this invitation?',
     'invitation_already_pending'    => 'An invitation for this email is already pending.',
 
     // ── Workspace Lifecycle Status ──────────────────────────

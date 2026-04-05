@@ -171,6 +171,18 @@ class AdminController extends Controller
     }
 
     /**
+     * Cancel a pending invitation (system admin can cancel any workspace's invitation).
+     */
+    public function cancelInvitation(Invitation $invitation): RedirectResponse
+    {
+        $workspaceId = $invitation->workspace_id;
+        $invitation->delete();
+
+        return redirect()->route('admin.index', ['workspace' => $workspaceId, 'tab' => 'users'])
+            ->with('success', __('ui.invitation_cancelled'));
+    }
+
+    /**
      * Delete a workspace and all its associated data.
      *
      * Cascading deletes are incomplete in the schema, so we explicitly

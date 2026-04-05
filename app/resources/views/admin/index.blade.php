@@ -279,6 +279,11 @@
                                 <span>{{ $inv->email }}</span>
                                 <span class="badge badge-{{ $inv->isExpired() ? 'rejected' : 'pending' }}">{{ $inv->isExpired() ? __('ui.expired') : __('ui.pending') }}</span>
                                 <span style="color: #86868b; font-size: 11px;">{{ $inv->created_at->format('m/d') }}</span>
+                                <form method="POST" action="{{ route('admin.invitations.cancel', $inv) }}" style="display: inline;">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger" style="font-size: 11px; padding: 2px 8px;" onclick="return confirm('{{ __('ui.cancel_invitation_confirm') }}')">{{ __('ui.cancel') }}</button>
+                                </form>
                             </div>
                         @endforeach
                         @endif

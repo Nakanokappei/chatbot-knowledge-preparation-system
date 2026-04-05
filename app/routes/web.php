@@ -187,6 +187,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/workspaces/{workspace}', [AdminController::class, 'destroyWorkspace'])->name('admin.workspaces.destroy');
         Route::put('/workspaces/{workspace}/status', [AdminController::class, 'updateWorkspaceStatus'])->name('admin.workspaces.status');
         Route::post('/workspaces/{workspace}/invite', [AdminController::class, 'inviteToWorkspace'])->name('admin.workspaces.invite');
+        Route::delete('/invitations/{invitation}', [AdminController::class, 'cancelInvitation'])->name('admin.invitations.cancel');
         Route::post('/jobs/{pipelineJob}/cancel', [AdminController::class, 'cancelJob'])->name('admin.cancel-pipeline');
         Route::get('/system', [AdminController::class, 'systemHealth'])->name('admin.system');
 
