@@ -39,6 +39,10 @@ return [
         'region' => env('AWS_BEDROCK_REGION', 'ap-northeast-1'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+    ],
+
     'cdn' => [
         'domain' => env('CDN_DOMAIN'), // CloudFront domain (e.g. d1234abcdef.cloudfront.net)
     ],

@@ -108,3 +108,9 @@ variable "aws_region" {
   description = "AWS region for log configuration and SDK default region."
   type        = string
 }
+
+variable "openai_api_key_secret_arn" {
+  description = "ARN of Secrets Manager secret for OpenAI API key. Empty to skip."
+  type        = string
+  default     = ""
+}

@@ -29,7 +29,7 @@ An AI-powered pipeline that transforms raw CSV data into structured knowledge un
 | **Worker** | Python 3.12 | Pipeline step execution (SQS-driven) |
 | **Database** | PostgreSQL 17 + pgvector | Data storage, vector similarity search |
 | **LLM** | AWS Bedrock (Converse API) | Cluster analysis, knowledge extraction, chat |
-| **Embedding** | Bedrock Titan v2 / OpenAI text-embedding-3 | Multi-model vectors for similarity search |
+| **Embedding** | Bedrock Titan v2 / OpenAI text-embedding-3 | Multi-provider vectors (auto-routed by model ID) |
 | **CDN** | CloudFront + S3 OAC | Public asset delivery (bot icons) |
 
 ## Pipeline
@@ -179,6 +179,7 @@ All API endpoints require Sanctum authentication (`Authorization: Bearer <token>
 | `SQS_QUEUE_URL` | SQS queue URL for pipeline messages |
 | `S3_BUCKET` | S3 bucket for CSV uploads and assets |
 | `CDN_DOMAIN` | CloudFront domain for public asset URLs |
+| `OPENAI_API_KEY` | OpenAI API key for embedding models (optional) |
 | `APP_BUILD` | Build hash displayed in footer (set by CI/CD) |
 | `DB_HOST` / `DB_PORT` / `DB_DATABASE` | PostgreSQL connection |
 | `FILESYSTEM_DISK` | `s3` (AWS) or `local` (Docker) |
@@ -200,7 +201,7 @@ All API endpoints require Sanctum authentication (`Authorization: Bearer <token>
 | OpenAI | text-embedding-3-small | 1536 |
 | OpenAI | text-embedding-3-large | 3072 |
 
-Embedding model is selected per pipeline run and bound to the Knowledge Package at publish time.
+Embedding model is selected per pipeline run and bound to the Knowledge Package at publish time. The worker auto-routes to the correct provider (Bedrock or OpenAI) based on the model ID. OpenAI models require `OPENAI_API_KEY` in the environment.
 
 ## Localization
 

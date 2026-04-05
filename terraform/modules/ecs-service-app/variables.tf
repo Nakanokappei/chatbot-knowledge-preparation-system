@@ -136,3 +136,9 @@ variable "cdn_domain" {
   type        = string
   default     = ""
 }
+
+variable "openai_api_key_secret_arn" {
+  description = "ARN of Secrets Manager secret for OpenAI API key. Empty to skip."
+  type        = string
+  default     = ""
+}

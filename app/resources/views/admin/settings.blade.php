@@ -237,26 +237,19 @@
                 <h2>{{ __('ui.openai_embedding_models') }}</h2>
                 <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.openai_embedding_models_desc') }}</p>
 
-                {{-- OpenAI API Key --}}
-                <form method="POST" action="{{ route('admin.settings.openai-key') }}#openai-section" style="margin-bottom: 20px;">
-                    @csrf
-                    <div style="display: flex; gap: 8px; align-items: flex-end;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.openai_api_key') }}</label>
-                            <input type="password" name="openai_api_key" placeholder="{{ $openAiKeySet ? '••••••••  (configured)' : 'sk-...' }}"
-                                style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;"
-                                {{ $openAiKeySet ? '' : 'required' }}>
-                        </div>
-                        <button type="submit" class="btn btn-primary">{{ __('ui.save') }}</button>
-                    </div>
+                {{-- OpenAI API Key status (read from .env, not editable in UI) --}}
+                <div style="margin-bottom: 16px; padding: 10px 14px; border-radius: 8px; background: {{ $openAiKeySet ? '#d4edda' : '#f8d7da' }}; font-size: 13px;">
                     @if($openAiKeySet)
-                        <p style="font-size: 11px; color: #34c759; margin-top: 6px;">✓ {{ __('ui.openai_key_configured') }}</p>
+                        <span style="color: #155724;">✓ {{ __('ui.openai_key_configured') }}</span>
+                    @else
+                        <span style="color: #721c24;">✗ {{ __('ui.openai_key_not_configured') }}</span>
+                        <span style="color: #856404; display: block; margin-top: 4px; font-size: 11px;">{{ __('ui.openai_key_env_hint') }}</span>
                     @endif
-                </form>
+                </div>
 
                 {{-- Add OpenAI Embedding Model --}}
                 @if(!$openAiKeySet)
-                    <p style="color: #ff9500; font-size: 13px;">{{ __('ui.openai_key_required_first') }}</p>
+                    <p style="color: #5f6368; font-size: 13px;">{{ __('ui.openai_key_required_first') }}</p>
                 @else
                     <form method="POST" action="{{ route('admin.settings.openai-embedding.store') }}#openai-section">
                         @csrf

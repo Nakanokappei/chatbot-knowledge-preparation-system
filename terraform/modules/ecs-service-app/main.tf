@@ -65,11 +65,13 @@ resource "aws_ecs_task_definition" "app" {
 
       # Secrets injected from AWS Secrets Manager at task launch.
       # The special "::key::" syntax extracts individual JSON keys.
-      secrets = [
+      secrets = concat([
         { name = "DB_USERNAME", valueFrom = "${var.db_secret_arn}:username::" },
         { name = "DB_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
         { name = "APP_KEY",     valueFrom = var.app_key_secret_arn },
-      ]
+      ], var.openai_api_key_secret_arn != "" ? [
+        { name = "OPENAI_API_KEY", valueFrom = var.openai_api_key_secret_arn },
+      ] : [])
     }
   ])
 

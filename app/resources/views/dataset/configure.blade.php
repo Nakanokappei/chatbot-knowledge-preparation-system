@@ -312,13 +312,13 @@
                     <div>
                         <label>{{ __('ui.embedding_model') }}</label>
                         @php
-                            // Recommend the model with the highest dimension among active models
+                            // Recommend the model with the highest dimension among all active models
                             $maxDim = $embeddingModels->max('dimension');
                         @endphp
                         <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                             @foreach($embeddingModels as $em)
                                 <option value="{{ $em->model_id }}" @if($em->dimension === $maxDim) selected @endif>
-                                    {{ $em->display_name }} ({{ $em->dimension }}d){{ $em->dimension === $maxDim ? ' 🌟' : '' }}
+                                    [{{ ucfirst($em->provider ?? 'bedrock') }}] {{ $em->display_name }} ({{ $em->dimension }}d){{ $em->dimension === $maxDim ? ' 🌟' : '' }}
                                 </option>
                             @endforeach
                         </select>

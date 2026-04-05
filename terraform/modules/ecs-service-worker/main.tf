@@ -54,10 +54,12 @@ resource "aws_ecs_task_definition" "worker" {
       ]
 
       # Secrets injected from AWS Secrets Manager at task launch.
-      secrets = [
+      secrets = concat([
         { name = "DB_USER",     valueFrom = "${var.db_secret_arn}:username::" },
         { name = "DB_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
-      ]
+      ], var.openai_api_key_secret_arn != "" ? [
+        { name = "OPENAI_API_KEY", valueFrom = var.openai_api_key_secret_arn },
+      ] : [])
     }
   ])
 

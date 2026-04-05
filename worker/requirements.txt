@@ -6,6 +6,7 @@ scikit-learn>=1.8,<2
 psycopg2-binary>=2.9,<3
 pyarrow>=23,<24
 python-dotenv>=1.1,<2
+httpx>=0.28,<1
 # Leiden clustering (HNSW k-NN graph + community detection)
 hnswlib>=0.8,<1
 python-igraph>=0.11,<1

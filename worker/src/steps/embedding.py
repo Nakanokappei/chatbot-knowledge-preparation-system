@@ -26,9 +26,9 @@ import boto3
 import numpy as np
 import pandas as pd
 
-from src.bedrock_client import EMBEDDING_DIMENSION as DEFAULT_EMBEDDING_DIMENSION
-from src.bedrock_client import MODEL_ID as DEFAULT_MODEL_ID
-from src.bedrock_client import generate_embeddings_batch
+from src.embedding_client import EMBEDDING_DIMENSION as DEFAULT_EMBEDDING_DIMENSION
+from src.embedding_client import MODEL_ID as DEFAULT_MODEL_ID
+from src.embedding_client import generate_embeddings_batch
 from src.config import S3_BUCKET, S3_REGION
 from src.db import get_connection, update_job_status, update_job_step_outputs, global_progress
 from src.step_chain import dispatch_next_step

@@ -50,7 +50,7 @@ class AdminSettingsController extends Controller
         $bedrockEmbeddingModels = $this->invokePrivate($settingsCtrl, 'fetchBedrockEmbeddingModels');
         $pricing = $this->invokePrivate($settingsCtrl, 'fetchBedrockPricing');
 
-        $openAiKeySet = self::getOpenAiKey() !== null;
+        $openAiKeySet = self::isOpenAiAvailable();
 
         return view('admin.settings', compact(
             'models', 'embeddingModels', 'bedrockModels',
@@ -219,21 +219,13 @@ class AdminSettingsController extends Controller
     // ── OpenAI Settings ──
 
     /**
-     * Save the system-wide OpenAI API key (encrypted).
+     * OpenAI API key is now stored in .env / config('services.openai.api_key').
+     * The saveOpenAiKey route is kept for backward compatibility but returns info.
      */
     public function saveOpenAiKey(Request $request): RedirectResponse
     {
-        $request->validate([
-            'openai_api_key' => 'required|string|max:200',
-        ]);
-
-        \DB::table('system_settings')->updateOrInsert(
-            ['key' => 'openai_api_key'],
-            ['value' => encrypt($request->input('openai_api_key')), 'updated_at' => now()],
-        );
-
         return redirect(route('admin.settings.index') . '#openai-section')
-            ->with('success', __('ui.openai_key_saved'));
+            ->with('error', __('ui.openai_key_env_only'));
     }
 
     /**
@@ -279,17 +271,35 @@ class AdminSettingsController extends Controller
     }
 
     /**
-     * Get the stored OpenAI API key (decrypted), or null if not set.
+     * Get the OpenAI API key from config (environment variable).
      */
     public static function getOpenAiKey(): ?string
     {
-        $row = \DB::table('system_settings')->where('key', 'openai_api_key')->first();
-        if (!$row || !$row->value) return null;
-        try {
-            return decrypt($row->value);
-        } catch (\Exception) {
-            return null;
-        }
+        $key = config('services.openai.api_key');
+        return ($key && str_starts_with($key, 'sk-')) ? $key : null;
+    }
+
+    /**
+     * Check if the OpenAI API key is configured and valid.
+     *
+     * Validates by calling the OpenAI models endpoint. Result is cached
+     * for 10 minutes to avoid excessive API calls on every page load.
+     */
+    public static function isOpenAiAvailable(): bool
+    {
+        $key = self::getOpenAiKey();
+        if (!$key) return false;
+
+        return \Illuminate\Support\Facades\Cache::remember('openai_key_valid', 600, function () use ($key) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withToken($key)
+                    ->timeout(5)
+                    ->get('https://api.openai.com/v1/models');
+                return $response->successful();
+            } catch (\Exception) {
+                return false;
+            }
+        });
     }
 
     /**

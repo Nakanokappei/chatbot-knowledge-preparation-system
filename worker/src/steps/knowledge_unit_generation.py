@@ -17,7 +17,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-from src.bedrock_client import generate_embedding
+from src.embedding_client import generate_embedding
 from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
 from src.db import (get_connection, db_cursor, update_job_status, update_job_step_outputs,
                     link_knowledge_units_to_embedding, update_embedding_status,
