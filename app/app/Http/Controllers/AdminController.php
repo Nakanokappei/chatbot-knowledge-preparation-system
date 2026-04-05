@@ -303,9 +303,12 @@ class AdminController extends Controller
 
         $inviteUrl = route('invitation.register', $invitation->token);
 
-        return redirect()->route('admin.index', ['workspace' => $workspace->id, 'tab' => 'users'])
-            ->with('success', __('ui.invitation_sent'))
-            ->with('invite_url', $inviteUrl);
+        return redirect()->route('admin.index', [
+                'workspace' => $workspace->id,
+                'tab' => 'users',
+                'invite_url' => $inviteUrl,
+            ])
+            ->with('success', __('ui.invitation_sent'));
     }
 
     /**

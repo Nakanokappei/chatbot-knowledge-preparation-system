@@ -244,12 +244,12 @@
 
                 {{-- Tab: Users — member list + invite --}}
                 @if($activeTab === 'users')
-                    @if(session('invite_url'))
+                    @if(request('invite_url'))
                         <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
                             {{ __('ui.invite_url_label') }}<br>
                             <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
-                                <code style="flex: 1; background: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px; word-break: break-all;">{{ session('invite_url') }}</code>
-                                <button onclick="navigator.clipboard.writeText('{{ session('invite_url') }}'); this.textContent='{{ __('ui.copied') }}';" class="btn btn-sm btn-outline" style="font-size: 11px; white-space: nowrap;">{{ __('ui.copy') }}</button>
+                                <code id="invite-url-code" style="flex: 1; background: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px; word-break: break-all;">{{ request('invite_url') }}</code>
+                                <button onclick="navigator.clipboard.writeText(document.querySelector('#invite-url-code').textContent); this.textContent='{{ __('ui.copied') }}';" class="btn btn-sm btn-outline" style="font-size: 11px; white-space: nowrap;">{{ __('ui.copy') }}</button>
                             </div>
                         </div>
                     @endif
