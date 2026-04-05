@@ -39,13 +39,16 @@ class SettingsController extends Controller
             ->orderBy('sort_order')
             ->get();
 
-        // System templates: models added by system admin (workspace_id = NULL)
-        $systemLlmModels = LlmModel::whereNull('workspace_id')
+        // System templates: models added by system admin (workspace_id = NULL).
+        // Must bypass the BelongsToWorkspace global scope which filters by current user's workspace.
+        $systemLlmModels = LlmModel::withoutGlobalScope('workspace')
+            ->whereNull('workspace_id')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
 
-        $systemEmbeddingModels = EmbeddingModel::whereNull('workspace_id')
+        $systemEmbeddingModels = EmbeddingModel::withoutGlobalScope('workspace')
+            ->whereNull('workspace_id')
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
@@ -357,7 +360,7 @@ class SettingsController extends Controller
         $modelId = $request->input('model_id');
 
         // If system templates exist, owner/member can only choose from them
-        $systemTemplates = LlmModel::whereNull('workspace_id')->where('is_active', true)->get();
+        $systemTemplates = LlmModel::withoutGlobalScope('workspace')->whereNull('workspace_id')->where('is_active', true)->get();
         if ($systemTemplates->isNotEmpty()) {
             $template = $systemTemplates->firstWhere('model_id', $modelId);
             if (!$template) {
@@ -502,7 +505,7 @@ class SettingsController extends Controller
         $modelId = $request->input('model_id');
 
         // If system templates exist, only allow models from those templates
-        $systemTemplates = EmbeddingModel::whereNull('workspace_id')->where('is_active', true)->get();
+        $systemTemplates = EmbeddingModel::withoutGlobalScope('workspace')->whereNull('workspace_id')->where('is_active', true)->get();
         $template = null;
         if ($systemTemplates->isNotEmpty()) {
             $template = $systemTemplates->firstWhere('model_id', $modelId);

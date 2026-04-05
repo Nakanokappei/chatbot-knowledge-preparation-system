@@ -125,7 +125,7 @@
             <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.embedding_models_desc') }}</p>
 
             <div class="card">
-                <h2>{{ __('ui.add_embedding_model') }}</h2>
+                <h2>{{ __('ui.add_embedding_model_ws') }}</h2>
                 @php
                     $availableEmbModels = $systemEmbeddingModels->filter(fn($m) => !$embeddingModels->contains('model_id', $m->model_id));
                 @endphp
@@ -136,7 +136,7 @@
                     {{-- All registered embedding models already added to this workspace --}}
                     <p style="font-size: 13px; color: #5f6368; margin: 0;">{{ __('ui.all_models_added') }}</p>
                 @else
-                    {{-- System templates available: restrict to approved embedding models only --}}
+                    {{-- System templates available: show all providers (Bedrock + OpenAI) --}}
                     <form method="POST" action="{{ route('settings.embedding.store') }}">
                         @csrf
                         <div class="form-row">
@@ -149,7 +149,8 @@
                                     @foreach($availableEmbModels as $sysEmb)
                                         <option value="{{ $sysEmb->model_id }}"
                                             data-display="{{ $sysEmb->display_name }}"
-                                            data-dimension="{{ $sysEmb->dimension }}">
+                                            data-dimension="{{ $sysEmb->dimension }}"
+                                            data-provider="{{ $sysEmb->provider ?? 'bedrock' }}">
                                             [{{ ucfirst($sysEmb->provider ?? 'bedrock') }}] {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
                                         </option>
                                     @endforeach

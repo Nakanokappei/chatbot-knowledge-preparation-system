@@ -216,6 +216,7 @@ return [
     'embedding_models' => 'Embedding Models',
     'embedding_models_desc' => 'Manage available embedding models for vector generation.',
     'add_embedding_model' => 'Add Embedding Model from AWS Bedrock',
+    'add_embedding_model_ws' => 'Add Embedding Model',
     'choose_embedding_model' => '-- Choose an embedding model --',
     'dimension' => 'Dimension',
     'cost' => 'Cost',

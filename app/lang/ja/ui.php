@@ -217,6 +217,7 @@ return [
     'embedding_models' => '埋め込みモデル',
     'embedding_models_desc' => 'ベクトル生成に使用する埋め込みモデルを管理します。',
     'add_embedding_model' => 'AWS Bedrock から埋め込みモデルを追加',
+    'add_embedding_model_ws' => '埋め込みモデルを追加',
     'choose_embedding_model' => '-- 埋め込みモデルを選択 --',
     'dimension' => '次元数',
     'cost' => 'コスト',
