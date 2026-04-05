@@ -121,6 +121,10 @@
 
     @yield('body')
 
+    <footer style="flex-shrink: 0; text-align: center; padding: 6px 0; font-size: 11px; color: #b0b0b0;">
+        KPS build: {{ config('app.build') }}
+    </footer>
+
     <script>
         // Close user dropdown when clicking outside
         document.addEventListener('click', function(e) {

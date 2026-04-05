@@ -54,7 +54,7 @@ jobs:
       - name: Build and push App image
         if: steps.changes.outputs.app_changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
-          docker build -t $ECR_REGISTRY/$APP_IMAGE:latest -t $ECR_REGISTRY/$APP_IMAGE:${{ github.sha }} ./app
+          docker build --build-arg APP_BUILD=${GITHUB_SHA::7} -t $ECR_REGISTRY/$APP_IMAGE:latest -t $ECR_REGISTRY/$APP_IMAGE:${{ github.sha }} ./app
           docker push $ECR_REGISTRY/$APP_IMAGE --all-tags
 
       # Build and push Worker image

@@ -409,6 +409,12 @@
                                     </td>
                                 </tr>
                                 @endif
+                                @if($current->embedding_model)
+                                <tr>
+                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.embedding_model_used') }}</td>
+                                    <td style="padding: 4px 0; font-weight: 500; border: none; white-space: nowrap;">{{ $current->embedding_model }}</td>
+                                </tr>
+                                @endif
                                 @if($ca && isset($ca['model']))
                                 <tr>
                                     <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.llm') }}</td>
@@ -420,7 +426,7 @@
                                     <td style="padding: 4px 0; border: none;"><time datetime="{{ $current->created_at->toIso8601String() }}" data-format="full">{{ $current->created_at->format('Y/m/d H:i') }}</time></td>
                                 </tr>
                                 <tr>
-                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.rows') }}</td>
+                                    <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.knowledge_units') }}</td>
                                     <td style="padding: 4px 0; border: none;">{{ $current->row_count }}</td>
                                 </tr>
                             </table>

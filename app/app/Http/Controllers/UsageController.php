@@ -17,6 +17,43 @@ use Illuminate\Support\Facades\DB;
 class UsageController extends Controller
 {
     /**
+     * Determine the aggregation granularity based on the number of days.
+     *
+     * Returns 'day', 'week', or 'month'.
+     */
+    public static function resolveGranularity(int $days): string
+    {
+        if ($days <= 30) return 'day';
+        if ($days <= 90) return 'week';
+        return 'month';
+    }
+
+    /**
+     * Build an aggregated daily_cost_summary query grouped by granularity.
+     */
+    public static function buildTrendQuery($query, string $granularity)
+    {
+        if ($granularity === 'day') {
+            return $query->orderBy('date')
+                ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count', 'chat_answers', 'upvotes', 'downvotes']);
+        }
+
+        $truncExpr = $granularity === 'week'
+            ? "DATE_TRUNC('week', date)::date"
+            : "DATE_TRUNC('month', date)::date";
+
+        return $query
+            ->groupByRaw($truncExpr)
+            ->selectRaw("{$truncExpr} as date,
+                SUM(embedding_cost) as embedding_cost, SUM(chat_cost) as chat_cost,
+                SUM(pipeline_cost) as pipeline_cost, SUM(total_cost) as total_cost,
+                SUM(total_tokens) as total_tokens, SUM(request_count) as request_count,
+                SUM(chat_answers) as chat_answers, SUM(upvotes) as upvotes, SUM(downvotes) as downvotes")
+            ->orderByRaw($truncExpr)
+            ->get();
+    }
+
+    /**
      * Resolve the selected period into start/end Carbon dates.
      *
      * Returns [period_key, start_date, end_date].
@@ -65,13 +102,18 @@ class UsageController extends Controller
         // Summary for the selected period
         $monthly = $costService->getMonthlyUsage($workspaceId, $startDateStr, $endDateStr);
 
-        // Daily trend within the selected period
-        $dailyTrend = DB::table('daily_cost_summary')
-            ->where('workspace_id', $workspaceId)
-            ->where('date', '>=', $startDateStr)
-            ->where('date', '<=', $endDateStr)
-            ->orderBy('date')
-            ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count', 'chat_answers', 'upvotes', 'downvotes']);
+        // Determine aggregation granularity based on period length
+        $days = $startDate->diffInDays($endDate) + 1;
+        $granularity = self::resolveGranularity($days);
+
+        // Trend data aggregated by granularity (day/week/month)
+        $dailyTrend = self::buildTrendQuery(
+            DB::table('daily_cost_summary')
+                ->where('workspace_id', $workspaceId)
+                ->where('date', '>=', $startDateStr)
+                ->where('date', '<=', $endDateStr),
+            $granularity
+        );
 
         // Cost by endpoint
         $byEndpoint = DB::table('token_usage')
@@ -105,7 +147,7 @@ class UsageController extends Controller
 
         return view('dashboard.usage', compact(
             'monthly', 'dailyTrend', 'byEndpoint', 'byModel', 'topKUs', 'chatAnalytics',
-            'period', 'startDate', 'endDate'
+            'period', 'startDate', 'endDate', 'granularity'
         ));
     }
 

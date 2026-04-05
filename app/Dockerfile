@@ -40,6 +40,10 @@ RUN npm run build
 # Copy remaining application source
 COPY . .
 
+# Inject build hash from CI/CD into .env for footer display
+ARG APP_BUILD=dev
+RUN echo "APP_BUILD=${APP_BUILD}" >> .env
+
 # Run post-install Laravel scripts
 RUN composer dump-autoload --optimize
 

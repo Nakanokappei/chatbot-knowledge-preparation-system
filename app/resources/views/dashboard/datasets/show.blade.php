@@ -399,19 +399,27 @@
                     snippetLines.push('></' + 'script>');
                     var snippet = snippetLines.join('\n');
 
-                    // Row 1: Full-page (iframe)
-                    body = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f2;">'
-                        + '<span style="font-size:13px;font-weight:500;min-width:100px;">{{ __("ui.embed_type_fullpage") }}</span>'
-                        + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(iframeTag).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_iframe") }}</button>'
-                        + '<a href="/embed/chat/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.demo_preview") }}</a>'
-                        + '</div>';
+                    // Store values for clipboard copy (avoids inline escaping issues)
+                    var fpId = 'fp-url-' + k.id;
+                    var wgId = 'wg-code-' + k.id;
 
-                    // Row 2: Widget (script)
-                    body += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;">'
-                        + '<span style="font-size:13px;font-weight:500;min-width:100px;">{{ __("ui.embed_type_widget") }}</span>'
-                        + '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(snippet).replace(/'/g, "\\'") + ')" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_snippet") }}</button>'
-                        + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.demo_preview") }}</a>'
-                        + '</div>';
+                    // Row 1: Full-page — show link, copy button, test link
+                    body = '<div style="padding:8px 0;border-bottom:1px solid #f0f0f2;">'
+                        + '<div style="font-size:13px;font-weight:500;margin-bottom:6px;">{{ __("ui.embed_type_fullpage") }}</div>'
+                        + '<div id="' + fpId + '" style="background:#f5f5f7;padding:8px 12px;border-radius:6px;font-size:12px;font-family:monospace;word-break:break-all;margin-bottom:6px;">' + esc(iframeUrl) + '</div>'
+                        + '<div style="display:flex;align-items:center;gap:8px;">'
+                        + '<button onclick="navigator.clipboard.writeText(document.getElementById(\'' + fpId + '\').textContent);this.textContent=\'Copied!\';setTimeout(()=>this.textContent=\'{{ __("ui.embed_copy_link") }}\',1500)" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_link") }}</button>'
+                        + '<a href="' + esc(iframeUrl) + '" target="_blank" style="font-size:13px;color:#0071e3;text-decoration:underline;">{{ __("ui.demo_preview") }}</a>'
+                        + '</div></div>';
+
+                    // Row 2: Widget — show script, copy button, test link
+                    body += '<div style="padding:8px 0;">'
+                        + '<div style="font-size:13px;font-weight:500;margin-bottom:6px;">{{ __("ui.embed_type_widget") }}</div>'
+                        + '<pre id="' + wgId + '" style="background:#f5f5f7;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;margin:0 0 6px;overflow-x:auto;">' + esc(snippet) + '</pre>'
+                        + '<div style="display:flex;align-items:center;gap:8px;">'
+                        + '<button onclick="navigator.clipboard.writeText(document.getElementById(\'' + wgId + '\').textContent);this.textContent=\'Copied!\';setTimeout(()=>this.textContent=\'{{ __("ui.embed_copy_snippet") }}\',1500)" class="btn btn-sm btn-outline" style="font-size:11px;">{{ __("ui.embed_copy_snippet") }}</button>'
+                        + '<a href="/embed/demo/' + encodeURIComponent(k.api_key) + '" target="_blank" style="font-size:13px;color:#0071e3;text-decoration:underline;">{{ __("ui.demo_preview") }}</a>'
+                        + '</div></div>';
                 } else if (k.status === 'active') {
                     body = '<p style="font-size:12px;color:#86868b;">{{ __("ui.embed_key_no_plaintext") }}</p>';
                 }

@@ -39,23 +39,26 @@ class AdminUsageController extends Controller
             ')
             ->first();
 
+        // Determine aggregation granularity based on period length
+        $days = $startDate->diffInDays($endDate) + 1;
+        $granularity = UsageController::resolveGranularity($days);
+
+        // Aggregate trend across all workspaces
+        $truncExpr = match($granularity) {
+            'week'  => "DATE_TRUNC('week', date)::date",
+            'month' => "DATE_TRUNC('month', date)::date",
+            default => 'date',
+        };
         $dailyTrend = DB::table('daily_cost_summary')
             ->where('date', '>=', $startDateStr)
             ->where('date', '<=', $endDateStr)
-            ->groupBy('date')
-            ->selectRaw('
-                date,
-                SUM(embedding_cost) as embedding_cost,
-                SUM(chat_cost) as chat_cost,
-                SUM(pipeline_cost) as pipeline_cost,
-                SUM(total_cost) as total_cost,
-                SUM(total_tokens) as total_tokens,
-                SUM(request_count) as request_count,
-                SUM(chat_answers) as chat_answers,
-                SUM(upvotes) as upvotes,
-                SUM(downvotes) as downvotes
-            ')
-            ->orderBy('date')
+            ->groupByRaw($truncExpr)
+            ->selectRaw("{$truncExpr} as date,
+                SUM(embedding_cost) as embedding_cost, SUM(chat_cost) as chat_cost,
+                SUM(pipeline_cost) as pipeline_cost, SUM(total_cost) as total_cost,
+                SUM(total_tokens) as total_tokens, SUM(request_count) as request_count,
+                SUM(chat_answers) as chat_answers, SUM(upvotes) as upvotes, SUM(downvotes) as downvotes")
+            ->orderByRaw($truncExpr)
             ->get();
 
         $byEndpoint = DB::table('token_usage')
@@ -88,6 +91,7 @@ class AdminUsageController extends Controller
             'period' => $period,
             'startDate' => $startDate,
             'endDate' => $endDate,
+            'granularity' => $granularity,
         ]);
     }
 
@@ -105,12 +109,16 @@ class AdminUsageController extends Controller
 
         $monthly = $costService->getMonthlyUsage($workspace->id, $startDateStr, $endDateStr);
 
-        $dailyTrend = DB::table('daily_cost_summary')
-            ->where('workspace_id', $workspace->id)
-            ->where('date', '>=', $startDateStr)
-            ->where('date', '<=', $endDateStr)
-            ->orderBy('date')
-            ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count', 'chat_answers', 'upvotes', 'downvotes']);
+        $days = $startDate->diffInDays($endDate) + 1;
+        $granularity = UsageController::resolveGranularity($days);
+
+        $dailyTrend = UsageController::buildTrendQuery(
+            DB::table('daily_cost_summary')
+                ->where('workspace_id', $workspace->id)
+                ->where('date', '>=', $startDateStr)
+                ->where('date', '<=', $endDateStr),
+            $granularity
+        );
 
         $byEndpoint = DB::table('token_usage')
             ->where('workspace_id', $workspace->id)
@@ -151,6 +159,7 @@ class AdminUsageController extends Controller
             'workspaceName' => $workspace->name,
             'period' => $period,
             'startDate' => $startDate,
+            'granularity' => $granularity,
             'endDate' => $endDate,
         ]);
     }

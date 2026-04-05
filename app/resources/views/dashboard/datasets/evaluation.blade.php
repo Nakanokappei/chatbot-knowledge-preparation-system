@@ -92,11 +92,13 @@ function removeQuery(btn) {
     }
 }
 
-// Allow Enter to add a new row
+// Shift+Enter adds a new row; plain Enter is suppressed to prevent accidental form submit
 document.getElementById('query-list').addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && e.target.classList.contains('test-query')) {
         e.preventDefault();
-        addQuery();
+        if (e.shiftKey) {
+            addQuery();
+        }
     }
 });
 
