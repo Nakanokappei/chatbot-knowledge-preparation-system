@@ -14,9 +14,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Drop existing ivfflat indexes (they require fixed dimensions)
+        // Drop existing ivfflat indexes (they require fixed dimensions).
+        // ivfflat indexes are built for a specific vector size and reject
+        // inserts with different dimensions — they must be removed before
+        // allowing variable-dimension vectors.
         DB::statement('DROP INDEX IF EXISTS idx_ku_broad_embedding_cosine');
         DB::statement('DROP INDEX IF EXISTS knowledge_units_embedding_idx');
+        DB::statement('DROP INDEX IF EXISTS idx_knowledge_units_embedding_cosine');
+        DB::statement('DROP INDEX IF EXISTS idx_ku_search_embedding_cosine');
 
         // Change columns from vector(1024) to vector (no dimension constraint)
         DB::statement('ALTER TABLE knowledge_units ALTER COLUMN embedding TYPE vector USING embedding::vector');
