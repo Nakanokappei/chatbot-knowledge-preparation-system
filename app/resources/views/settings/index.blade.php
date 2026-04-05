@@ -147,11 +147,12 @@
                                     onchange="updateEmbDisplayName(this)">
                                     <option value="">{{ __('ui.select_from_system_models') }}</option>
                                     @foreach($availableEmbModels as $sysEmb)
+                                        @php $sysEmbProvider = $sysEmb->provider ?: (str_starts_with($sysEmb->model_id, 'text-embedding-') ? 'openai' : 'bedrock'); @endphp
                                         <option value="{{ $sysEmb->model_id }}"
                                             data-display="{{ $sysEmb->display_name }}"
                                             data-dimension="{{ $sysEmb->dimension }}"
-                                            data-provider="{{ $sysEmb->provider ?? 'bedrock' }}">
-                                            [{{ ucfirst($sysEmb->provider ?? 'bedrock') }}] {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
+                                            data-provider="{{ $sysEmbProvider }}">
+                                            [{{ ucfirst($sysEmbProvider) }}] {{ $sysEmb->display_name }} ({{ $sysEmb->dimension }}d)
                                         </option>
                                     @endforeach
                                 </select>
