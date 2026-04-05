@@ -269,7 +269,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     new_embeddings = {}
     if uncached_texts:
-        logger.info("Generating %d embeddings via Bedrock (8 workers)...", len(uncached_texts))
+        logger.info("Generating %d embeddings (model=%s)...", len(uncached_texts), model_id)
 
         def progress_cb(completed, total):
             # Map embedding progress to 25-75% of local step range

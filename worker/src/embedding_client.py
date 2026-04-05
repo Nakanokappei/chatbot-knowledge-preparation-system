@@ -11,6 +11,7 @@ for all providers.
 
 import json
 import logging
+import re
 import threading
 import time
 
@@ -29,11 +30,21 @@ EMBEDDING_DIMENSION = 1024
 MAX_RETRIES = 5
 BASE_DELAY = 1.0  # seconds
 
-# Adaptive rate limiter shared across threads
+# OpenAI batch configuration
+OPENAI_BATCH_SIZE = 50   # texts per API request (token budget safe)
+OPENAI_MAX_WORKERS = 4   # concurrent batch requests
+
+# Adaptive rate limiter shared across threads (Bedrock)
 _rate_limiter_lock = threading.Lock()
 _min_interval = 0.05
 _last_request_time = 0.0
 _throttle_backoff_until = 0.0
+
+# OpenAI rate limiter — driven by response headers
+_openai_lock = threading.Lock()
+_openai_remaining_requests = 500
+_openai_remaining_tokens = 1_000_000
+_openai_reset_at = 0.0
 
 
 def _is_openai_model(model_id: str) -> bool:
@@ -145,10 +156,78 @@ def _generate_bedrock_embedding(text: str, model_id: str, dimension: int,
     raise RuntimeError(f"Bedrock API failed after {MAX_RETRIES} retries")
 
 
+# ── OpenAI rate limiter (header-driven) ──────────────────────────────
+
+def _parse_reset_duration(value: str) -> float:
+    """Parse OpenAI reset duration string like '6m30s', '500ms', '2s'."""
+    if not value:
+        return 0.0
+    total = 0.0
+    for amount, unit in re.findall(r"([\d.]+)(ms|s|m|h)", value):
+        n = float(amount)
+        if unit == "ms":
+            total += n / 1000
+        elif unit == "s":
+            total += n
+        elif unit == "m":
+            total += n * 60
+        elif unit == "h":
+            total += n * 3600
+    return total
+
+
+def _update_openai_rate_limits(headers):
+    """Parse x-ratelimit-* response headers and update shared state."""
+    global _openai_remaining_requests, _openai_remaining_tokens, _openai_reset_at
+    with _openai_lock:
+        rem_req = headers.get("x-ratelimit-remaining-requests")
+        if rem_req is not None:
+            _openai_remaining_requests = int(rem_req)
+        rem_tok = headers.get("x-ratelimit-remaining-tokens")
+        if rem_tok is not None:
+            _openai_remaining_tokens = int(rem_tok)
+        reset_req = headers.get("x-ratelimit-reset-requests")
+        if reset_req:
+            _openai_reset_at = time.monotonic() + _parse_reset_duration(reset_req)
+        logger.debug(
+            "OpenAI rate limits: remaining_requests=%s, remaining_tokens=%s, reset=%s",
+            rem_req, rem_tok, reset_req,
+        )
+
+
+def _openai_wait_if_needed():
+    """Sleep proactively when remaining requests or tokens are low."""
+    # Read shared state under lock, but sleep OUTSIDE the lock to avoid
+    # blocking other threads from updating rate limit counters.
+    wait = 0.0
+    with _openai_lock:
+        now = time.monotonic()
+        if _openai_remaining_requests < 5 and _openai_reset_at > now:
+            wait = _openai_reset_at - now
+    if wait > 0:
+        logger.info("OpenAI proactive throttle: remaining_requests=%d, sleeping %.1fs",
+                    _openai_remaining_requests, wait)
+        time.sleep(wait)
+
+
 # ── OpenAI embedding ──────────────────────────────────────────────────
 
 def _generate_openai_embedding(text: str, model_id: str, dimension: int) -> list[float]:
-    """Generate embedding via OpenAI API with retry logic."""
+    """Generate a single embedding via OpenAI API (used by single-item callers)."""
+    result = _generate_openai_embedding_batch([text], model_id, dimension)
+    return result[0]
+
+
+def _generate_openai_embedding_batch(
+    texts: list[str], model_id: str, dimension: int,
+    http_client=None,
+) -> list[list[float]]:
+    """
+    Generate embeddings for a batch of texts in one OpenAI API call.
+
+    The API supports list input (up to 2048 items). Returns embeddings
+    sorted by the original input order.
+    """
     import httpx
 
     api_key = _get_openai_api_key()
@@ -159,36 +238,57 @@ def _generate_openai_embedding(text: str, model_id: str, dimension: int) -> list
     }
     payload = {
         "model": model_id,
-        "input": text,
+        "input": texts,
         "dimensions": dimension,
     }
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            with httpx.Client(timeout=30.0) as client:
+    client = http_client or httpx.Client(timeout=60.0)
+    close_client = http_client is None
+
+    try:
+        for attempt in range(MAX_RETRIES):
+            _openai_wait_if_needed()
+            try:
                 response = client.post(url, headers=headers, json=payload)
 
-            if response.status_code == 429:
-                # Rate limited — exponential backoff
+                # Always parse rate limit headers, even on 429
+                _update_openai_rate_limits(response.headers)
+
+                if response.status_code == 429:
+                    # Use reset header if available, otherwise exponential backoff
+                    reset_str = response.headers.get("x-ratelimit-reset-requests", "")
+                    delay = _parse_reset_duration(reset_str) if reset_str else BASE_DELAY * (2 ** attempt)
+                    delay = max(delay, 0.5)
+                    logger.warning(
+                        "OpenAI rate limited (attempt %d/%d, batch=%d). Waiting %.1fs...",
+                        attempt + 1, MAX_RETRIES, len(texts), delay,
+                    )
+                    time.sleep(delay)
+                    continue
+
+                response.raise_for_status()
+                data = response.json()
+
+                # Sort by index to match input order
+                sorted_data = sorted(data["data"], key=lambda d: d["index"])
+                return [item["embedding"] for item in sorted_data]
+
+            except httpx.HTTPStatusError:
+                raise
+            except Exception as e:
+                if attempt == MAX_RETRIES - 1:
+                    raise RuntimeError(f"OpenAI API failed after {MAX_RETRIES} retries: {e}")
                 delay = BASE_DELAY * (2 ** attempt)
-                logger.warning("OpenAI rate limited (attempt %d/%d). Retrying in %.1fs...",
-                               attempt + 1, MAX_RETRIES, delay)
+                logger.warning(
+                    "OpenAI call failed (attempt %d/%d, batch=%d): %s. Retrying in %.1fs...",
+                    attempt + 1, MAX_RETRIES, len(texts), e, delay,
+                )
                 time.sleep(delay)
-                continue
 
-            response.raise_for_status()
-            data = response.json()
-            return data["data"][0]["embedding"]
-
-        except Exception as e:
-            if attempt == MAX_RETRIES - 1:
-                raise RuntimeError(f"OpenAI API failed after {MAX_RETRIES} retries: {e}")
-            delay = BASE_DELAY * (2 ** attempt)
-            logger.warning("OpenAI call failed (attempt %d/%d): %s. Retrying in %.1fs...",
-                           attempt + 1, MAX_RETRIES, e, delay)
-            time.sleep(delay)
-
-    raise RuntimeError(f"OpenAI API failed after {MAX_RETRIES} retries")
+        raise RuntimeError(f"OpenAI API failed after {MAX_RETRIES} retries")
+    finally:
+        if close_client:
+            client.close()
 
 
 # ── Public API (provider-agnostic) ────────────────────────────────────
@@ -220,54 +320,129 @@ def generate_embeddings_batch(
     """
     Generate embeddings for multiple texts using thread pool parallelism.
 
-    Routes to the appropriate provider based on model_id.
+    Routes to the appropriate provider based on model_id:
+    - Bedrock: 1-text-per-request parallelism (adaptive rate limiter)
+    - OpenAI: batch API (N-texts-per-request) with header-driven rate limiting
     """
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     mid = model_id or MODEL_ID
     dim = dimension or EMBEDDING_DIMENSION
 
-    results = [None] * len(texts)
-    completed_count = 0
-
     logger.info(
-        "Generating embeddings for %d texts (workers=%d, model=%s, dim=%d)",
-        len(texts), max_workers, mid, dim,
+        "Generating embeddings for %d texts (model=%s, dim=%d)",
+        len(texts), mid, dim,
     )
 
     start_time = time.monotonic()
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_idx = {
-            executor.submit(generate_embedding, text, None, mid, dim): idx
-            for idx, text in enumerate(texts)
-        }
+    if _is_openai_model(mid):
+        results = _generate_openai_embeddings_parallel(
+            texts, mid, dim, max_workers=OPENAI_MAX_WORKERS,
+            batch_size=OPENAI_BATCH_SIZE, progress_callback=progress_callback,
+        )
+    else:
+        # Bedrock: 1-text-per-request with thread pool
+        results = [None] * len(texts)
+        completed_count = 0
 
-        for future in as_completed(future_to_idx):
-            idx = future_to_idx[future]
-            try:
-                results[idx] = future.result()
-                completed_count += 1
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_idx = {
+                executor.submit(generate_embedding, text, None, mid, dim): idx
+                for idx, text in enumerate(texts)
+            }
 
-                if completed_count % 50 == 0 or completed_count == len(texts):
-                    elapsed = time.monotonic() - start_time
-                    rate = completed_count / elapsed if elapsed > 0 else 0
-                    logger.info(
-                        "Embedding progress: %d/%d (%.1f items/sec)",
-                        completed_count, len(texts), rate,
-                    )
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    results[idx] = future.result()
+                    completed_count += 1
 
-                if progress_callback:
-                    progress_callback(completed_count, len(texts))
+                    if completed_count % 50 == 0 or completed_count == len(texts):
+                        elapsed = time.monotonic() - start_time
+                        rate = completed_count / elapsed if elapsed > 0 else 0
+                        logger.info(
+                            "Embedding progress: %d/%d (%.1f items/sec)",
+                            completed_count, len(texts), rate,
+                        )
 
-            except Exception as e:
-                logger.error("Failed to embed text at index %d: %s", idx, e)
-                raise
+                    if progress_callback:
+                        progress_callback(completed_count, len(texts))
+
+                except Exception as e:
+                    logger.error("Failed to embed text at index %d: %s", idx, e)
+                    raise
 
     elapsed = time.monotonic() - start_time
     logger.info(
         "Embedding batch complete: %d texts in %.1fs (%.1f items/sec)",
         len(texts), elapsed, len(texts) / elapsed if elapsed > 0 else 0,
     )
+
+    return results
+
+
+def _generate_openai_embeddings_parallel(
+    texts: list[str], model_id: str, dimension: int,
+    max_workers: int = 4, batch_size: int = 50,
+    progress_callback=None,
+) -> list[list[float]]:
+    """
+    Generate OpenAI embeddings using batch API with parallel chunk execution.
+
+    Splits texts into chunks of batch_size, sends each chunk as one API call,
+    and runs up to max_workers chunks concurrently. Rate limit headers from
+    each response drive proactive throttling across all threads.
+    """
+    import httpx
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    # Split texts into chunks, preserving original indices
+    chunks = []
+    for i in range(0, len(texts), batch_size):
+        chunk_texts = texts[i:i + batch_size]
+        chunks.append((i, chunk_texts))
+
+    logger.info(
+        "OpenAI batch: %d texts → %d chunks of ≤%d (workers=%d)",
+        len(texts), len(chunks), batch_size, max_workers,
+    )
+
+    results = [None] * len(texts)
+    completed_texts = 0
+
+    # Share one httpx client across threads for connection pooling
+    with httpx.Client(timeout=60.0) as client:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_chunk = {
+                executor.submit(
+                    _generate_openai_embedding_batch,
+                    chunk_texts, model_id, dimension, client,
+                ): (start_idx, len(chunk_texts))
+                for start_idx, chunk_texts in chunks
+            }
+
+            for future in as_completed(future_to_chunk):
+                start_idx, chunk_len = future_to_chunk[future]
+                try:
+                    embeddings = future.result()
+                    for j, emb in enumerate(embeddings):
+                        results[start_idx + j] = emb
+                    completed_texts += chunk_len
+
+                    logger.info(
+                        "OpenAI embedding progress: %d/%d texts",
+                        completed_texts, len(texts),
+                    )
+
+                    if progress_callback:
+                        progress_callback(completed_texts, len(texts))
+
+                except Exception as e:
+                    logger.error(
+                        "Failed to embed chunk at index %d (size=%d): %s",
+                        start_idx, chunk_len, e,
+                    )
+                    raise
 
     return results
