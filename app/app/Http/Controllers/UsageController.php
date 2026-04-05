@@ -4,39 +4,80 @@ namespace App\Http\Controllers;
 
 use App\Models\KnowledgeUnit;
 use App\Services\CostTrackingService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Usage dashboard — monthly usage by workspace, endpoint, model, daily trend,
+ * Usage dashboard — usage by workspace, endpoint, model, daily trend,
  * and chat analytics (sessions, response time, action breakdown, channels).
+ *
+ * Supports configurable date range via ?period= query parameter.
  */
 class UsageController extends Controller
 {
     /**
-     * Display the cost dashboard with monthly summary, daily trend,
-     * breakdowns by endpoint/model, and chat analytics for the last 30 days.
+     * Resolve the selected period into start/end Carbon dates.
+     *
+     * Returns [period_key, start_date, end_date].
      */
-    public function index()
+    public static function resolvePeriod(?string $period): array
+    {
+        $period = $period ?: 'last_30';
+
+        // All periods use Asia/Tokyo for consistency with chat analytics
+        $now = Carbon::now('Asia/Tokyo');
+
+        $map = [
+            'today'     => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'yesterday' => [$now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay()],
+            'this_week' => [$now->copy()->startOfWeek(Carbon::MONDAY), $now->copy()->endOfDay()],
+            'last_week' => [$now->copy()->subWeek()->startOfWeek(Carbon::MONDAY), $now->copy()->subWeek()->endOfWeek(Carbon::SUNDAY)->endOfDay()],
+            'last_7'    => [$now->copy()->subDays(6)->startOfDay(), $now->copy()->endOfDay()],
+            'last_28'   => [$now->copy()->subDays(27)->startOfDay(), $now->copy()->endOfDay()],
+            'last_30'   => [$now->copy()->subDays(29)->startOfDay(), $now->copy()->endOfDay()],
+            'last_90'   => [$now->copy()->subDays(89)->startOfDay(), $now->copy()->endOfDay()],
+            'last_12m'  => [$now->copy()->subMonths(12)->startOfDay(), $now->copy()->endOfDay()],
+        ];
+
+        if (!isset($map[$period])) {
+            $period = 'last_30';
+        }
+
+        [$start, $end] = $map[$period];
+
+        return [$period, $start, $end];
+    }
+
+    /**
+     * Display the usage dashboard with configurable date range.
+     */
+    public function index(Request $request)
     {
         $workspaceId = auth()->user()->workspace_id;
         $costService = new CostTrackingService();
 
-        // Monthly summary
-        $monthly = $costService->getMonthlyUsage($workspaceId);
+        // Resolve period from query parameter
+        [$period, $startDate, $endDate] = self::resolvePeriod($request->input('period'));
+        $startDateStr = $startDate->toDateString();
+        $endDateStr = $endDate->toDateString();
 
-        // Daily trend (last 30 days)
+        // Summary for the selected period
+        $monthly = $costService->getMonthlyUsage($workspaceId, $startDateStr, $endDateStr);
+
+        // Daily trend within the selected period
         $dailyTrend = DB::table('daily_cost_summary')
             ->where('workspace_id', $workspaceId)
-            ->where('date', '>=', now()->subDays(30)->toDateString())
+            ->where('date', '>=', $startDateStr)
+            ->where('date', '<=', $endDateStr)
             ->orderBy('date')
             ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count', 'chat_answers', 'upvotes', 'downvotes']);
-
-        $thirtyDaysAgo = now()->subDays(30);
 
         // Cost by endpoint
         $byEndpoint = DB::table('token_usage')
             ->where('workspace_id', $workspaceId)
-            ->where('created_at', '>=', $thirtyDaysAgo)
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
             ->groupBy('endpoint')
             ->selectRaw('endpoint, SUM(input_tokens + output_tokens) as tokens, SUM(estimated_cost) as cost, COUNT(*) as requests')
             ->orderByDesc('cost')
@@ -45,24 +86,26 @@ class UsageController extends Controller
         // Cost by model
         $byModel = DB::table('token_usage')
             ->where('workspace_id', $workspaceId)
-            ->where('created_at', '>=', $thirtyDaysAgo)
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
             ->groupBy('model_id')
             ->selectRaw('model_id, SUM(input_tokens + output_tokens) as tokens, SUM(estimated_cost) as cost, COUNT(*) as requests')
             ->orderByDesc('cost')
             ->get();
 
-        // Top searched Knowledge Units by usage_count
+        // Top searched Knowledge Units
         $topKUs = KnowledgeUnit::where('workspace_id', $workspaceId)
             ->where('usage_count', '>', 0)
             ->orderByDesc('usage_count')
             ->limit(10)
             ->get(['id', 'topic', 'intent', 'usage_count']);
 
-        // Chat analytics: summary, daily action trend, and channel breakdown
-        $chatAnalytics = $this->buildChatAnalytics($workspaceId, $thirtyDaysAgo);
+        // Chat analytics for the selected period
+        $chatAnalytics = $this->buildChatAnalytics($workspaceId, $startDate);
 
         return view('dashboard.usage', compact(
-            'monthly', 'dailyTrend', 'byEndpoint', 'byModel', 'topKUs', 'chatAnalytics'
+            'monthly', 'dailyTrend', 'byEndpoint', 'byModel', 'topKUs', 'chatAnalytics',
+            'period', 'startDate', 'endDate'
         ));
     }
 
@@ -78,7 +121,7 @@ class UsageController extends Controller
      * Build chat analytics from chat_sessions and chat_turns tables.
      *
      * Returns summary stats, daily action trend, and channel breakdown
-     * for the given workspace over the last 30 days.
+     * for the given workspace since the specified date.
      */
     private function buildChatAnalytics(int $workspaceId, $since): array
     {

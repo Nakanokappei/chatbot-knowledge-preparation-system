@@ -70,13 +70,21 @@ class CostTrackingService
     }
 
     /**
-     * Get current month token usage for a workspace.
+     * Get token usage for a workspace within a date range.
+     *
+     * Defaults to the last 30 days when no date range is specified.
      */
-    public function getMonthlyUsage(int $workspaceId): array
+    public function getMonthlyUsage(int $workspaceId, ?string $startDate = null, ?string $endDate = null): array
     {
-        $usage = DB::table('daily_cost_summary')
+        $query = DB::table('daily_cost_summary')
             ->where('workspace_id', $workspaceId)
-            ->where('date', '>=', now()->subDays(30)->toDateString())
+            ->where('date', '>=', $startDate ?? now()->subDays(30)->toDateString());
+
+        if ($endDate) {
+            $query->where('date', '<=', $endDate);
+        }
+
+        $usage = $query
             ->selectRaw('SUM(total_tokens) as tokens, SUM(total_cost) as cost, SUM(request_count) as requests')
             ->first();
 

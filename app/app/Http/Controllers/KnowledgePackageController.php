@@ -28,8 +28,16 @@ class KnowledgePackageController extends Controller
     {
         $workspaceId = auth()->user()->workspace_id;
 
+        // Sort: published first (newest version), then draft/requested, archived last (oldest version)
         $packages = KnowledgePackage::where('workspace_id', $workspaceId)
-            ->orderByDesc('updated_at')
+            ->orderByRaw("CASE status
+                WHEN 'published' THEN 0
+                WHEN 'publication_requested' THEN 1
+                WHEN 'draft' THEN 2
+                WHEN 'archived' THEN 3
+                END")
+            ->orderByRaw("CASE WHEN status = 'archived' THEN version END ASC")
+            ->orderByRaw("CASE WHEN status != 'archived' THEN version END DESC")
             ->get();
 
         return view('dashboard.datasets.index', compact('packages'));

@@ -487,6 +487,11 @@ class SettingsController extends Controller
      */
     public function storeEmbedding(Request $request): RedirectResponse
     {
+        // Normalize empty dimension to null (readonly field may submit "")
+        if ($request->input('dimension') === '' || $request->input('dimension') === null) {
+            $request->merge(['dimension' => null]);
+        }
+
         $request->validate([
             'model_id' => 'required|string|max:200',
             'display_name' => 'nullable|string|max:100',

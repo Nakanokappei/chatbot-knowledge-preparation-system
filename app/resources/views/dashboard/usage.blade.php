@@ -1,8 +1,25 @@
-{{-- Usage dashboard: displays token consumption and cost metrics for the last 30 days.
-     Includes summary stats, daily bar charts (tokens & cost by category), and breakdowns by endpoint/model. --}}
+{{-- Usage dashboard: displays token consumption and cost metrics for a configurable date range.
+     Includes period selector, mini calendar, summary stats, daily bar charts (tokens & cost by category),
+     breakdowns by endpoint/model, chat analytics, and day-of-week background coloring on charts. --}}
 @extends(($isAdminView ?? false) ? 'layouts.admin' : 'layouts.app')
 @section('title', 'Usage — KPS')
-@php $showCost = auth()->user()->isSystemAdmin(); @endphp
+@php
+    $showCost = auth()->user()->isSystemAdmin();
+    $currentPeriod = $period ?? 'last_30';
+    $periodStart = $startDate ?? now()->subDays(29);
+    $periodEnd = $endDate ?? now();
+    $periods = [
+        'today' => __('ui.period_today', [], 'ja') ?: '今日',
+        'yesterday' => __('ui.period_yesterday', [], 'ja') ?: '昨日',
+        'this_week' => __('ui.period_this_week', [], 'ja') ?: '今週',
+        'last_week' => __('ui.period_last_week', [], 'ja') ?: '先週',
+        'last_7' => __('ui.period_last_7', [], 'ja') ?: '過去7日間',
+        'last_28' => __('ui.period_last_28', [], 'ja') ?: '過去28日間',
+        'last_30' => __('ui.period_last_30', [], 'ja') ?: '過去30日間',
+        'last_90' => __('ui.period_last_90', [], 'ja') ?: '過去90日間',
+        'last_12m' => __('ui.period_last_12m', [], 'ja') ?: '過去12か月',
+    ];
+@endphp
 
 @section('extra-styles')
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
@@ -14,15 +31,86 @@
         .chart-legend { display: flex; gap: 16px; justify-content: center; margin-top: 8px; font-size: 12px; color: #5f6368; }
         .chart-legend span { display: flex; align-items: center; gap: 4px; }
         .chart-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--c); }
+        .period-bar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+        .period-bar a { font-size: 12px; padding: 4px 10px; }
+        .period-info { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+        .period-dates { font-size: 13px; color: #5f6368; }
+        .mini-cal { display: inline-grid; grid-template-columns: repeat(7, 24px); gap: 1px; font-size: 10px; text-align: center; background: #fff; border-radius: 8px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .mini-cal-header { color: #5f6368; font-weight: 500; padding: 2px 0; }
+        .mini-cal-day { padding: 2px 0; border-radius: 4px; color: #1d1d1f; }
+        .mini-cal-day.in-range { background: #e8f0fe; color: #0071e3; font-weight: 500; }
+        .mini-cal-day.outside { color: #ccc; }
+        .mini-cal-day.today { border: 1px solid #0071e3; }
+        .mini-cal-day.sun { color: #ea4335; }
+        .mini-cal-day.sat { color: #4285f4; }
+        .mini-cal-day.in-range.sun { background: #fce8e6; color: #ea4335; }
+        .mini-cal-day.in-range.sat { background: #e0eaff; color: #4285f4; }
 @endsection
 
 @section('body')
     <div class="page-content">
         <div class="page-container">
             <h1 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ __('ui.usage') }}</h1>
-            <p style="color: #5f6368; font-size: 13px; margin-bottom: 24px;">{{ __('ui.usage_description') }}</p>
+            <p style="color: #5f6368; font-size: 13px; margin-bottom: 16px;">{{ __('ui.usage_description') }}</p>
 
-            {{-- Summary stats: 30-day totals --}}
+            {{-- Period selector buttons --}}
+            <div class="period-bar">
+                @foreach($periods as $key => $label)
+                    <a href="{{ request()->fullUrlWithQuery(['period' => $key]) }}"
+                       class="btn btn-sm {{ $currentPeriod === $key ? 'btn-primary' : 'btn-outline' }}">
+                        {{ $label }}
+                    </a>
+                @endforeach
+            </div>
+
+            {{-- Period date range display with mini calendar --}}
+            <div class="period-info">
+                <div class="period-dates">
+                    {{ $periodStart->format('Y/m/d') }}（{{ ['日','月','火','水','木','金','土'][$periodStart->dayOfWeek] }}）〜 {{ $periodEnd->format('Y/m/d') }}（{{ ['日','月','火','水','木','金','土'][$periodEnd->dayOfWeek] }}）
+                </div>
+                {{-- Mini calendar showing selected range --}}
+                @php
+                    // Show the month(s) of the period end date
+                    $calMonth = $periodEnd->copy()->startOfMonth();
+                    $calEnd = $periodEnd->copy()->endOfMonth();
+                    $calStart = $calMonth->copy()->startOfWeek(Carbon\Carbon::MONDAY);
+                    $todayStr = now('Asia/Tokyo')->toDateString();
+                    $rangeStartStr = $periodStart->toDateString();
+                    $rangeEndStr = $periodEnd->toDateString();
+                @endphp
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <div style="font-size: 11px; color: #5f6368; margin-bottom: 4px; font-weight: 500;">{{ $calMonth->format('Y年n月') }}</div>
+                    <div class="mini-cal">
+                        <div class="mini-cal-header">月</div>
+                        <div class="mini-cal-header">火</div>
+                        <div class="mini-cal-header">水</div>
+                        <div class="mini-cal-header">木</div>
+                        <div class="mini-cal-header">金</div>
+                        <div class="mini-cal-header" style="color: #4285f4;">土</div>
+                        <div class="mini-cal-header" style="color: #ea4335;">日</div>
+                        @php $cursor = $calStart->copy(); @endphp
+                        @while($cursor->lte($calEnd) || $cursor->dayOfWeek !== 1)
+                            @php
+                                $dateStr = $cursor->toDateString();
+                                $inMonth = $cursor->month === $calMonth->month;
+                                $inRange = $dateStr >= $rangeStartStr && $dateStr <= $rangeEndStr;
+                                $isToday = $dateStr === $todayStr;
+                                $dow = $cursor->dayOfWeek;
+                                $classes = 'mini-cal-day';
+                                if (!$inMonth) $classes .= ' outside';
+                                if ($inRange && $inMonth) $classes .= ' in-range';
+                                if ($isToday) $classes .= ' today';
+                                if ($dow === 0) $classes .= ' sun';
+                                if ($dow === 6) $classes .= ' sat';
+                            @endphp
+                            <div class="{{ $classes }}">{{ $cursor->day }}</div>
+                            @php $cursor->addDay(); @endphp
+                        @endwhile
+                    </div>
+                </div>
+            </div>
+
+            {{-- Summary stats --}}
             <div class="stats-grid" style="grid-template-columns: repeat({{ $showCost ? 3 : 2 }}, 1fr);">
                 @if($showCost)
                 <div class="stat"><div class="stat-value">${{ number_format($monthly['cost'], 4) }}</div><div class="stat-label">{{ __('ui.cost_30days') }}</div></div>
@@ -190,18 +278,19 @@
 @section('scripts')
     const dailyData = @json($dailyTrend);
     const showCost = @json($showCost);
+    const periodStart = @json($periodStart->toDateString());
+    const periodEnd = @json($periodEnd->toDateString());
 
-    // Fill missing dates in the last 30 days with zero values
+    // Build date range from periodStart to periodEnd, filling missing dates with zeros
     function buildDateRange(data) {
         const map = {};
         data.forEach(d => { map[d.date] = d; });
         const result = [];
-        const today = new Date();
-        for (let i = 29; i >= 0; i--) {
-            const dt = new Date(today);
-            dt.setDate(dt.getDate() - i);
+        const start = new Date(periodStart + 'T00:00:00');
+        const end = new Date(periodEnd + 'T00:00:00');
+        for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
             const key = dt.toISOString().slice(0, 10);
-            result.push(map[key] || { date: key, total_tokens: 0, total_cost: 0, pipeline_cost: 0, chat_cost: 0, embedding_cost: 0, request_count: 0 });
+            result.push(map[key] || { date: key, total_tokens: 0, total_cost: 0, pipeline_cost: 0, chat_cost: 0, embedding_cost: 0, request_count: 0, chat_answers: 0, upvotes: 0, downvotes: 0 });
         }
         return result;
     }
@@ -213,6 +302,23 @@
         return Math.round(v).toString();
     }
     function fmtCost(v) { return '$' + v.toFixed(4); }
+
+    // Day-of-week background color for chart columns
+    function getDayColor(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        const dow = d.getDay();
+        if (dow === 0) return 'rgba(255, 0, 0, 0.04)';    // Sunday: light red
+        if (dow === 6) return 'rgba(0, 100, 255, 0.04)';   // Saturday: light blue
+        return 'rgba(0, 0, 0, 0.02)';                       // Weekday: light grey
+    }
+
+    // Adaptive label interval based on number of days
+    function labelInterval(numDays) {
+        if (numDays <= 14) return 1;
+        if (numDays <= 31) return 5;
+        if (numDays <= 90) return 10;
+        return 30;
+    }
 
     // Draw combined chart: stacked cost bars (left Y) + token line (right Y)
     function drawCombinedChart(canvasId, days) {
@@ -229,7 +335,7 @@
         const chartW = W - pad.left - pad.right;
         const chartH = H - pad.top - pad.bottom;
 
-        // Round up to a nice number for axis scales (e.g. 1.46 → 2.0, 241000 → 250000)
+        // Round up to a nice number for axis scales
         function niceMax(value, steps) {
             if (value <= 0) return steps;
             const rawStep = value / steps;
@@ -242,7 +348,7 @@
             return niceStep * steps;
         }
 
-        // Compute max values for both axes, rounded to nice tick marks
+        // Compute max values for both axes
         const costValues = days.map(d =>
             (Number(d.pipeline_cost) || 0) + (Number(d.chat_cost) || 0) + (Number(d.embedding_cost) || 0)
         );
@@ -250,7 +356,7 @@
         const maxCost = niceMax(Math.max(...costValues, 0.0001), 4);
         const maxTokens = niceMax(Math.max(...tokenValues, 1), 4);
 
-        // Draw grid lines based on cost axis (left)
+        // Draw grid lines
         ctx.strokeStyle = '#f0f0f2';
         ctx.fillStyle = '#5f6368';
         ctx.font = '11px -apple-system, sans-serif';
@@ -261,28 +367,33 @@
             ctx.lineTo(W - pad.right, y);
             ctx.stroke();
             if (showCost) {
-                // Left Y-axis: cost
                 ctx.textAlign = 'right';
                 ctx.fillText(fmtCost(maxCost * i / 4), pad.left - 6, y + 4);
-                // Right Y-axis: tokens
                 ctx.textAlign = 'left';
                 ctx.fillText(fmtTokens(maxTokens * i / 4), W - pad.right + 6, y + 4);
             } else {
-                // Only token axis (left)
                 ctx.textAlign = 'right';
                 ctx.fillText(fmtTokens(maxTokens * i / 4), pad.left - 6, y + 4);
             }
         }
 
-        // Draw bars
+        // Compute bar dimensions
         const barW = Math.max(2, (chartW / days.length) - 2);
         const gap = (chartW - barW * days.length) / days.length;
+        const interval = labelInterval(days.length);
 
+        // Draw day-of-week background colors
+        days.forEach((day, i) => {
+            const x = pad.left + i * (barW + gap);
+            ctx.fillStyle = getDayColor(day.date);
+            ctx.fillRect(x, pad.top, barW + gap, chartH);
+        });
+
+        // Draw bars
         days.forEach((day, i) => {
             const x = pad.left + i * (barW + gap) + gap / 2;
 
             if (showCost) {
-                // Stacked cost bars
                 const segments = [
                     { value: Number(day.pipeline_cost) || 0, color: '#0071e3' },
                     { value: Number(day.chat_cost) || 0, color: '#34c759' },
@@ -299,7 +410,6 @@
                     yOffset += h;
                 });
             } else {
-                // Token bars in blue (no cost mode)
                 const tokens = Number(day.total_tokens) || 0;
                 const h = maxTokens > 0 ? (tokens / maxTokens) * chartH : 0;
                 ctx.fillStyle = '#0071e3';
@@ -309,7 +419,7 @@
             }
 
             // X-axis date labels
-            if (i % 5 === 0 || i === days.length - 1) {
+            if (i % interval === 0 || i === days.length - 1) {
                 ctx.fillStyle = '#5f6368';
                 ctx.font = '10px -apple-system, sans-serif';
                 ctx.textAlign = 'center';
@@ -322,7 +432,6 @@
             const requestValues = days.map(d => Number(d.request_count) || 0);
             const maxRequests = niceMax(Math.max(...requestValues, 1), 4);
 
-            // Right Y-axis labels for requests
             ctx.fillStyle = '#5f6368';
             ctx.font = '11px -apple-system, sans-serif';
             for (let i = 0; i <= 4; i++) {
@@ -331,7 +440,6 @@
                 ctx.fillText(Math.round(maxRequests * i / 4).toString(), W - pad.right + 6, y + 4);
             }
 
-            // Draw request line
             ctx.beginPath();
             ctx.strokeStyle = '#ff9500';
             ctx.lineWidth = 2;
@@ -345,7 +453,6 @@
             });
             ctx.stroke();
 
-            // Draw request data points
             ctx.fillStyle = '#ff9500';
             days.forEach((day, i) => {
                 const requests = Number(day.request_count) || 0;
@@ -361,7 +468,7 @@
             return;
         }
 
-        // Draw token line on right Y-axis (only when cost bars are shown)
+        // Draw token line on right Y-axis (cost mode)
         ctx.beginPath();
         ctx.strokeStyle = '#8e8e93';
         ctx.lineWidth = 2;
@@ -375,7 +482,6 @@
         });
         ctx.stroke();
 
-        // Draw token data points
         ctx.fillStyle = '#8e8e93';
         days.forEach((day, i) => {
             const tokens = Number(day.total_tokens) || 0;
@@ -408,7 +514,6 @@
         const chartW = W - pad.left - pad.right;
         const chartH = H - pad.top - pad.bottom;
 
-        // Find max values for scale
         const maxAnswers = Math.max(1, ...days.map(d => Number(d.chat_answers) || 0));
         const maxVotes = Math.max(1, ...days.map(d => (Number(d.upvotes) || 0) + (Number(d.downvotes) || 0)));
         const niceMax = (v) => { const p = Math.pow(10, Math.floor(Math.log10(v))); return Math.ceil(v / p) * p; };
@@ -417,8 +522,9 @@
 
         const gap = 2;
         const barW = Math.max(4, (chartW - gap * days.length) / days.length);
+        const interval = labelInterval(days.length);
 
-        // Draw Y-axis labels (left: answers, right: votes)
+        // Y-axis labels
         ctx.fillStyle = '#5f6368';
         ctx.font = '10px -apple-system, sans-serif';
         ctx.textAlign = 'right';
@@ -427,19 +533,24 @@
         ctx.textAlign = 'left';
         ctx.fillText(maxV, W - pad.right + 6, pad.top + 8);
 
+        // Draw day-of-week background colors
+        days.forEach((day, i) => {
+            const x = pad.left + i * (barW + gap);
+            ctx.fillStyle = getDayColor(day.date);
+            ctx.fillRect(x, pad.top, barW + gap, chartH);
+        });
+
         // Draw bars: upvotes (green) + downvotes (red) stacked
         days.forEach((day, i) => {
             const up = Number(day.upvotes) || 0;
             const down = Number(day.downvotes) || 0;
             const x = pad.left + i * (barW + gap) + gap / 2;
 
-            // Downvotes bar (bottom)
             if (down > 0) {
                 const h = (down / maxV) * chartH;
                 ctx.fillStyle = '#ea4335';
                 ctx.fillRect(x, pad.top + chartH - h, barW, h);
             }
-            // Upvotes bar (stacked on top)
             if (up > 0) {
                 const hDown = (down / maxV) * chartH;
                 const hUp = (up / maxV) * chartH;
@@ -460,12 +571,12 @@
         });
         ctx.stroke();
 
-        // Draw X-axis date labels (show every 5th)
+        // X-axis date labels
         ctx.fillStyle = '#aaa';
         ctx.textAlign = 'center';
         ctx.font = '9px -apple-system, sans-serif';
         days.forEach((day, i) => {
-            if (i % 5 === 0 || i === days.length - 1) {
+            if (i % interval === 0 || i === days.length - 1) {
                 const x = pad.left + i * (barW + gap) + gap / 2 + barW / 2;
                 ctx.fillText(day.date.slice(5), x, H - 6);
             }
@@ -489,12 +600,11 @@
         const sessionMap = {};
         rawSessions.forEach(function(r) { sessionMap[r.date] = Number(r.count) || 0; });
 
-        // Fill 30-day range
+        // Fill period date range
         const actionDays = [];
-        const today = new Date();
-        for (let i = 29; i >= 0; i--) {
-            const dt = new Date(today);
-            dt.setDate(dt.getDate() - i);
+        const start = new Date(periodStart + 'T00:00:00');
+        const end = new Date(periodEnd + 'T00:00:00');
+        for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
             const key = dt.toISOString().slice(0, 10);
             const dayActions = actionMap[key] || {};
             actionDays.push({
@@ -507,7 +617,6 @@
             });
         }
 
-        // Define action colors
         const actionColors = {
             answer: '#34c759',
             answer_broad: '#ff9f0a',
@@ -531,13 +640,11 @@
             const chartW = W - pad.left - pad.right;
             const chartH = H - pad.top - pad.bottom;
 
-            // Compute max values for axes
             const maxTurns = Math.max(1, ...days.map(function(d) {
                 return d.answer + d.answer_broad + d.no_match + d.rejected;
             }));
             const maxSessions = Math.max(1, ...days.map(function(d) { return d.sessions; }));
 
-            // Nice rounding for axis
             function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v || 1))); return Math.ceil(v / p) * p || 1; }
             const nMaxT = niceMax(maxTurns);
             const nMaxS = niceMax(maxSessions);
@@ -561,11 +668,20 @@
                 ctx.stroke();
             }
 
-            // Bars
+            // Bar dimensions
             const gap = 2;
             const barW = Math.max(4, (chartW - gap * days.length) / days.length);
             const segments = ['rejected', 'no_match', 'answer_broad', 'answer'];
+            const interval = labelInterval(days.length);
 
+            // Draw day-of-week background colors
+            days.forEach(function(day, i) {
+                const x = pad.left + i * (barW + gap);
+                ctx.fillStyle = getDayColor(day.date);
+                ctx.fillRect(x, pad.top, barW + gap, chartH);
+            });
+
+            // Draw stacked bars
             days.forEach(function(day, i) {
                 const x = pad.left + i * (barW + gap) + gap / 2;
                 let yOffset = 0;
@@ -580,7 +696,7 @@
                 });
 
                 // X-axis labels
-                if (i % 5 === 0 || i === days.length - 1) {
+                if (i % interval === 0 || i === days.length - 1) {
                     ctx.fillStyle = '#aaa';
                     ctx.textAlign = 'center';
                     ctx.font = '9px -apple-system, sans-serif';
