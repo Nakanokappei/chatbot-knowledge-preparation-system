@@ -719,7 +719,7 @@ class DatasetWizardController extends Controller
 
         // Guard: prevent deletion while pipeline is running
         $hasRunningJobs = \App\Models\PipelineJob::where('dataset_id', $dataset->id)
-            ->whereNotIn('status', ['completed', 'failed'])
+            ->whereNotIn('status', ['completed', 'failed', 'cancelled'])
             ->exists();
         if ($hasRunningJobs) {
             return redirect()->route('workspace.index')

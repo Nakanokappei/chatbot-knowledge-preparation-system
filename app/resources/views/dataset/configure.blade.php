@@ -776,6 +776,24 @@
             document.getElementById('params-' + this.value).style.display = '';
         });
 
+        // Prevent double-submit: disable both buttons and show hourglass on click
+        document.getElementById('config-form').addEventListener('submit', function() {
+            const startBtn = document.getElementById('start-btn');
+            const testBtn = document.getElementById('test-btn');
+            [startBtn, testBtn].forEach(btn => {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+                    btn.style.cursor = 'wait';
+                }
+            });
+            // Show hourglass feedback on the clicked button (activeElement)
+            const clicked = document.activeElement;
+            if (clicked && (clicked.id === 'start-btn' || clicked.id === 'test-btn')) {
+                clicked.innerHTML = '&#9203; ' + clicked.textContent.trim();
+            }
+        });
+
         renderSelected();
         setupAvailableDrag();
 @endsection
