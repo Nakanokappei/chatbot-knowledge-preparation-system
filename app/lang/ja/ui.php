@@ -827,6 +827,27 @@ return [
 
     // ── FAQエクスポート ─────────────────────────────────────
     'export_faq'                    => 'FAQ出力',
+    'unit_users'                    => '名',
+
+    // ── システム管理者ワークスペース管理 ─────────────────────
+    'members'                       => 'メンバー',
+    'joined'                        => '参加日',
+    'invite_to_workspace'           => 'ワークスペースにユーザーを招待',
+    'invite'                        => '招待',
+    'invite_url_label'              => '招待者にこの登録リンクを共有してください:',
+    'copied'                        => 'コピーしました',
+    'copy'                          => 'コピー',
+    'pending_invitations'           => '保留中の招待',
+    'pending'                       => '保留中',
+    'expired'                       => '期限切れ',
+    'delete_workspace'              => 'ワークスペースを削除',
+    'delete_workspace_warning'      => 'ワークスペースと関連する全データ（ユーザー、データセット、パイプライン、ナレッジ、チャット履歴）が完全に削除されます。この操作は取り消せません。',
+    'delete_workspace_confirm_label' => '確認のため \":name\" と入力してください:',
+    'delete_workspace_final_confirm' => '本当に削除しますか？この操作は取り消せません。',
+    'delete_workspace_name_mismatch' => 'ワークスペース名が一致しません。',
+    'workspace_deleted'             => 'ワークスペース \":name\" を削除しました。',
+    'user_already_in_workspace'     => 'このユーザーは既にこのワークスペースのメンバーです。',
+    'invitation_already_pending'    => 'このメールアドレスへの招待は既に保留中です。',
 
     // ── チャット分析（使用状況ダッシュボード）──────────────
     'chat_analytics'                => 'チャット分析',

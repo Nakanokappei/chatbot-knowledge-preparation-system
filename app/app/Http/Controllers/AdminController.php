@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Invitation;
 use App\Models\PipelineJob;
 use App\Models\Workspace;
 use App\Services\CostTrackingService;
@@ -9,6 +10,7 @@ use App\Services\SystemMetricsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -53,6 +55,9 @@ class AdminController extends Controller
             default      => $allJobs,
         };
 
+        // Initialize workspace management data
+        $workspaceInvitations = collect();
+
         // When pipeline view is active, suppress workspace usage panel
         if ($pipelineView) {
             $usageData = null;
@@ -61,6 +66,14 @@ class AdminController extends Controller
         } elseif ($selectedWorkspaceId && $selectedWorkspaceId !== 'all') {
             $usageData = $this->getWorkspaceUsage((int) $selectedWorkspaceId);
             $selectedWorkspace = $workspaces->firstWhere('id', $selectedWorkspaceId);
+            // Load members and pending invitations for workspace management panel
+            if ($selectedWorkspace) {
+                $selectedWorkspace->load('users');
+                $workspaceInvitations = Invitation::where('workspace_id', $selectedWorkspaceId)
+                    ->whereNull('accepted_at')
+                    ->orderByDesc('created_at')
+                    ->get();
+            }
         } else {
             $usageData = $this->getAggregateUsage();
             $selectedWorkspace = null;
@@ -69,7 +82,8 @@ class AdminController extends Controller
         return view('admin.index', compact(
             'workspaces', 'filteredJobs', 'jobStats', 'usageData',
             'selectedWorkspaceId', 'selectedWorkspace',
-            'pipelineView', 'pipelineFilter'
+            'pipelineView', 'pipelineFilter',
+            'workspaceInvitations'
         ));
     }
 
@@ -126,6 +140,132 @@ class AdminController extends Controller
 
         return redirect()->route('admin.index')
             ->with('success', __('ui.workspace_created'));
+    }
+
+    /**
+     * Delete a workspace and all its associated data.
+     *
+     * Cascading deletes are incomplete in the schema, so we explicitly
+     * delete related records in dependency order within a transaction.
+     */
+    public function destroyWorkspace(Request $request, Workspace $workspace): RedirectResponse
+    {
+        // Require confirmation by typing the workspace name
+        $request->validate([
+            'confirm_name' => 'required|string',
+        ]);
+
+        if ($request->confirm_name !== $workspace->name) {
+            return redirect()->route('admin.index', ['workspace' => $workspace->id])
+                ->withErrors(['confirm_name' => __('ui.workspace_delete_name_mismatch')]);
+        }
+
+        $workspaceName = $workspace->name;
+        $wid = $workspace->id;
+
+        DB::transaction(function () use ($wid) {
+            // Delete in dependency order (children before parents)
+            // Chat turns depend on chat sessions
+            DB::table('chat_turns')
+                ->whereIn('session_id', fn($q) => $q->select('id')->from('chat_sessions')->where('workspace_id', $wid))
+                ->delete();
+            DB::table('chat_sessions')->where('workspace_id', $wid)->delete();
+
+            // Embed API keys depend on knowledge packages
+            DB::table('embed_api_keys')->where('workspace_id', $wid)->delete();
+
+            // Knowledge package items depend on knowledge packages
+            DB::table('knowledge_package_items')
+                ->whereIn('knowledge_package_id', fn($q) => $q->select('id')->from('knowledge_packages')->where('workspace_id', $wid))
+                ->delete();
+            DB::table('knowledge_packages')->where('workspace_id', $wid)->delete();
+
+            // Feedback and knowledge units
+            DB::table('answer_feedback')->where('workspace_id', $wid)->delete();
+            DB::table('knowledge_units')->where('workspace_id', $wid)->delete();
+
+            // Clusters depend on pipeline jobs
+            DB::table('clusters')
+                ->whereIn('pipeline_job_id', fn($q) => $q->select('id')->from('pipeline_jobs')->where('workspace_id', $wid))
+                ->delete();
+            DB::table('exports')->where('workspace_id', $wid)->delete();
+            DB::table('pipeline_jobs')->where('workspace_id', $wid)->delete();
+
+            // Dataset rows depend on datasets
+            DB::table('dataset_rows')
+                ->whereIn('dataset_id', fn($q) => $q->select('id')->from('datasets')->where('workspace_id', $wid))
+                ->delete();
+            DB::table('datasets')->where('workspace_id', $wid)->delete();
+
+            // Cost tracking
+            DB::table('token_usage')->where('workspace_id', $wid)->delete();
+            DB::table('daily_cost_summary')->where('workspace_id', $wid)->delete();
+
+            // Invitations and users
+            DB::table('invitations')->where('workspace_id', $wid)->delete();
+
+            // Nullify workspace-scoped model templates (SET NULL behavior)
+            DB::table('llm_models')->where('workspace_id', $wid)->delete();
+            DB::table('embedding_models')->where('workspace_id', $wid)->delete();
+            DB::table('embeddings')->where('workspace_id', $wid)->delete();
+
+            // Users in this workspace
+            DB::table('users')->where('workspace_id', $wid)->delete();
+
+            // Finally delete the workspace itself
+            DB::table('workspaces')->where('id', $wid)->delete();
+        });
+
+        return redirect()->route('admin.index')
+            ->with('success', __('ui.workspace_deleted', ['name' => $workspaceName]));
+    }
+
+    /**
+     * Invite a user to a workspace (reuses the invitation token system).
+     *
+     * Creates an Invitation record with a unique token. The invited user
+     * registers via the token URL, same as workspace-level invitations.
+     */
+    public function inviteToWorkspace(Request $request, Workspace $workspace): RedirectResponse
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'role' => 'required|in:owner,member',
+        ]);
+
+        // Check if user already exists in this workspace
+        $existingUser = \App\Models\User::where('email', $request->email)
+            ->where('workspace_id', $workspace->id)
+            ->first();
+        if ($existingUser) {
+            return redirect()->route('admin.index', ['workspace' => $workspace->id])
+                ->withErrors(['email' => __('ui.user_already_in_workspace')]);
+        }
+
+        // Check for pending invitation with same email
+        $pendingInvite = Invitation::where('workspace_id', $workspace->id)
+            ->where('email', $request->email)
+            ->whereNull('accepted_at')
+            ->first();
+        if ($pendingInvite) {
+            return redirect()->route('admin.index', ['workspace' => $workspace->id])
+                ->withErrors(['email' => __('ui.invitation_already_pending')]);
+        }
+
+        // Create invitation with token
+        $invitation = Invitation::create([
+            'workspace_id' => $workspace->id,
+            'invited_by' => auth()->id(),
+            'email' => $request->email,
+            'token' => Str::random(64),
+            'role' => $request->role,
+        ]);
+
+        $inviteUrl = route('invitation.register', $invitation->token);
+
+        return redirect()->route('admin.index', ['workspace' => $workspace->id])
+            ->with('success', __('ui.invitation_sent'))
+            ->with('invite_url', $inviteUrl);
     }
 
     /**

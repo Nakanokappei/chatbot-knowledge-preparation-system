@@ -93,7 +93,7 @@
                             <path d="M2 3.5A1.5 1.5 0 013.5 2h3.172a1.5 1.5 0 011.06.44l.828.827a1.5 1.5 0 001.06.44H12.5A1.5 1.5 0 0114 5.207V12.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V3.5z" stroke="currentColor" stroke-width="1.2"/>
                         </svg>
                         <span class="ws-name">{{ $ws->name }}</span>
-                        <span class="ws-count">{{ $ws->users()->count() }}</span>
+                        <span class="ws-count">{{ $ws->users()->count() }}{{ __('ui.unit_users') }}</span>
                     </a>
                 @endforeach
 
@@ -206,6 +206,99 @@
                     </table>
                 @endif
             @else
+                {{-- Workspace management panel (only when a specific workspace is selected) --}}
+                @if($selectedWorkspace)
+                <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 16px;">{{ $selectedWorkspace->name }}</h2>
+
+                @if(session('success'))
+                    <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">{{ session('success') }}</div>
+                @endif
+                @if($errors->any())
+                    <div style="background: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 14px;">{{ $errors->first() }}</div>
+                @endif
+                @if(session('invite_url'))
+                    <div style="background: #d4edda; color: #155724; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
+                        {{ __('ui.invite_url_label') }}<br>
+                        <div style="display: flex; gap: 8px; align-items: center; margin-top: 6px;">
+                            <code style="flex: 1; background: #fff; padding: 6px 10px; border-radius: 6px; font-size: 12px; word-break: break-all;">{{ session('invite_url') }}</code>
+                            <button onclick="navigator.clipboard.writeText('{{ session('invite_url') }}'); this.textContent='{{ __('ui.copied') }}';" class="btn btn-sm btn-outline" style="font-size: 11px; white-space: nowrap;">{{ __('ui.copy') }}</button>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Members list --}}
+                <div class="card" style="margin-bottom: 16px;">
+                    <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px;">{{ __('ui.members') }} ({{ $selectedWorkspace->users->count() }}{{ __('ui.unit_users') }})</h3>
+                    <table>
+                        <thead><tr><th>{{ __('ui.name') }}</th><th>{{ __('ui.email') }}</th><th>{{ __('ui.role') }}</th><th>{{ __('ui.joined') }}</th></tr></thead>
+                        <tbody>
+                        @foreach($selectedWorkspace->users->sortBy('name') as $member)
+                            <tr>
+                                <td>{{ $member->name }}</td>
+                                <td style="font-size: 13px; color: #5f6368;">{{ $member->email }}</td>
+                                <td><span class="badge badge-{{ $member->role === 'owner' ? 'approved' : 'draft' }}">{{ $member->role }}</span></td>
+                                <td style="font-size: 13px; color: #5f6368;">{{ $member->created_at->format('Y-m-d') }}</td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+
+                    {{-- Pending invitations --}}
+                    @if($workspaceInvitations->isNotEmpty())
+                    <h4 style="font-size: 13px; font-weight: 600; margin-top: 16px; margin-bottom: 8px; color: #5f6368;">{{ __('ui.pending_invitations') }}</h4>
+                    @foreach($workspaceInvitations as $inv)
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px;">
+                            <span>{{ $inv->email }}</span>
+                            <span class="badge badge-{{ $inv->isExpired() ? 'rejected' : 'pending' }}">{{ $inv->isExpired() ? __('ui.expired') : __('ui.pending') }}</span>
+                            <span style="color: #86868b; font-size: 11px;">{{ $inv->created_at->format('m/d') }}</span>
+                        </div>
+                    @endforeach
+                    @endif
+                </div>
+
+                {{-- Invite form --}}
+                <div class="card" style="margin-bottom: 16px;">
+                    <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px;">{{ __('ui.invite_to_workspace') }}</h3>
+                    <form method="POST" action="{{ route('admin.workspaces.invite', $selectedWorkspace) }}" style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+                        @csrf
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.email') }}</label>
+                            <input type="email" name="email" required placeholder="user@example.com"
+                                   style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px;">
+                        </div>
+                        <div style="min-width: 120px;">
+                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.role') }}</label>
+                            <select name="role" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; background: #fff;">
+                                <option value="owner">Owner</option>
+                                <option value="member">Member</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">{{ __('ui.invite') }}</button>
+                    </form>
+                </div>
+
+                {{-- Delete workspace --}}
+                <div class="card" style="margin-bottom: 24px; border: 1px solid #f8d7da;">
+                    <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 8px; color: #721c24;">{{ __('ui.delete_workspace') }}</h3>
+                    <p style="font-size: 13px; color: #721c24; margin-bottom: 12px;">{{ __('ui.delete_workspace_warning') }}</p>
+                    <form method="POST" action="{{ route('admin.workspaces.destroy', $selectedWorkspace) }}" id="delete-ws-form">
+                        @csrf
+                        @method('DELETE')
+                        <div style="display: flex; gap: 8px; align-items: flex-end;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; color: #721c24; display: block; margin-bottom: 4px;">{{ __('ui.delete_workspace_confirm_label', ['name' => $selectedWorkspace->name]) }}</label>
+                                <input type="text" name="confirm_name" required autocomplete="off"
+                                       placeholder="{{ $selectedWorkspace->name }}"
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #f5c6cb; border-radius: 8px; font-size: 13px;">
+                            </div>
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('{{ __('ui.delete_workspace_final_confirm') }}')">{{ __('ui.delete') }}</button>
+                        </div>
+                    </form>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #e5e5e7; margin-bottom: 24px;">
+                @endif
+
                 {{-- Usage stats panel --}}
                 <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">
                     @if($selectedWorkspace)

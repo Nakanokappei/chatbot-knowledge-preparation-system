@@ -826,6 +826,27 @@ return [
 
     // ── FAQ Export ──────────────────────────────────────────
     'export_faq'                    => 'Export FAQ',
+    'unit_users'                    => ' users',
+
+    // ── Admin Workspace Management ──────────────────────────
+    'members'                       => 'Members',
+    'joined'                        => 'Joined',
+    'invite_to_workspace'           => 'Invite User to Workspace',
+    'invite'                        => 'Invite',
+    'invite_url_label'              => 'Share this registration link with the invitee:',
+    'copied'                        => 'Copied!',
+    'copy'                          => 'Copy',
+    'pending_invitations'           => 'Pending Invitations',
+    'pending'                       => 'Pending',
+    'expired'                       => 'Expired',
+    'delete_workspace'              => 'Delete Workspace',
+    'delete_workspace_warning'      => 'This will permanently delete the workspace and ALL associated data (users, datasets, pipelines, knowledge units, chat history). This action cannot be undone.',
+    'delete_workspace_confirm_label' => 'Type ":name" to confirm:',
+    'delete_workspace_final_confirm' => 'Are you absolutely sure? This cannot be undone.',
+    'delete_workspace_name_mismatch' => 'The workspace name does not match.',
+    'workspace_deleted'             => 'Workspace ":name" has been deleted.',
+    'user_already_in_workspace'     => 'This user is already a member of this workspace.',
+    'invitation_already_pending'    => 'An invitation for this email is already pending.',
 
     // ── Chat Analytics (Usage Dashboard) ────────────────────
     'chat_analytics'                => 'Chat Analytics',

@@ -181,6 +181,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('admin.index');
         Route::get('/workspaces/create', [AdminController::class, 'createWorkspace'])->name('admin.workspaces.create');
         Route::post('/workspaces', [AdminController::class, 'storeWorkspace'])->name('admin.workspaces.store');
+        Route::delete('/workspaces/{workspace}', [AdminController::class, 'destroyWorkspace'])->name('admin.workspaces.destroy');
+        Route::post('/workspaces/{workspace}/invite', [AdminController::class, 'inviteToWorkspace'])->name('admin.workspaces.invite');
         Route::post('/jobs/{pipelineJob}/cancel', [AdminController::class, 'cancelJob'])->name('admin.cancel-pipeline');
         Route::get('/system', [AdminController::class, 'systemHealth'])->name('admin.system');
 
