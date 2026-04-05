@@ -717,9 +717,9 @@ class DatasetWizardController extends Controller
     {
         $this->authorizeDataset($dataset);
 
-        // Guard: prevent deletion while pipeline is running
+        // Guard: prevent deletion only while pipeline is actively processing
         $hasRunningJobs = \App\Models\PipelineJob::where('dataset_id', $dataset->id)
-            ->whereNotIn('status', ['completed', 'failed', 'cancelled'])
+            ->whereIn('status', ['preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
             ->exists();
         if ($hasRunningJobs) {
             return redirect()->route('workspace.index')
