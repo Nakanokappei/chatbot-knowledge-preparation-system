@@ -101,7 +101,10 @@ module "iam" {
 
   name_prefix     = local.name_prefix
   common_tags     = local.common_tags
-  secret_arns     = [module.secrets.db_secret_arn, module.secrets.app_key_secret_arn]
+  secret_arns     = concat(
+    [module.secrets.db_secret_arn, module.secrets.app_key_secret_arn],
+    var.openai_api_key_secret_arn != "" ? [var.openai_api_key_secret_arn] : []
+  )
   parameter_arns  = values(module.ssm_parameters.parameter_arns)
   sqs_queue_arn   = module.sqs.queue_arn
   s3_bucket_arn   = module.s3.bucket_arn
@@ -182,7 +185,8 @@ module "ecs_service_app" {
   s3_bucket          = module.s3.bucket_name
   aws_region         = var.aws_region
   alb_dns_name       = module.alb.alb_dns_name
-  cdn_domain         = module.cdn.domain_name
+  cdn_domain                = module.cdn.domain_name
+  openai_api_key_secret_arn = var.openai_api_key_secret_arn
 }
 
 module "ecs_service_worker" {
@@ -204,8 +208,9 @@ module "ecs_service_worker" {
   db_name              = var.db_name
   db_secret_arn        = module.secrets.db_secret_arn
   sqs_queue_url        = module.sqs.queue_url
-  s3_bucket            = module.s3.bucket_name
-  aws_region           = var.aws_region
+  s3_bucket                 = module.s3.bucket_name
+  aws_region                = var.aws_region
+  openai_api_key_secret_arn = var.openai_api_key_secret_arn
 }
 
 # ------------------------------------------------------------------

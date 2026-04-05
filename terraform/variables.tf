@@ -204,3 +204,13 @@ variable "github_repo" {
   type        = string
   default     = ""
 }
+
+# ----------------------------------------------------------
+# OpenAI (optional)
+# ----------------------------------------------------------
+
+variable "openai_api_key_secret_arn" {
+  description = "ARN of Secrets Manager secret for the OpenAI API key. Leave empty to skip."
+  type        = string
+  default     = ""
+}
