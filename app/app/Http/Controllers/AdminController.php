@@ -163,7 +163,7 @@ class AdminController extends Controller
             'changed_by' => auth()->id(),
         ]);
 
-        return redirect()->route('admin.index', ['workspace' => $workspace->id])
+        return redirect()->route('admin.index', ['workspace' => $workspace->id, 'tab' => 'manage'])
             ->with('success', __('ui.workspace_status_changed', [
                 'name' => $workspace->name,
                 'status' => __('ui.status_' . $request->status),
@@ -196,7 +196,7 @@ class AdminController extends Controller
         ]);
 
         if ($request->confirm_name !== $workspace->name) {
-            return redirect()->route('admin.index', ['workspace' => $workspace->id])
+            return redirect()->route('admin.index', ['workspace' => $workspace->id, 'tab' => 'manage'])
                 ->withErrors(['confirm_name' => __('ui.workspace_delete_name_mismatch')]);
         }
 
@@ -278,7 +278,7 @@ class AdminController extends Controller
             ->where('workspace_id', $workspace->id)
             ->first();
         if ($existingUser) {
-            return redirect()->route('admin.index', ['workspace' => $workspace->id])
+            return redirect()->route('admin.index', ['workspace' => $workspace->id, 'tab' => 'users'])
                 ->withErrors(['email' => __('ui.user_already_in_workspace')]);
         }
 
@@ -288,7 +288,7 @@ class AdminController extends Controller
             ->whereNull('accepted_at')
             ->first();
         if ($pendingInvite) {
-            return redirect()->route('admin.index', ['workspace' => $workspace->id])
+            return redirect()->route('admin.index', ['workspace' => $workspace->id, 'tab' => 'users'])
                 ->withErrors(['email' => __('ui.invitation_already_pending')]);
         }
 
@@ -303,7 +303,7 @@ class AdminController extends Controller
 
         $inviteUrl = route('invitation.register', $invitation->token);
 
-        return redirect()->route('admin.index', ['workspace' => $workspace->id])
+        return redirect()->route('admin.index', ['workspace' => $workspace->id, 'tab' => 'users'])
             ->with('success', __('ui.invitation_sent'))
             ->with('invite_url', $inviteUrl);
     }
