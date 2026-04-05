@@ -257,13 +257,19 @@
                     {{-- Members list --}}
                     <div class="card" style="margin-bottom: 16px;">
                         <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px;">{{ __('ui.members') }} ({{ $selectedWorkspace->users->count() }}{{ __('ui.unit_users') }})</h3>
-                        <table>
+                        <table style="table-layout: fixed;">
+                            <colgroup>
+                                <col style="width: 25%;">
+                                <col style="width: 35%;">
+                                <col style="width: 15%;">
+                                <col style="width: 25%;">
+                            </colgroup>
                             <thead><tr><th>{{ __('ui.name') }}</th><th>{{ __('ui.email') }}</th><th>{{ __('ui.role') }}</th><th>{{ __('ui.joined') }}</th></tr></thead>
                             <tbody>
                             @foreach($selectedWorkspace->users->sortBy('name') as $member)
                                 <tr>
-                                    <td>{{ $member->name }}</td>
-                                    <td style="font-size: 13px; color: #5f6368;">{{ $member->email }}</td>
+                                    <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $member->name }}</td>
+                                    <td style="font-size: 13px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $member->email }}</td>
                                     <td><span class="badge badge-{{ $member->role === 'owner' ? 'approved' : 'draft' }}">{{ __('ui.role_' . $member->role) }}</span></td>
                                     <td style="font-size: 13px; color: #5f6368;">{{ $member->created_at->format('Y-m-d') }}</td>
                                 </tr>
