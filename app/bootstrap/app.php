@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Set PostgreSQL RLS workspace scope after authentication
         $middleware->appendToGroup('web', \App\Http\Middleware\SetWorkspaceScope::class);
 
+        // Enforce workspace lifecycle status (frozen / suspended)
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnforceWorkspaceStatus::class);
+
         // Emit an audit log entry for every request made by a system_admin user
         $middleware->appendToGroup('web', \App\Http\Middleware\LogSystemAdminAction::class);
 

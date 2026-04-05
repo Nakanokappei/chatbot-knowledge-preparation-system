@@ -77,6 +77,9 @@ Route::options('/embed/api/chat', fn () => response('', 204)
 // All application routes require authentication
 Route::middleware('auth')->group(function () {
 
+    // Workspace status page (shown when frozen or suspended)
+    Route::get('/workspace-status', fn () => view('workspace.status'))->name('workspace.status');
+
     // Workspace (main view — sidebar with embeddings + KU list)
     Route::get('/', [EmbeddingController::class, 'index'])->name('workspace.index');
     Route::get('/workspace/{embeddingId}', [EmbeddingController::class, 'index'])->name('workspace.embedding');
@@ -182,6 +185,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/workspaces/create', [AdminController::class, 'createWorkspace'])->name('admin.workspaces.create');
         Route::post('/workspaces', [AdminController::class, 'storeWorkspace'])->name('admin.workspaces.store');
         Route::delete('/workspaces/{workspace}', [AdminController::class, 'destroyWorkspace'])->name('admin.workspaces.destroy');
+        Route::put('/workspaces/{workspace}/status', [AdminController::class, 'updateWorkspaceStatus'])->name('admin.workspaces.status');
         Route::post('/workspaces/{workspace}/invite', [AdminController::class, 'inviteToWorkspace'])->name('admin.workspaces.invite');
         Route::post('/jobs/{pipelineJob}/cancel', [AdminController::class, 'cancelJob'])->name('admin.cancel-pipeline');
         Route::get('/system', [AdminController::class, 'systemHealth'])->name('admin.system');

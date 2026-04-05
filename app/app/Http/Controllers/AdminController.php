@@ -10,6 +10,7 @@ use App\Services\SystemMetricsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -140,6 +141,33 @@ class AdminController extends Controller
 
         return redirect()->route('admin.index')
             ->with('success', __('ui.workspace_created'));
+    }
+
+    /**
+     * Update a workspace's lifecycle status (active / frozen / suspended).
+     */
+    public function updateWorkspaceStatus(Request $request, Workspace $workspace): RedirectResponse
+    {
+        $request->validate([
+            'status' => 'required|in:active,frozen,suspended',
+        ]);
+
+        $oldStatus = $workspace->status;
+        $workspace->update(['status' => $request->status]);
+
+        Log::info('admin.workspace_status_changed', [
+            'workspace_id' => $workspace->id,
+            'workspace_name' => $workspace->name,
+            'old_status' => $oldStatus,
+            'new_status' => $request->status,
+            'changed_by' => auth()->id(),
+        ]);
+
+        return redirect()->route('admin.index', ['workspace' => $workspace->id])
+            ->with('success', __('ui.workspace_status_changed', [
+                'name' => $workspace->name,
+                'status' => __('ui.status_' . $request->status),
+            ]));
     }
 
     /**

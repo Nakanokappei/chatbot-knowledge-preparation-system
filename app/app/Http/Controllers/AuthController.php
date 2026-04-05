@@ -60,6 +60,23 @@ class AuthController extends Controller
         ];
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
+            // Block login for users in suspended workspaces
+            $workspace = auth()->user()->workspace;
+            if ($workspace && $workspace->status === 'suspended') {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                Log::info('auth.login_blocked_suspended', array_merge($baseContext, [
+                    'workspace_id' => $workspace->id,
+                    'workspace_status' => 'suspended',
+                ]));
+
+                return back()->withErrors([
+                    'email' => __('ui.workspace_suspended_login_error'),
+                ])->onlyInput('email');
+            }
+
             // Regenerate session to prevent session fixation
             $request->session()->regenerate();
 

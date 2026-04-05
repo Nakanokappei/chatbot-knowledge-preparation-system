@@ -93,6 +93,11 @@
                             <path d="M2 3.5A1.5 1.5 0 013.5 2h3.172a1.5 1.5 0 011.06.44l.828.827a1.5 1.5 0 001.06.44H12.5A1.5 1.5 0 0114 5.207V12.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V3.5z" stroke="currentColor" stroke-width="1.2"/>
                         </svg>
                         <span class="ws-name">{{ $ws->name }}</span>
+                        @if($ws->status === 'frozen')
+                            <span class="badge" style="background:#fff3cd;color:#856404;font-size:10px;padding:1px 6px;">{{ __('ui.status_frozen') }}</span>
+                        @elseif($ws->status === 'suspended')
+                            <span class="badge" style="background:#f8d7da;color:#721c24;font-size:10px;padding:1px 6px;">{{ __('ui.status_suspended') }}</span>
+                        @endif
                         <span class="ws-count">{{ $ws->users()->count() }}{{ __('ui.unit_users') }}</span>
                     </a>
                 @endforeach
@@ -274,6 +279,24 @@
                             </select>
                         </div>
                         <button type="submit" class="btn btn-primary">{{ __('ui.invite') }}</button>
+                    </form>
+                </div>
+
+                {{-- Workspace status --}}
+                <div class="card" style="margin-bottom: 16px;">
+                    <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px;">{{ __('ui.workspace_status') }}</h3>
+                    <form method="POST" action="{{ route('admin.workspaces.status', $selectedWorkspace) }}" style="display: flex; gap: 8px; align-items: flex-end;">
+                        @csrf
+                        @method('PUT')
+                        <div style="flex: 1;">
+                            <label style="font-size: 12px; color: #5f6368; display: block; margin-bottom: 4px;">{{ __('ui.current_status') }}</label>
+                            <select name="status" style="width: 100%; padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; background: #fff;">
+                                <option value="active" {{ $selectedWorkspace->status === 'active' ? 'selected' : '' }}>{{ __('ui.status_active') }} — {{ __('ui.status_active_desc') }}</option>
+                                <option value="frozen" {{ $selectedWorkspace->status === 'frozen' ? 'selected' : '' }}>{{ __('ui.status_frozen') }} — {{ __('ui.status_frozen_desc') }}</option>
+                                <option value="suspended" {{ $selectedWorkspace->status === 'suspended' ? 'selected' : '' }}>{{ __('ui.status_suspended') }} — {{ __('ui.status_suspended_desc') }}</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">{{ __('ui.update') }}</button>
                     </form>
                 </div>
 

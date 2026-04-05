@@ -849,6 +849,25 @@ return [
     'user_already_in_workspace'     => 'このユーザーは既にこのワークスペースのメンバーです。',
     'invitation_already_pending'    => 'このメールアドレスへの招待は既に保留中です。',
 
+    // ── ワークスペースライフサイクルステータス ─────────────
+    'workspace_status'              => 'ワークスペースステータス',
+    'current_status'                => '現在のステータス',
+    'update'                        => '更新',
+    'status_active'                 => '有効',
+    'status_active_desc'            => 'フルアクセス',
+    'status_frozen'                 => '凍結',
+    'status_frozen_desc'            => '閲覧・エクスポートのみ（契約終了）',
+    'status_suspended'              => '停止',
+    'status_suspended_desc'         => 'ログイン不可（精算待ち）',
+    'workspace_status_changed'      => ':name のステータスを :status に変更しました。',
+    'workspace_frozen_title'        => 'ワークスペースが凍結されています',
+    'workspace_frozen_message'      => 'ワークスペースの契約が終了しました。データの閲覧とエクスポートは可能ですが、新規パイプライン実行、チャット、データの変更は無効です。管理者にお問い合わせください。',
+    'workspace_frozen_error'        => 'このワークスペースは凍結されています。書き込み操作はできません。',
+    'workspace_suspended_title'     => 'ワークスペースが停止されています',
+    'workspace_suspended_message'   => '精算待ちのため、ワークスペースが停止されています。アクセスの復旧については管理者にお問い合わせください。',
+    'workspace_suspended_login_error' => 'ワークスペースが停止されています。管理者にお問い合わせください。',
+    'back_to_dashboard'             => 'ダッシュボードに戻る',
+
     // ── チャット分析（使用状況ダッシュボード）──────────────
     'chat_analytics'                => 'チャット分析',
     'chat_sessions_30days'          => 'セッション数（30日）',

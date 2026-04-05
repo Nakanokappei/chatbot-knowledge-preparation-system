@@ -848,6 +848,25 @@ return [
     'user_already_in_workspace'     => 'This user is already a member of this workspace.',
     'invitation_already_pending'    => 'An invitation for this email is already pending.',
 
+    // ── Workspace Lifecycle Status ──────────────────────────
+    'workspace_status'              => 'Workspace Status',
+    'current_status'                => 'Current Status',
+    'update'                        => 'Update',
+    'status_active'                 => 'Active',
+    'status_active_desc'            => 'Full access',
+    'status_frozen'                 => 'Frozen',
+    'status_frozen_desc'            => 'Read-only + export (contract ended)',
+    'status_suspended'              => 'Suspended',
+    'status_suspended_desc'         => 'Login blocked (pending settlement)',
+    'workspace_status_changed'      => ':name status changed to :status.',
+    'workspace_frozen_title'        => 'Workspace Frozen',
+    'workspace_frozen_message'      => 'Your workspace contract has ended. You can still browse and export data, but new pipelines, chat, and data modifications are disabled. Please contact your administrator.',
+    'workspace_frozen_error'        => 'This workspace is frozen. Write operations are not available.',
+    'workspace_suspended_title'     => 'Workspace Suspended',
+    'workspace_suspended_message'   => 'Your workspace has been suspended pending settlement. Please contact your administrator to restore access.',
+    'workspace_suspended_login_error' => 'Your workspace has been suspended. Please contact your administrator.',
+    'back_to_dashboard'             => 'Back to Dashboard',
+
     // ── Chat Analytics (Usage Dashboard) ────────────────────
     'chat_analytics'                => 'Chat Analytics',
     'chat_sessions_30days'          => 'Sessions (30d)',
