@@ -271,10 +271,16 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     if uncached_texts:
         logger.info("Generating %d embeddings (model=%s)...", len(uncached_texts), model_id)
 
+        _last_reported_pct = [0]
+
         def progress_cb(completed, total):
-            # Map embedding progress to 25-75% of local step range
+            # Map embedding progress to 25-75% of local step range.
+            # Only update DB when percentage actually changes to avoid
+            # excessive connections (50k items / 50-item chunks = 1000 calls).
             local_pct = 25 + int((completed / total) * 50)
-            update_job_status(job_id, status="embedding", progress=global_progress("embedding", local_pct))
+            if local_pct > _last_reported_pct[0]:
+                _last_reported_pct[0] = local_pct
+                update_job_status(job_id, status="embedding", progress=global_progress("embedding", local_pct))
 
         vectors = generate_embeddings_batch(
             uncached_texts,
