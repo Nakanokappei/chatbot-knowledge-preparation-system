@@ -946,6 +946,7 @@ return [
     'job_not_retryable'             => 'This job cannot be retried',
     'retry_no_embedding'            => 'Embedding data not found. Check the source job.',
     'job_stuck_hint'                => 'This job has not started. Click Retry to re-dispatch.',
+    'cannot_delete_source_job'      => 'This job is referenced by other clustering jobs. Delete dependent jobs first.',
 
     'tip_leiden_n_neighbors'        => 'k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.',
     'tip_leiden_resolution'         => 'Community detection granularity. Higher = more smaller clusters.',

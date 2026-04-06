@@ -947,6 +947,7 @@ return [
     'job_not_retryable'             => 'このジョブは再送信できません',
     'retry_no_embedding'            => '埋め込みデータが見つかりません。ソースジョブを確認してください。',
     'job_stuck_hint'                => 'このジョブは開始されていません。再送信してください。',
+    'cannot_delete_source_job'      => 'このジョブは他のクラスタリングジョブの参照元です。先に参照しているジョブを削除してください。',
 
     'tip_leiden_n_neighbors'        => 'k-NNグラフの近傍数。大きいほど広いクラスターになります。sqrt(N)が目安。',
     'tip_leiden_resolution'         => 'コミュニティ検出の粒度。大きいほど小さなクラスターが増えます。',

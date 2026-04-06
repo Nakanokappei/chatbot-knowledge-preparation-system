@@ -432,6 +432,14 @@ class DashboardController extends Controller
             return redirect()->back()->with('error', __('ui.cannot_delete_running'));
         }
 
+        // Guard: cannot delete a source job that other jobs depend on.
+        // Deleting a full-pipeline job would orphan clustering-only jobs
+        // and could trigger cascade deletion of shared resources.
+        $dependentCount = PipelineJob::where('source_job_id', $pipelineJob->id)->count();
+        if ($dependentCount > 0) {
+            return redirect()->back()->with('error', __('ui.cannot_delete_source_job'));
+        }
+
         $embeddingId = $pipelineJob->embedding_id;
         $pipelineJob->delete();
 
