@@ -750,10 +750,14 @@ class DatasetWizardController extends Controller
         $request->validate(['name' => 'required|string|max:255']);
 
         $old = $dataset->name;
-        $dataset->update(['name' => $request->input('name')]);
+        $newName = $request->input('name');
+        $dataset->update(['name' => $newName]);
+
+        // Keep embedding names in sync (UI treats dataset and embedding as one entity)
+        Embedding::where('dataset_id', $dataset->id)->update(['name' => $newName]);
 
         return redirect()->back()
-            ->with('success', "Renamed: {$old} → {$dataset->name}");
+            ->with('success', "Renamed: {$old} → {$newName}");
     }
 
     /**

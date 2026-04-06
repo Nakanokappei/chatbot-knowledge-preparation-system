@@ -502,7 +502,14 @@ class EmbeddingController extends Controller
             ->findOrFail($embeddingId);
 
         $old = $embedding->name;
-        $embedding->update(['name' => $request->input('name')]);
+        $newName = $request->input('name');
+        $embedding->update(['name' => $newName]);
+
+        // Keep the parent dataset name in sync so the sidebar shows
+        // a consistent name (UI treats dataset and embedding as one entity)
+        if ($embedding->dataset_id) {
+            Dataset::where('id', $embedding->dataset_id)->update(['name' => $newName]);
+        }
 
         // Preserve the current view mode (compare or job) when redirecting back
         $params = ['embeddingId' => $embeddingId];
