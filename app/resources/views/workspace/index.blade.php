@@ -182,10 +182,39 @@
                         </div>
                     </div>
                 @empty
+                    @if(($pendingDatasets ?? collect())->isEmpty())
                     <div class="no-datasets-msg" style="padding: 24px; text-align: center; color: #5f6368; font-size: 13px;">
                         {{ __('ui.no_datasets') }}
                     </div>
+                    @endif
                 @endforelse
+
+                {{-- Datasets with data but no embeddings yet — show as actionable
+                     sidebar entries so users can navigate to configure and run the pipeline. --}}
+                @foreach(($pendingDatasets ?? collect()) as $ds)
+                    @php $hasStoredCsv = !empty($ds->schema_json['stored_path']); @endphp
+                    <div class="tree-dataset">
+                        <div class="tree-dataset-header">
+                            <svg class="tree-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 3.5A1.5 1.5 0 013.5 2h3.172a1.5 1.5 0 011.06.44l.828.827a1.5 1.5 0 001.06.44H12.5A1.5 1.5 0 0114 5.207V12.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V3.5z" stroke="currentColor" stroke-width="1.2"/>
+                            </svg>
+                            @if($hasStoredCsv)
+                            <a href="{{ route('dataset.configure', $ds) }}" class="tree-dataset-link" style="flex: 1; min-width: 0;">
+                                <span class="tree-dataset-name" style="display: flex; flex-direction: column; gap: 0;">
+                                    {{ $ds->name }}
+                                    <span class="tree-dataset-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }} — {{ __('ui.ready_to_configure') ?? 'Ready to configure' }}</span>
+                                </span>
+                            </a>
+                            @else
+                            <span class="tree-dataset-name" style="display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0;">
+                                {{ $ds->name }}
+                                <span class="tree-dataset-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }}</span>
+                            </span>
+                            @endif
+                            <span class="tree-dataset-count">{{ $ds->row_count }}</span>
+                        </div>
+                    </div>
+                @endforeach
 
                 {{-- Pipeline section in sidebar: job status filter links with counts --}}
                 <div id="pipeline-sidebar" data-processing-count="{{ $jobStats['processing'] }}" style="margin-top: 8px; border-top: 1px solid #e0e0e2; padding-top: 8px;">

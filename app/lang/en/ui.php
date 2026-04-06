@@ -934,4 +934,5 @@ return [
     'new_clustering_run'            => 'New Clustering Run',
     'run_clustering'                => 'Run Clustering',
     'parameters'                    => 'Parameters',
+    'ready_to_configure'            => 'Ready to configure',
 ];

@@ -935,4 +935,5 @@ return [
     'new_clustering_run'            => '新しいクラスタリングを実行',
     'run_clustering'                => 'クラスタリング実行',
     'parameters'                    => 'パラメータ',
+    'ready_to_configure'            => '設定待ち',
 ];

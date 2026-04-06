@@ -49,6 +49,15 @@ class EmbeddingController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // Datasets with data but no embeddings yet — show in sidebar so users
+        // can navigate to the configure page and run the pipeline.
+        $embeddedDatasetIds = $sidebarEmbeddings->pluck('dataset_id')->unique()->toArray();
+        $pendingDatasets = Dataset::where('workspace_id', $workspaceId)
+            ->where('row_count', '>', 0)
+            ->whereNotIn('id', $embeddedDatasetIds)
+            ->orderByDesc('created_at')
+            ->get();
+
         // Select current embedding: explicit, or first available
         $current = null;
         $knowledgeUnits = collect();
@@ -135,6 +144,7 @@ class EmbeddingController extends Controller
 
         return view('workspace.index', [
             'sidebarEmbeddings' => $sidebarEmbeddings,
+            'pendingDatasets' => $pendingDatasets,
             'current' => $current,
             'knowledgeUnits' => $knowledgeUnits,
             'embeddingJob' => $embeddingJob,
