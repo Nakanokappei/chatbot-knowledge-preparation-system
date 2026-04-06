@@ -206,11 +206,21 @@ class EmbeddingController extends Controller
         $workspaceId = auth()->user()->workspace_id;
         $embedding = Embedding::where('workspace_id', $workspaceId)->findOrFail($embeddingId);
 
-        // Find the latest completed job for this embedding to use as source
+        // Find the original full-pipeline job for this embedding (start_step='preprocess')
+        // to get the embedding S3 output path. Clustering-only jobs don't have it.
         $sourceJob = PipelineJob::where('embedding_id', $embeddingId)
             ->where('status', 'completed')
+            ->where('start_step', 'preprocess')
             ->orderByDesc('created_at')
-            ->firstOrFail();
+            ->first();
+
+        // Fallback: if no full-pipeline job found, walk the source_job_id chain
+        if (!$sourceJob) {
+            $sourceJob = PipelineJob::where('embedding_id', $embeddingId)
+                ->where('status', 'completed')
+                ->orderByDesc('created_at')
+                ->firstOrFail();
+        }
 
         // Clone the source job's config and override clustering settings
         $config = $sourceJob->pipeline_config_snapshot_json ?? [];

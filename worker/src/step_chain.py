@@ -169,23 +169,48 @@ def _resolve_source_embedding(source_job_id: int, tenant_id: int) -> tuple:
     """
     Look up the embedding output S3 path and embedding_id from a source job.
 
+    If the source job is itself a clustering-only job (no embedding output),
+    walks the source_job_id chain up to 5 levels to find the original
+    full-pipeline job that produced the embedding vectors.
+
     Returns (output_s3_path, embedding_id) or (None, None) if not found.
     """
     from src.db import db_cursor
 
-    with db_cursor(tenant_id=tenant_id) as cur:
-        cur.execute(
-            "SELECT step_outputs_json, embedding_id FROM pipeline_jobs WHERE id = %s",
-            (source_job_id,),
+    current_id = source_job_id
+
+    # Walk the source_job_id chain (max 5 hops to prevent infinite loops)
+    for _ in range(5):
+        if current_id is None:
+            return None, None
+
+        with db_cursor(tenant_id=tenant_id) as cur:
+            cur.execute(
+                "SELECT step_outputs_json, embedding_id, source_job_id "
+                "FROM pipeline_jobs WHERE id = %s",
+                (current_id,),
+            )
+            row = cur.fetchone()
+
+        if not row or not row[0]:
+            return None, None
+
+        step_outputs = row[0] if isinstance(row[0], dict) else json.loads(row[0])
+        embedding_id = row[1]
+        parent_source_id = row[2]
+        embedding_data = step_outputs.get("embedding", {})
+        output_s3_path = embedding_data.get("output_s3_path")
+
+        # Found the embedding output — return it
+        if output_s3_path:
+            return output_s3_path, embedding_id
+
+        # No embedding output in this job — follow the chain upward
+        logger.info(
+            "Job %d has no embedding output, following source_job_id=%s",
+            current_id, parent_source_id,
         )
-        row = cur.fetchone()
+        current_id = parent_source_id
 
-    if not row or not row[0]:
-        return None, None
-
-    step_outputs = row[0] if isinstance(row[0], dict) else json.loads(row[0])
-    embedding_id = row[1]
-    embedding_data = step_outputs.get("embedding", {})
-    output_s3_path = embedding_data.get("output_s3_path")
-
-    return output_s3_path, embedding_id
+    logger.error("Could not resolve embedding output after 5 hops from job %d", source_job_id)
+    return None, None
