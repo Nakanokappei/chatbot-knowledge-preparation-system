@@ -23,6 +23,7 @@ class PipelineJob extends Model
 
     protected $fillable = [
         'workspace_id', 'dataset_id', 'pipeline_config_id', 'status',
+        'start_step', 'source_job_id',
         'progress', 'pipeline_config_snapshot_json', 'step_outputs_json',
         'error_detail', 'started_at', 'completed_at',
     ];
@@ -47,6 +48,39 @@ class PipelineJob extends Model
     public function dataset(): BelongsTo
     {
         return $this->belongsTo(Dataset::class);
+    }
+
+    /**
+     * The source job whose embedding output this clustering-only job reuses.
+     * Only set when start_step != 'preprocess'.
+     */
+    public function sourceJob(): BelongsTo
+    {
+        return $this->belongsTo(PipelineJob::class, 'source_job_id');
+    }
+
+    /**
+     * Resolve the S3 path to the embedding output for clustering-only dispatch.
+     *
+     * For a full pipeline job, the path comes from this job's own step_outputs.
+     * For a clustering-only job, the path comes from the source job.
+     */
+    public function resolveEmbeddingS3Path(): ?string
+    {
+        $source = $this->source_job_id ? $this->sourceJob : $this;
+        return $source?->step_outputs_json['embedding']['output_s3_path'] ?? null;
+    }
+
+    /**
+     * Resolve the embedding_id for clustering-only dispatch.
+     * Reads from the source job's pipeline config or step outputs.
+     */
+    public function resolveEmbeddingId(): ?int
+    {
+        $source = $this->source_job_id ? $this->sourceJob : $this;
+        return $source?->pipeline_config_snapshot_json['embedding_id']
+            ?? $source?->step_outputs_json['embedding']['embedding_id']
+            ?? null;
     }
 
     /** The reusable config template this job was created from (if any). */

@@ -332,6 +332,61 @@
                     @endif
                 </div>
 
+                {{-- Collapsible recluster form: lets users add a new clustering run
+                     with different parameters, reusing the existing embedding vectors. --}}
+                <div style="margin-bottom: 16px;">
+                    <button type="button" onclick="toggleReclusterForm()" id="recluster-toggle"
+                        style="background: none; border: 1px solid #d2d2d7; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: #0071e3; display: flex; align-items: center; gap: 6px;">
+                        <span id="recluster-chevron" style="transition: transform 0.15s;">▸</span>
+                        {{ __('ui.new_clustering_run') ?? 'New Clustering Run' }}
+                    </button>
+                    <form method="POST" action="{{ route('workspace.recluster', $current->id) }}" id="recluster-form"
+                          style="display: none; margin-top: 8px; padding: 14px 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
+                        @csrf
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <select name="clustering_method" id="rc-method" onchange="toggleRcParams()"
+                                style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                                <option value="leiden" selected>Leiden 🌟</option>
+                                <option value="hdbscan">HDBSCAN</option>
+                                <option value="kmeans">K-Means</option>
+                                <option value="agglomerative">Agglomerative</option>
+                            </select>
+                            <span id="rc-params-leiden">
+                                <label style="font-size:12px;">n_neighbors</label>
+                                <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <label style="font-size:12px;margin-left:4px;">resolution</label>
+                                <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            </span>
+                            <span id="rc-params-hdbscan" style="display:none;">
+                                <label style="font-size:12px;">min_cluster_size</label>
+                                <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <label style="font-size:12px;margin-left:4px;">min_samples</label>
+                                <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width:50px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            </span>
+                            <span id="rc-params-kmeans" style="display:none;">
+                                <label style="font-size:12px;">n_clusters</label>
+                                <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            </span>
+                            <span id="rc-params-agglomerative" style="display:none;">
+                                <label style="font-size:12px;">n_clusters</label>
+                                <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <label style="font-size:12px;margin-left:4px;">linkage</label>
+                                <select name="agglomerative_linkage" style="padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                    <option value="ward">ward</option><option value="complete">complete</option>
+                                    <option value="average">average</option><option value="single">single</option>
+                                </select>
+                            </span>
+                            <label style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:8px;">
+                                <input type="checkbox" name="remove_language_bias" value="1" checked style="accent-color:#0071e3;">
+                                {{ __('ui.remove_language_bias') ?? 'Remove lang bias' }}
+                            </label>
+                            <button type="submit" class="btn btn-sm btn-primary" style="padding: 6px 16px; font-size: 13px; white-space: nowrap;">
+                                {{ __('ui.run_clustering') ?? 'Run Clustering' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
                 @if($clusteringRuns->isEmpty())
                     <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
                         <div class="empty-icon">
@@ -1051,6 +1106,25 @@
         });
 
         // Tree view toggle (open/close dataset nodes)
+        /** Toggle the recluster form visibility in the comparison view */
+        function toggleReclusterForm() {
+            const form = document.getElementById('recluster-form');
+            const chevron = document.getElementById('recluster-chevron');
+            if (!form) return;
+            const visible = form.style.display !== 'none';
+            form.style.display = visible ? 'none' : 'block';
+            chevron.style.transform = visible ? '' : 'rotate(90deg)';
+        }
+
+        /** Toggle recluster form parameter visibility based on selected method */
+        function toggleRcParams() {
+            const method = document.getElementById('rc-method')?.value;
+            ['leiden', 'hdbscan', 'kmeans', 'agglomerative'].forEach(m => {
+                const el = document.getElementById('rc-params-' + m);
+                if (el) el.style.display = (method === m) ? '' : 'none';
+            });
+        }
+
         function toggleTree(header) {
             const toggle = header.querySelector('.tree-toggle');
             const children = header.nextElementSibling;

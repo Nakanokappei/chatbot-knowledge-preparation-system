@@ -547,57 +547,90 @@ class DatasetWizardController extends Controller
                 ->whereIn('status', ['submitted', 'processing', 'preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
                 ->exists();
 
-            // Dispatch pipeline (queued if another is running)
-            $pipelineJob = \App\Models\PipelineJob::create([
-                'workspace_id' => $workspaceId,
-                'dataset_id' => $dataset->id,
-                'status' => $hasRunningPipeline ? 'queued' : 'submitted',
-                'progress' => 0,
-            ]);
-
-            // Build pipeline config
-            $pipelineConfig = ['phase' => '2'];
+            // Build base pipeline config (shared across all clustering configs)
+            $baseConfig = ['phase' => '2'];
             $llmModelId = $request->input('llm_model_id');
             if ($llmModelId) {
-                $pipelineConfig['llm_model_id'] = $llmModelId;
+                $baseConfig['llm_model_id'] = $llmModelId;
             }
-            $clusteringMethod = $request->input('clustering_method', 'hdbscan');
-            $pipelineConfig['clustering_method'] = $clusteringMethod;
-
-            // Collect clustering parameters from request
-            $clusteringParams = $request->only([
-                'hdbscan_min_cluster_size', 'hdbscan_min_samples',
-                'kmeans_n_clusters',
-                'agglomerative_n_clusters', 'agglomerative_linkage',
-                'leiden_n_neighbors', 'leiden_resolution',
-            ]);
-            $pipelineConfig['clustering_params'] = $clusteringParams;
-            $pipelineConfig['knowledge_mapping'] = $knowledgeMapping;
-            $pipelineConfig['column_names'] = $allColumns;
-            $pipelineConfig['llm_fallback'] = $request->boolean('llm_fallback', true);
-            $pipelineConfig['dataset_description'] = $datasetDescription;
-            $pipelineConfig['column_descriptions'] = $columnDescriptions;
+            $baseConfig['knowledge_mapping'] = $knowledgeMapping;
+            $baseConfig['column_names'] = $allColumns;
+            $baseConfig['llm_fallback'] = $request->boolean('llm_fallback', true);
+            $baseConfig['dataset_description'] = $datasetDescription;
+            $baseConfig['column_descriptions'] = $columnDescriptions;
 
             // Pass selected embedding model to the worker
             $embeddingModelId = $request->input('embedding_model_id');
             if ($embeddingModelId) {
-                $pipelineConfig['embedding_model'] = $embeddingModelId;
-                // Look up dimension from the embedding_models table
+                $baseConfig['embedding_model'] = $embeddingModelId;
                 $embRecord = \App\Models\EmbeddingModel::withoutGlobalScope('workspace')
                     ->where('model_id', $embeddingModelId)->first();
                 if ($embRecord) {
-                    $pipelineConfig['embedding_dimension'] = $embRecord->dimension;
+                    $baseConfig['embedding_dimension'] = $embRecord->dimension;
                 }
             }
 
-            // Persist pipeline config snapshot for reproducibility
-            $pipelineJob->update(['pipeline_config_snapshot_json' => $pipelineConfig]);
+            // Collect clustering configurations: either multi-config array or single legacy config.
+            // Multi-config: clustering_configs[0][method], clustering_configs[0][leiden_resolution], etc.
+            // Legacy: clustering_method, hdbscan_min_cluster_size, etc.
+            $clusteringConfigs = $request->input('clustering_configs', []);
+            if (empty($clusteringConfigs)) {
+                // Backward compatibility: build single config from legacy form fields
+                $clusteringConfigs = [[
+                    'method' => $request->input('clustering_method', 'hdbscan'),
+                    'hdbscan_min_cluster_size' => $request->input('hdbscan_min_cluster_size'),
+                    'hdbscan_min_samples' => $request->input('hdbscan_min_samples'),
+                    'kmeans_n_clusters' => $request->input('kmeans_n_clusters'),
+                    'agglomerative_n_clusters' => $request->input('agglomerative_n_clusters'),
+                    'agglomerative_linkage' => $request->input('agglomerative_linkage'),
+                    'leiden_n_neighbors' => $request->input('leiden_n_neighbors'),
+                    'leiden_resolution' => $request->input('leiden_resolution'),
+                ]];
+            }
 
-            // Only send to SQS if not queued (queued jobs are dispatched by the worker)
-            if (!$hasRunningPipeline) {
+            // Create pipeline jobs: first job runs full pipeline, additional jobs are clustering-only
+            $firstJob = null;
+            $totalJobs = count($clusteringConfigs);
+
+            foreach ($clusteringConfigs as $i => $cc) {
+                $isFirst = ($i === 0);
+
+                // Build per-job pipeline config with this config's clustering params
+                $jobConfig = $baseConfig;
+                $jobConfig['clustering_method'] = $cc['method'] ?? 'hdbscan';
+                $jobConfig['clustering_params'] = array_filter([
+                    'hdbscan_min_cluster_size' => $cc['hdbscan_min_cluster_size'] ?? null,
+                    'hdbscan_min_samples' => $cc['hdbscan_min_samples'] ?? null,
+                    'kmeans_n_clusters' => $cc['kmeans_n_clusters'] ?? null,
+                    'agglomerative_n_clusters' => $cc['agglomerative_n_clusters'] ?? null,
+                    'agglomerative_linkage' => $cc['agglomerative_linkage'] ?? null,
+                    'leiden_n_neighbors' => $cc['leiden_n_neighbors'] ?? null,
+                    'leiden_resolution' => $cc['leiden_resolution'] ?? null,
+                ], fn($v) => $v !== null && $v !== '');
+                $jobConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
+
+                // First job: full pipeline. Subsequent jobs: clustering-only, queued.
+                $job = \App\Models\PipelineJob::create([
+                    'workspace_id' => $workspaceId,
+                    'dataset_id' => $dataset->id,
+                    'start_step' => $isFirst ? 'preprocess' : 'clustering',
+                    'source_job_id' => $isFirst ? null : $firstJob->id,
+                    'status' => ($hasRunningPipeline || !$isFirst) ? 'queued' : 'submitted',
+                    'progress' => 0,
+                    'pipeline_config_snapshot_json' => $jobConfig,
+                ]);
+
+                if ($isFirst) {
+                    $firstJob = $job;
+                }
+
+                Log::info("Pipeline job {$job->id} created (config {$i}/{$totalJobs}, start_step={$job->start_step})");
+            }
+
+            // Only send the first job to SQS if not queued
+            if (!$hasRunningPipeline && $firstJob) {
                 $sqsUrl = env('SQS_QUEUE_URL');
                 if (!$sqsUrl) {
-                    // Build URL from prefix + queue name as fallback
                     $prefix = env('SQS_PREFIX', '');
                     $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
                     if ($prefix) {
@@ -614,29 +647,28 @@ class DatasetWizardController extends Controller
                     $sqs->sendMessage([
                         'QueueUrl' => $sqsUrl,
                         'MessageBody' => json_encode([
-                            'job_id' => $pipelineJob->id,
+                            'job_id' => $firstJob->id,
                             'workspace_id' => $workspaceId,
                             'dataset_id' => $dataset->id,
                             'step' => 'preprocess',
-                            'pipeline_config' => $pipelineConfig,
+                            'pipeline_config' => $firstJob->pipeline_config_snapshot_json,
                         ]),
                     ]);
 
-                    Log::info("Pipeline job {$pipelineJob->id} dispatched to SQS");
+                    Log::info("Pipeline job {$firstJob->id} dispatched to SQS");
                 } else {
-                    Log::warning("SQS not configured — job {$pipelineJob->id} created but not dispatched");
+                    Log::warning("SQS not configured — job {$firstJob->id} created but not dispatched");
                 }
-            } else {
-                Log::info("Pipeline job {$pipelineJob->id} queued (another pipeline is running)");
             }
 
             DB::commit();
 
             // Keep CSV file for reconfiguration (stored in persistent volume)
 
+            $jobLabel = $totalJobs > 1 ? "{$totalJobs} jobs (1 full + " . ($totalJobs - 1) . " clustering-only)" : "Job #{$firstJob->id}";
             $successMessage = $hasRunningPipeline
                 ? __('ui.pipeline_queued')
-                : "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). Pipeline Job #{$pipelineJob->id} dispatched.";
+                : "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). {$jobLabel} dispatched.";
 
             return redirect()->route('dashboard')
                 ->with('success', $successMessage);

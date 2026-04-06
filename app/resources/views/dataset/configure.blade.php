@@ -332,44 +332,59 @@
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label>{{ __('ui.clustering_method') }}</label>
-                        <select name="clustering_method" id="clustering-method" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            <option value="hdbscan">{{ __('ui.clustering_hdbscan') }}</option>
-                            <option value="kmeans">{{ __('ui.clustering_kmeans') }}</option>
-                            <option value="agglomerative">{{ __('ui.clustering_agglomerative') }}</option>
-                            <option value="leiden" selected>{{ __('ui.clustering_leiden') }} 🌟</option>
-                        </select>
-                    </div>
                 </div>
-                <!-- Clustering parameters -->
-                <div id="clustering-params" style="margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                    <div id="params-hdbscan">
-                        <label style="display: inline;">min_cluster_size</label>
-                        <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                        <label style="display: inline; margin-left: 8px;">min_samples</label>
-                        <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width: 60px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                    </div>
-                    <div id="params-kmeans" style="display: none;">
-                        <label style="display: inline;">n_clusters</label>
-                        <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                    </div>
-                    <div id="params-agglomerative" style="display: none;">
-                        <label style="display: inline;">n_clusters</label>
-                        <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                        <label style="display: inline; margin-left: 8px;">linkage</label>
-                        <select name="agglomerative_linkage" style="padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                            <option value="ward">ward</option><option value="complete">complete</option>
-                            <option value="average">average</option><option value="single">single</option>
-                        </select>
-                    </div>
-                    <div id="params-leiden" style="display: none;">
-                        <label style="display: inline;">n_neighbors</label>
-                        <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                        <label style="display: inline; margin-left: 8px;">resolution</label>
-                        <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width: 70px; padding: 6px 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                    </div>
+
+                {{-- Clustering configurations: repeatable list allowing multiple
+                     method+parameter combos. Job #1 runs full pipeline; #2..N
+                     reuse the same embedding and run clustering-only. --}}
+                <div style="margin-top: 16px;">
+                    <label style="font-size: 14px; font-weight: 500; margin-bottom: 8px; display: block;">{{ __('ui.clustering_configurations') ?? 'Clustering Configurations' }}</label>
+                    <div id="clustering-config-list"></div>
+                    <button type="button" id="add-clustering-config" onclick="addClusteringConfig()"
+                        style="margin-top: 8px; padding: 6px 16px; font-size: 13px; background: #f0f0f2; border: 1px dashed #c0c0c5; border-radius: 8px; cursor: pointer; color: #5f6368;">
+                        + {{ __('ui.add_configuration') ?? 'Add Configuration' }}
+                    </button>
                 </div>
+
+                {{-- Hidden template for clustering config rows (cloned by JS) --}}
+                <template id="clustering-config-template">
+                    <div class="clustering-config-row" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 8px; margin-bottom: 6px; flex-wrap: wrap;">
+                        <span class="config-number" style="font-size: 12px; font-weight: 600; color: #888; min-width: 20px;">#1</span>
+                        <select class="cc-method" onchange="updateConfigParams(this)"
+                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
+                            <option value="leiden" selected>Leiden 🌟</option>
+                            <option value="hdbscan">HDBSCAN</option>
+                            <option value="kmeans">K-Means</option>
+                            <option value="agglomerative">Agglomerative</option>
+                        </select>
+                        <span class="cc-params-hdbscan" style="display:none;">
+                            <label style="font-size:12px;">min_cluster_size</label>
+                            <input type="number" class="cc-hdbscan-min-cluster" value="15" min="2" max="500" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            <label style="font-size:12px;margin-left:4px;">min_samples</label>
+                            <input type="number" class="cc-hdbscan-min-samples" value="5" min="1" max="100" style="width:50px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                        </span>
+                        <span class="cc-params-kmeans" style="display:none;">
+                            <label style="font-size:12px;">n_clusters</label>
+                            <input type="number" class="cc-kmeans-n" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                        </span>
+                        <span class="cc-params-agglomerative" style="display:none;">
+                            <label style="font-size:12px;">n_clusters</label>
+                            <input type="number" class="cc-agg-n" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            <label style="font-size:12px;margin-left:4px;">linkage</label>
+                            <select class="cc-agg-linkage" style="padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <option value="ward">ward</option><option value="complete">complete</option>
+                                <option value="average">average</option><option value="single">single</option>
+                            </select>
+                        </span>
+                        <span class="cc-params-leiden">
+                            <label style="font-size:12px;">n_neighbors</label>
+                            <input type="number" class="cc-leiden-neighbors" value="15" min="5" max="100" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            <label style="font-size:12px;margin-left:4px;">resolution</label>
+                            <input type="number" class="cc-leiden-resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                        </span>
+                        <button type="button" class="cc-remove" onclick="removeClusteringConfig(this)" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#ff3b30;font-size:16px;padding:4px;" title="Remove">✕</button>
+                    </div>
+                </template>
                 <div style="margin-top: 12px;">
                     <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1d1d1f; cursor: pointer;">
                         <input type="checkbox" name="remove_language_bias" value="1" checked
@@ -768,16 +783,93 @@
             else hint.textContent = kmHints[field]._col;
         }
 
-        // Toggle visibility of clustering algorithm-specific parameter inputs
-        document.getElementById('clustering-method').addEventListener('change', function() {
-            ['params-hdbscan', 'params-kmeans', 'params-agglomerative', 'params-leiden'].forEach(
-                id => document.getElementById(id).style.display = 'none'
-            );
-            document.getElementById('params-' + this.value).style.display = '';
-        });
+        // Multi-clustering config management: add, remove, and sync hidden inputs
 
-        // Prevent double-submit: disable both buttons and show hourglass on click
+        /** Toggle parameter visibility within a clustering config row */
+        function updateConfigParams(selectEl) {
+            const row = selectEl.closest('.clustering-config-row');
+            ['hdbscan', 'kmeans', 'agglomerative', 'leiden'].forEach(m => {
+                const el = row.querySelector('.cc-params-' + m);
+                if (el) el.style.display = (selectEl.value === m) ? '' : 'none';
+            });
+        }
+
+        /** Add a new clustering config row by cloning the template */
+        function addClusteringConfig() {
+            const list = document.getElementById('clustering-config-list');
+            if (list.children.length >= 10) return; // Maximum 10 configurations
+            const tmpl = document.getElementById('clustering-config-template');
+            const clone = tmpl.content.cloneNode(true);
+            list.appendChild(clone);
+            renumberConfigs();
+            // Update add button visibility
+            document.getElementById('add-clustering-config').style.display =
+                list.children.length >= 10 ? 'none' : '';
+        }
+
+        /** Remove a clustering config row */
+        function removeClusteringConfig(btn) {
+            const row = btn.closest('.clustering-config-row');
+            const list = document.getElementById('clustering-config-list');
+            // Keep at least one configuration
+            if (list.children.length <= 1) return;
+            row.remove();
+            renumberConfigs();
+            document.getElementById('add-clustering-config').style.display = '';
+        }
+
+        /** Renumber config rows and sync form input names with array indices */
+        function renumberConfigs() {
+            const list = document.getElementById('clustering-config-list');
+            list.querySelectorAll('.clustering-config-row').forEach((row, i) => {
+                row.querySelector('.config-number').textContent = '#' + (i + 1);
+                // Hide remove button if only one row remains
+                const removeBtn = row.querySelector('.cc-remove');
+                if (removeBtn) removeBtn.style.display = list.children.length <= 1 ? 'none' : '';
+            });
+        }
+
+        /**
+         * Before form submission, serialize all clustering config rows into
+         * hidden inputs with array naming: clustering_configs[0][method], etc.
+         */
+        function syncClusteringConfigInputs() {
+            // Remove previously generated hidden inputs
+            document.querySelectorAll('.cc-hidden-input').forEach(el => el.remove());
+            const container = document.getElementById('hidden-inputs');
+            const rows = document.querySelectorAll('.clustering-config-row');
+            rows.forEach((row, i) => {
+                const method = row.querySelector('.cc-method').value;
+                addHidden(container, `clustering_configs[${i}][method]`, method);
+                // Add method-specific params
+                if (method === 'hdbscan') {
+                    addHidden(container, `clustering_configs[${i}][hdbscan_min_cluster_size]`, row.querySelector('.cc-hdbscan-min-cluster').value);
+                    addHidden(container, `clustering_configs[${i}][hdbscan_min_samples]`, row.querySelector('.cc-hdbscan-min-samples').value);
+                } else if (method === 'kmeans') {
+                    addHidden(container, `clustering_configs[${i}][kmeans_n_clusters]`, row.querySelector('.cc-kmeans-n').value);
+                } else if (method === 'agglomerative') {
+                    addHidden(container, `clustering_configs[${i}][agglomerative_n_clusters]`, row.querySelector('.cc-agg-n').value);
+                    addHidden(container, `clustering_configs[${i}][agglomerative_linkage]`, row.querySelector('.cc-agg-linkage').value);
+                } else if (method === 'leiden') {
+                    addHidden(container, `clustering_configs[${i}][leiden_n_neighbors]`, row.querySelector('.cc-leiden-neighbors').value);
+                    addHidden(container, `clustering_configs[${i}][leiden_resolution]`, row.querySelector('.cc-leiden-resolution').value);
+                }
+            });
+        }
+
+        function addHidden(container, name, value) {
+            const inp = document.createElement('input');
+            inp.type = 'hidden'; inp.name = name; inp.value = value;
+            inp.className = 'cc-hidden-input';
+            container.appendChild(inp);
+        }
+
+        // Initialize with one default config row
+        addClusteringConfig();
+
+        // Sync clustering config hidden inputs and prevent double-submit
         document.getElementById('config-form').addEventListener('submit', function() {
+            syncClusteringConfigInputs();
             const startBtn = document.getElementById('start-btn');
             const testBtn = document.getElementById('test-btn');
             [startBtn, testBtn].forEach(btn => {

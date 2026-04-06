@@ -180,6 +180,106 @@ class EmbeddingController extends Controller
     }
 
     /**
+     * Dispatch a clustering-only pipeline job for an existing embedding.
+     *
+     * Reuses the embedding vectors from the latest completed job and runs
+     * clustering → cluster_analysis → KU generation with new parameters.
+     * This lets users compare different clustering approaches without
+     * re-computing embeddings.
+     */
+    public function recluster(Request $request, int $embeddingId)
+    {
+        $request->validate([
+            'clustering_method' => 'required|in:hdbscan,kmeans,agglomerative,leiden',
+        ]);
+
+        $workspaceId = auth()->user()->workspace_id;
+        $embedding = Embedding::where('workspace_id', $workspaceId)->findOrFail($embeddingId);
+
+        // Find the latest completed job for this embedding to use as source
+        $sourceJob = PipelineJob::where('embedding_id', $embeddingId)
+            ->where('status', 'completed')
+            ->orderByDesc('created_at')
+            ->firstOrFail();
+
+        // Clone the source job's config and override clustering settings
+        $config = $sourceJob->pipeline_config_snapshot_json ?? [];
+        $config['clustering_method'] = $request->input('clustering_method');
+        $config['clustering_params'] = array_filter([
+            'hdbscan_min_cluster_size' => $request->input('hdbscan_min_cluster_size'),
+            'hdbscan_min_samples' => $request->input('hdbscan_min_samples'),
+            'kmeans_n_clusters' => $request->input('kmeans_n_clusters'),
+            'agglomerative_n_clusters' => $request->input('agglomerative_n_clusters'),
+            'agglomerative_linkage' => $request->input('agglomerative_linkage'),
+            'leiden_n_neighbors' => $request->input('leiden_n_neighbors'),
+            'leiden_resolution' => $request->input('leiden_resolution'),
+        ], fn($v) => $v !== null && $v !== '');
+        $config['remove_language_bias'] = $request->boolean('remove_language_bias', true);
+
+        // Check if a pipeline is already running
+        $hasRunningPipeline = PipelineJob::where('workspace_id', $workspaceId)
+            ->whereIn('status', ['submitted', 'processing', 'preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
+            ->exists();
+
+        // Create a clustering-only job referencing the source job's embeddings
+        $job = PipelineJob::create([
+            'workspace_id' => $workspaceId,
+            'dataset_id' => $embedding->dataset_id,
+            'start_step' => 'clustering',
+            'source_job_id' => $sourceJob->id,
+            'status' => $hasRunningPipeline ? 'queued' : 'submitted',
+            'progress' => 0,
+            'pipeline_config_snapshot_json' => $config,
+        ]);
+
+        // Dispatch to SQS if not queued
+        if (!$hasRunningPipeline) {
+            $embeddingS3Path = $sourceJob->step_outputs_json['embedding']['output_s3_path'] ?? null;
+
+            $sqsUrl = env('SQS_QUEUE_URL');
+            if (!$sqsUrl) {
+                $prefix = env('SQS_PREFIX', '');
+                $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
+                if ($prefix) {
+                    $sqsUrl = $prefix . '/' . $queue;
+                }
+            }
+
+            if ($sqsUrl && $embeddingS3Path) {
+                $sqs = new \Aws\Sqs\SqsClient([
+                    'region' => env('SQS_REGION', 'ap-northeast-1'),
+                    'version' => 'latest',
+                ]);
+
+                // Inject embedding_id into config for the clustering step
+                $dispatchConfig = $config;
+                $dispatchConfig['embedding_id'] = $sourceJob->embedding_id ?? $embeddingId;
+
+                $sqs->sendMessage([
+                    'QueueUrl' => $sqsUrl,
+                    'MessageBody' => json_encode([
+                        'job_id' => $job->id,
+                        'workspace_id' => $workspaceId,
+                        'dataset_id' => $embedding->dataset_id,
+                        'step' => 'clustering',
+                        'input_s3_path' => $embeddingS3Path,
+                        'pipeline_config' => $dispatchConfig,
+                    ]),
+                ]);
+            }
+        }
+
+        $statusMsg = $hasRunningPipeline
+            ? "Clustering job #{$job->id} queued."
+            : "Clustering job #{$job->id} dispatched.";
+
+        return redirect()
+            ->route('workspace.embedding', ['embeddingId' => $embeddingId])
+            ->with('success', $statusMsg)
+            ->withInput(['compare' => '1']);
+    }
+
+    /**
      * Show a single KU detail (edit, review, versions).
      */
     public function showKnowledgeUnit(int $embeddingId, int $kuId): View
