@@ -696,10 +696,12 @@
                                     <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.created') }}</td>
                                     <td style="padding: 4px 0; border: none;"><time datetime="{{ $current->created_at->toIso8601String() }}" data-format="full">{{ $current->created_at->format('Y/m/d H:i') }}</time></td>
                                 </tr>
+                                @if($embeddingJob && $embeddingJob->status === 'completed')
                                 <tr>
                                     <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none;">{{ __('ui.knowledge_units') }}</td>
-                                    <td style="padding: 4px 0; border: none;">{{ $current->row_count }}</td>
+                                    <td style="padding: 4px 0; border: none;">{{ $knowledgeUnits->count() }}</td>
                                 </tr>
+                                @endif
                             </table>
                             <div style="flex: 1;"></div>
                             @php $hasApproved = ($statusCounts->get('approved', 0) > 0); @endphp
