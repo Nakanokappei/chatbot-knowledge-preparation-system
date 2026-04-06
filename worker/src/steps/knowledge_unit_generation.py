@@ -599,3 +599,16 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         "Knowledge unit generation completed for job %d: %d KUs created",
         job_id, len(ku_ids),
     )
+
+    # Dispatch the next queued job (if any) now that this pipeline is complete.
+    # As the final step in STEP_SEQUENCE, dispatch_next_step detects the end
+    # of the pipeline and triggers dispatch_queued_job for waiting jobs.
+    from src.step_chain import dispatch_next_step
+    dispatch_next_step(
+        current_step="knowledge_unit_generation",
+        job_id=job_id,
+        tenant_id=tenant_id,
+        dataset_id=dataset_id,
+        output_s3_path=None,
+        pipeline_config=pipeline_config,
+    )

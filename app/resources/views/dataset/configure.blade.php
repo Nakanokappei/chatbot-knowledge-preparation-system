@@ -357,9 +357,9 @@
             {{-- Hidden template for clustering config cards (cloned by JS) --}}
             <template id="clustering-config-template">
                 <div class="clustering-config-row" style="position: relative; padding: 14px 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px; margin-bottom: 8px;">
-                    {{-- Card header: number badge and remove button --}}
+                    {{-- Card header: pattern heading and remove button --}}
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                        <span class="config-number" style="font-size: 12px; font-weight: 600; color: #fff; background: #0071e3; border-radius: 4px; padding: 2px 8px;">Pattern #1</span>
+                        <h3 class="config-number" style="font-size: 13px; font-weight: 600; color: #1d1d1f; margin: 0;">Pattern #1</h3>
                         <button type="button" class="cc-remove" onclick="removeClusteringConfig(this)"
                             style="background: #f0f0f2; border: 1px solid #d2d2d7; border-radius: 6px; cursor: pointer; color: #ff3b30; font-size: 12px; padding: 3px 10px; white-space: nowrap;"
                             title="{{ __('ui.delete') }}">{{ __('ui.delete_pattern') }}</button>
@@ -814,6 +814,10 @@
             const clone = tmpl.content.cloneNode(true);
             const newRow = clone.querySelector('.clustering-config-row');
 
+            // Set n_neighbors default from dataset size (sqrt(N) heuristic)
+            const neighborsInput = newRow.querySelector('.cc-leiden-neighbors');
+            if (neighborsInput) neighborsInput.value = recommendedNeighbors;
+
             // Copy method and parameters from the last existing row
             const existingRows = list.querySelectorAll('.clustering-config-row');
             if (existingRows.length > 0) {
@@ -904,12 +908,24 @@
             container.appendChild(inp);
         }
 
+        /**
+         * Compute a recommended n_neighbors value from dataset row count.
+         * Uses sqrt(N) clamped to [5, 100], which balances local structure
+         * preservation (small k) with global topology awareness (large k).
+         */
+        const datasetRowCount = {{ $totalLines ?? 0 }};
+        const recommendedNeighbors = Math.min(Math.max(Math.round(Math.sqrt(datasetRowCount)), 5), 100);
+
         // Initialize with one default config row
         addClusteringConfig();
 
-        // Sync clustering config hidden inputs and prevent double-submit
+        // Sync clustering config hidden inputs and show busy state immediately
         document.getElementById('config-form').addEventListener('submit', function() {
             syncClusteringConfigInputs();
+
+            // Set page-wide wait cursor so the user sees immediate feedback
+            document.body.style.cursor = 'wait';
+
             const startBtn = document.getElementById('start-btn');
             const testBtn = document.getElementById('test-btn');
             [startBtn, testBtn].forEach(btn => {
@@ -919,6 +935,7 @@
                     btn.style.cursor = 'wait';
                 }
             });
+
             // Show hourglass feedback on the clicked button (activeElement)
             const clicked = document.activeElement;
             if (clicked && (clicked.id === 'start-btn' || clicked.id === 'test-btn')) {
