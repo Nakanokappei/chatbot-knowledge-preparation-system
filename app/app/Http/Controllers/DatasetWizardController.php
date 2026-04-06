@@ -740,7 +740,22 @@ class DatasetWizardController extends Controller
     }
 
     /**
-     * Delete a dataset that has no embeddings.
+     * Rename a dataset.
+     */
+    public function rename(Request $request, Dataset $dataset): RedirectResponse
+    {
+        $this->authorizeDataset($dataset);
+        $request->validate(['name' => 'required|string|max:255']);
+
+        $old = $dataset->name;
+        $dataset->update(['name' => $request->input('name')]);
+
+        return redirect()->back()
+            ->with('success', "Renamed: {$old} → {$dataset->name}");
+    }
+
+    /**
+     * Delete a dataset and all dependent data via cascade.
      *
      * Only allowed when the dataset has zero embeddings to prevent
      * accidental deletion of data that is actively in use.

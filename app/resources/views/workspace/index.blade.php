@@ -357,7 +357,7 @@
                                                         <button type="submit" style="background: #0071e3; border: none; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #fff; cursor: pointer;">{{ __('ui.retry') }}</button>
                                                     </form>
                                                 @else
-                                                    ⏳
+                                                    <span style="display: inline-block; animation: spin 2s linear infinite;">⏳</span>
                                                 @endif
                                                 <form method="POST" action="{{ route('dashboard.cancel-pipeline', $job) }}"
                                                       onsubmit="return confirm('{{ __('ui.confirm_cancel_job') }}')" style="display: inline;">
@@ -382,12 +382,33 @@
                 @endif
 
                 <div style="margin-bottom: 24px;">
-                    <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ $current->name }}</h2>
+                    {{-- Editable dataset name (click to rename, same pattern as embedding rename) --}}
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h2 id="ds-title" style="font-size: 20px; font-weight: 600; margin-bottom: 0; cursor: pointer;"
+                            onclick="startDsRename()" title="{{ __('ui.click_to_rename') ?? 'Click to rename' }}">
+                            @if($current->dataset) {{ $current->dataset->name }} @else {{ $current->name }} @endif
+                        </h2>
+                        <button onclick="startDsRename()" style="background: none; border: none; cursor: pointer; color: #5f6368; padding: 2px;" title="{{ __('ui.rename') }}">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"/>
+                            </svg>
+                        </button>
+                    </div>
                     @if($current->dataset)
-                        <div style="font-size: 13px; color: #5f6368;">{{ $current->dataset->name }} — {{ $clusteringRuns->count() }} {{ __('ui.clustering_runs') }}</div>
+                    <form id="ds-rename-form" method="POST" action="{{ route('dataset.rename', $current->dataset) }}"
+                          style="display: none; margin-top: 4px;">
+                        @csrf @method('PUT')
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="text" name="name" value="{{ $current->dataset->name }}" id="ds-rename-input"
+                                   style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 14px; width: 250px;">
+                            <button type="submit" class="btn btn-sm btn-primary" style="white-space: nowrap;">{{ __('ui.save') }}</button>
+                            <button type="button" class="btn btn-sm btn-outline" onclick="cancelDsRename()" style="white-space: nowrap;">{{ __('ui.cancel') }}</button>
+                        </div>
+                    </form>
                     @endif
+                    <div style="font-size: 13px; color: #5f6368; margin-top: 4px;">{{ $clusteringRuns->count() }} {{ __('ui.clustering_runs') }}</div>
                     @if($current->embedding_model)
-                        <div style="font-size: 12px; color: #888; margin-top: 4px;">{{ __('ui.embedding_model_used') }}: {{ $current->embedding_model }}</div>
+                        <div style="font-size: 12px; color: #888; margin-top: 2px;">{{ __('ui.embedding_model_used') }}: {{ $current->embedding_model }}</div>
                     @endif
                 </div>
 
@@ -1280,6 +1301,22 @@
             document.getElementById('emb-title').style.display = '';
             document.getElementById('rename-pen').style.display = '';
             document.getElementById('rename-form').style.display = 'none';
+        }
+
+        /** Dataset rename (comparison view header) */
+        function startDsRename() {
+            const title = document.getElementById('ds-title');
+            const form = document.getElementById('ds-rename-form');
+            if (title) title.style.display = 'none';
+            if (title) title.nextElementSibling.style.display = 'none'; // pen button
+            if (form) { form.style.display = 'block'; document.getElementById('ds-rename-input').focus(); document.getElementById('ds-rename-input').select(); }
+        }
+        function cancelDsRename() {
+            const title = document.getElementById('ds-title');
+            const form = document.getElementById('ds-rename-form');
+            if (title) title.style.display = '';
+            if (title) title.nextElementSibling.style.display = '';
+            if (form) form.style.display = 'none';
         }
 
         // Chat overlay — session state tracks extracted primary_filter/question

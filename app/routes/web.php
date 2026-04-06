@@ -108,6 +108,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/dataset/{dataset}/re-encode', [DatasetWizardController::class, 'reEncode'])->name('dataset.re-encode');
         Route::post('/dataset/{dataset}/generate-descriptions', [DatasetWizardController::class, 'generateDescriptionsApi'])->name('dataset.generate-descriptions');
         Route::post('/dataset/{dataset}/finalize', [DatasetWizardController::class, 'finalize'])->name('dataset.finalize');
+        Route::put('/dataset/{dataset}/rename', [DatasetWizardController::class, 'rename'])->name('dataset.rename');
         Route::delete('/dataset/{dataset}', [DatasetWizardController::class, 'destroy'])->name('dataset.destroy');
 
         Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
