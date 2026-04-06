@@ -749,7 +749,7 @@ class DatasetWizardController extends Controller
     {
         $this->authorizeDataset($dataset);
 
-        // Guard: prevent deletion only while pipeline is actively processing
+        // Guard: prevent deletion while a pipeline is actively processing
         $hasRunningJobs = \App\Models\PipelineJob::where('dataset_id', $dataset->id)
             ->whereIn('status', ['preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
             ->exists();
@@ -758,15 +758,7 @@ class DatasetWizardController extends Controller
                 ->with('error', __('ui.cannot_delete_running'));
         }
 
-        // Guard: prevent deletion of datasets with active embeddings
-        $embeddingCount = \App\Models\Embedding::where('dataset_id', $dataset->id)->count();
-        if ($embeddingCount > 0) {
-            return redirect()->route('workspace.index')
-                ->with('error', __('ui.cannot_delete_has_embeddings'));
-        }
-
         $name = $dataset->name;
-        $workspaceId = auth()->user()->workspace_id;
 
         // Delete the stored CSV and raw files from persistent volume
         foreach (['stored_path', 'raw_path'] as $pathKey) {
@@ -776,26 +768,9 @@ class DatasetWizardController extends Controller
             }
         }
 
-        // Delete related pipeline jobs first (they reference dataset_id)
-        \App\Models\PipelineJob::where('dataset_id', $dataset->id)->delete();
-
-        // Delete rows (cascade should handle this, but be explicit)
-        DatasetRow::where('dataset_id', $dataset->id)->delete();
+        // Delete the dataset — cascade deletes handle all dependent rows:
+        // embeddings, pipeline_jobs, clusters, knowledge_units, dataset_rows, etc.
         $dataset->delete();
-
-        // Check if all datasets are now gone and orphaned jobs remain
-        $remainingDatasets = Dataset::where('workspace_id', $workspaceId)->count();
-        if ($remainingDatasets === 0) {
-            $orphanedJobs = \App\Models\PipelineJob::where('workspace_id', $workspaceId)
-                ->whereIn('status', ['failed', 'submitted'])
-                ->count();
-
-            if ($orphanedJobs > 0) {
-                return redirect()->route('workspace.index')
-                    ->with('success', "Dataset \"{$name}\" deleted.")
-                    ->with('confirm_cleanup', $orphanedJobs);
-            }
-        }
 
         return redirect()->route('workspace.index')
             ->with('success', "Dataset \"{$name}\" deleted.");
