@@ -402,9 +402,9 @@
                 </div>
             </template>
 
-            {{-- Action buttons: start/queue pipeline --}}
-            <div class="card" style="display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;">
-                @if($isReconfigure)
+            {{-- Action buttons: start/queue pipeline + parameter search --}}
+            <div class="card" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                @if($isReconfigure && ($embeddingId ?? null))
                 <button type="submit" class="btn" id="start-btn" disabled
                     style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
                     {{ __('ui.create_cluster') }}
@@ -431,6 +431,12 @@
                     style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer;">
                     {{ __('ui.test_pipeline') }}
                 </button>
+                @endif
+                @if($isReconfigure && ($embeddingId ?? null))
+                <a href="{{ route('workspace.embedding', ['embeddingId' => $embeddingId, 'compare' => 1]) }}"
+                   style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+                    🔍 {{ __('ui.parameter_search') }}
+                </a>
                 @endif
                 <span id="col-count-msg" style="font-size: 13px; color: #5f6368; white-space: nowrap;">{{ __('ui.select_one_column') }}</span>
             </div>

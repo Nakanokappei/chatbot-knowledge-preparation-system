@@ -24,6 +24,7 @@ from src.steps import embedding
 from src.steps import clustering
 from src.steps import cluster_analysis
 from src.steps import knowledge_unit_generation
+from src.steps import parameter_search
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +41,7 @@ STEP_HANDLERS = {
     "clustering": clustering,
     "cluster_analysis": cluster_analysis,
     "knowledge_unit_generation": knowledge_unit_generation,
+    "parameter_search": parameter_search,
 }
 
 # Graceful shutdown flag

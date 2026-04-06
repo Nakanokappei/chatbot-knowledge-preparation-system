@@ -302,6 +302,116 @@ class EmbeddingController extends Controller
     }
 
     /**
+     * Launch a parameter search job: samples embedding vectors and sweeps
+     * across multiple clustering methods and parameter ranges.
+     *
+     * Results are stored in step_outputs_json and retrieved via
+     * parameterSearchResults() for chart display.
+     */
+    public function parameterSearch(int $embeddingId)
+    {
+        $workspaceId = auth()->user()->workspace_id;
+        $embedding = Embedding::where('workspace_id', $workspaceId)->findOrFail($embeddingId);
+
+        // Find the original full-pipeline job for embedding S3 path
+        $sourceJob = PipelineJob::where('embedding_id', $embeddingId)
+            ->where('status', 'completed')
+            ->where('start_step', 'preprocess')
+            ->orderByDesc('created_at')
+            ->first();
+        if (!$sourceJob) {
+            $sourceJob = PipelineJob::where('embedding_id', $embeddingId)
+                ->where('status', 'completed')
+                ->orderByDesc('created_at')
+                ->firstOrFail();
+        }
+
+        // Build minimal config (no clustering-specific params needed — the sweep generates them)
+        $config = $sourceJob->pipeline_config_snapshot_json ?? [];
+        $config['embedding_id'] = $embeddingId;
+
+        // Create a parameter_search job (lightweight, no chaining)
+        $job = PipelineJob::create([
+            'workspace_id' => $workspaceId,
+            'dataset_id' => $embedding->dataset_id,
+            'embedding_id' => $embeddingId,
+            'start_step' => 'parameter_search',
+            'source_job_id' => $sourceJob->id,
+            'status' => 'submitted',
+            'progress' => 0,
+            'pipeline_config_snapshot_json' => $config,
+        ]);
+
+        // Resolve the embedding S3 path (walk source chain if needed)
+        $embeddingS3Path = null;
+        $currentSource = $sourceJob;
+        for ($i = 0; $i < 5 && $currentSource; $i++) {
+            $embeddingS3Path = $currentSource->step_outputs_json['embedding']['output_s3_path'] ?? null;
+            if ($embeddingS3Path) break;
+            $currentSource = $currentSource->source_job_id
+                ? PipelineJob::find($currentSource->source_job_id)
+                : null;
+        }
+
+        // Dispatch to SQS
+        $sqsUrl = env('SQS_QUEUE_URL');
+        if (!$sqsUrl) {
+            $prefix = env('SQS_PREFIX', '');
+            $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
+            if ($prefix) $sqsUrl = $prefix . '/' . $queue;
+        }
+
+        if ($sqsUrl && $embeddingS3Path) {
+            $sqs = new \Aws\Sqs\SqsClient([
+                'region' => env('SQS_REGION', 'ap-northeast-1'),
+                'version' => 'latest',
+            ]);
+            $sqs->sendMessage([
+                'QueueUrl' => $sqsUrl,
+                'MessageBody' => json_encode([
+                    'job_id' => $job->id,
+                    'workspace_id' => $workspaceId,
+                    'dataset_id' => $embedding->dataset_id,
+                    'step' => 'parameter_search',
+                    'input_s3_path' => $embeddingS3Path,
+                    'pipeline_config' => $config,
+                ]),
+            ]);
+        }
+
+        return redirect()
+            ->route('workspace.embedding', ['embeddingId' => $embeddingId, 'compare' => 1])
+            ->with('success', __('ui.parameter_search_started'));
+    }
+
+    /**
+     * Return parameter search results as JSON for AJAX polling.
+     */
+    public function parameterSearchResults(int $embeddingId)
+    {
+        $workspaceId = auth()->user()->workspace_id;
+
+        // Find the latest parameter_search job for this embedding
+        $job = PipelineJob::where('embedding_id', $embeddingId)
+            ->where('workspace_id', $workspaceId)
+            ->where('start_step', 'parameter_search')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$job) {
+            return response()->json(['status' => 'not_found']);
+        }
+
+        $results = $job->step_outputs_json['parameter_search'] ?? null;
+
+        return response()->json([
+            'status' => $job->status,
+            'progress' => $job->progress,
+            'results' => $results,
+        ]);
+    }
+
+    /**
      * Show a single KU detail (edit, review, versions).
      */
     public function showKnowledgeUnit(int $embeddingId, int $kuId): View

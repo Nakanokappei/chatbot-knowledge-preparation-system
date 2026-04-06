@@ -254,7 +254,8 @@ class DatasetWizardController extends Controller
             ->get();
 
         // Detect reconfigure mode: dataset already has embeddings from a previous run
-        $isReconfigure = Embedding::where('dataset_id', $dataset->id)->exists();
+        $latestEmbedding = Embedding::where('dataset_id', $dataset->id)->orderByDesc('created_at')->first();
+        $isReconfigure = $latestEmbedding !== null;
 
         // Check if a pipeline is already running in this workspace
         $hasRunningPipeline = \App\Models\PipelineJob::where('workspace_id', $workspaceId)
@@ -270,6 +271,7 @@ class DatasetWizardController extends Controller
             'llmModels' => $llmModels,
             'embeddingModels' => $embeddingModels,
             'isReconfigure' => $isReconfigure,
+            'embeddingId' => $latestEmbedding?->id,
             'hasRunningPipeline' => $hasRunningPipeline,
         ]);
     }

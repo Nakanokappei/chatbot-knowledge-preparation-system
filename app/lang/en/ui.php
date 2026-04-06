@@ -948,6 +948,16 @@ return [
     'job_stuck_hint'                => 'This job has not started. Click Retry to re-dispatch.',
     'cannot_delete_source_job'      => 'This job is referenced by other clustering jobs. Delete dependent jobs first.',
 
+    // ── Parameter search ───────────────────────────────
+    'parameter_search'              => 'Parameter Search',
+    'parameter_search_started'      => 'Parameter search started (24 patterns, ~1 min)',
+    'parameter_search_running'      => 'Searching...',
+    'parameter_search_results'      => 'Search Results',
+    'parameter_search_failed'       => 'Search failed',
+    'sampled'                       => 'sampled',
+    'configs_tested'                => 'patterns tested',
+    'use_these_params'              => 'Use these params',
+
     'tip_leiden_n_neighbors'        => 'k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.',
     'tip_leiden_resolution'         => 'Community detection granularity. Higher = more smaller clusters.',
     'tip_hdbscan_min_cluster_size'  => 'Minimum points to form a cluster. Larger = fewer, denser clusters.',

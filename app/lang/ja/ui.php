@@ -949,6 +949,16 @@ return [
     'job_stuck_hint'                => 'このジョブは開始されていません。再送信してください。',
     'cannot_delete_source_job'      => 'このジョブは他のクラスタリングジョブの参照元です。先に参照しているジョブを削除してください。',
 
+    // ── Parameter search ───────────────────────────────
+    'parameter_search'              => 'パラメータ探索',
+    'parameter_search_started'      => 'パラメータ探索を開始しました（24パターン、約1分）',
+    'parameter_search_running'      => '探索中...',
+    'parameter_search_results'      => '探索結果',
+    'parameter_search_failed'       => '探索に失敗しました',
+    'sampled'                       => 'サンプル',
+    'configs_tested'                => 'パターンをテスト',
+    'use_these_params'              => 'この設定で実行',
+
     'tip_leiden_n_neighbors'        => 'k-NNグラフの近傍数。大きいほど広いクラスターになります。sqrt(N)が目安。',
     'tip_leiden_resolution'         => 'コミュニティ検出の粒度。大きいほど小さなクラスターが増えます。',
     'tip_hdbscan_min_cluster_size'  => 'クラスターを形成する最小点数。大きいほど少数の密なクラスターになります。',

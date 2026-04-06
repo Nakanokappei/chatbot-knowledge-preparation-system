@@ -412,14 +412,38 @@
                     @endif
                 </div>
 
-                {{-- Collapsible recluster form: lets users add a new clustering run
-                     with different parameters, reusing the existing embedding vectors. --}}
-                <div style="margin-bottom: 16px;">
+                {{-- Action buttons: new clustering run + parameter search --}}
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
                     <button type="button" onclick="toggleReclusterForm()" id="recluster-toggle"
                         style="background: none; border: 1px solid #d2d2d7; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: #0071e3; display: flex; align-items: center; gap: 6px;">
                         <span id="recluster-chevron" style="transition: transform 0.15s;">▸</span>
                         {{ __('ui.new_clustering_run') }}
                     </button>
+                    <form method="POST" action="{{ route('workspace.parameter-search', $current->id) }}" style="display: inline;">
+                        @csrf
+                        <button type="submit" id="param-search-btn"
+                            style="background: #0071e3; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px;"
+                            onclick="this.disabled=true; this.style.opacity='0.6'; this.innerHTML='<span style=\'display:inline-block;animation:spin 1s linear infinite\'>🔍</span> {{ __("ui.parameter_search_running") }}'; this.form.submit();">
+                            🔍 {{ __('ui.parameter_search') }}
+                        </button>
+                    </form>
+                </div>
+
+                {{-- Parameter search results: chart + top results table.
+                     Loaded via AJAX polling when a parameter_search job exists. --}}
+                <div id="param-search-results" style="display: none; margin-bottom: 20px; padding: 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="font-size: 14px; font-weight: 600; margin: 0;">{{ __('ui.parameter_search_results') }}</h3>
+                        <span id="param-search-status" style="font-size: 12px; color: #5f6368;"></span>
+                    </div>
+                    {{-- Bar chart: each bar = one config, height = silhouette, color = method --}}
+                    <div id="param-search-chart" style="display: flex; align-items: flex-end; gap: 2px; height: 160px; padding: 8px 0; border-bottom: 1px solid #e0e0e2;"></div>
+                    <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: #5f6368;"></div>
+                    {{-- Top results table --}}
+                    <div id="param-search-top" style="margin-top: 12px;"></div>
+                </div>
+
+                <div style="margin-bottom: 16px;">
                     <form method="POST" action="{{ route('workspace.recluster', $current->id) }}" id="recluster-form"
                           style="display: none; margin-top: 8px; padding: 14px 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
                         @csrf
@@ -1303,6 +1327,152 @@
             document.getElementById('rename-pen').style.display = '';
             document.getElementById('rename-form').style.display = 'none';
         }
+
+        // ── Parameter Search: AJAX polling + chart rendering ──────────
+        const paramSearchUrl = '{{ $current ? route("workspace.parameter-search-results", $current->id ?? 0) : "" }}';
+        const METHOD_COLORS = { leiden: '#0071e3', hdbscan: '#ff9500', kmeans: '#30d158', agglomerative: '#af52de' };
+
+        /** Poll the parameter search results endpoint and render when complete */
+        function pollParameterSearch() {
+            if (!paramSearchUrl) return;
+            fetch(paramSearchUrl)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'not_found') return;
+                    const container = document.getElementById('param-search-results');
+                    const statusEl = document.getElementById('param-search-status');
+                    if (!container) return;
+
+                    if (data.status === 'completed' && data.results) {
+                        // Show results
+                        container.style.display = '';
+                        statusEl.textContent = data.results.sample_size + ' {{ __("ui.rows") }} {{ __("ui.sampled") }}, '
+                            + data.results.configs_tested + ' {{ __("ui.configs_tested") }}';
+                        renderParamChart(data.results.results);
+                        renderParamTopResults(data.results.results);
+                    } else if (data.status !== 'completed' && data.status !== 'failed') {
+                        // Still running — show progress and keep polling
+                        container.style.display = '';
+                        statusEl.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite;">🔍</span> '
+                            + '{{ __("ui.parameter_search_running") }} (' + data.progress + '%)';
+                        document.getElementById('param-search-chart').innerHTML = '';
+                        document.getElementById('param-search-top').innerHTML = '';
+                        setTimeout(pollParameterSearch, 3000);
+                    } else if (data.status === 'failed') {
+                        container.style.display = '';
+                        statusEl.textContent = '{{ __("ui.parameter_search_failed") }}';
+                    }
+                })
+                .catch(() => {});
+        }
+
+        /** Render a bar chart from parameter search results */
+        function renderParamChart(results) {
+            const chart = document.getElementById('param-search-chart');
+            const legend = document.getElementById('param-search-legend');
+            if (!chart || !results.length) return;
+
+            // Find the max silhouette for scaling bars
+            const maxSil = Math.max(...results.map(r => r.silhouette_score));
+            const chartHeight = 140;
+
+            chart.innerHTML = results.map((r, i) => {
+                const height = maxSil > 0 ? Math.max((r.silhouette_score / maxSil) * chartHeight, 2) : 2;
+                const color = METHOD_COLORS[r.method] || '#888';
+                const tooltip = r.label + '\\n' + r.n_clusters + ' clusters, sil=' + r.silhouette_score;
+                return '<div data-idx="' + i + '" title="' + tooltip + '" '
+                    + 'style="flex:1;min-width:6px;max-width:24px;height:' + height + 'px;'
+                    + 'background:' + color + ';border-radius:3px 3px 0 0;cursor:pointer;transition:opacity 0.15s;" '
+                    + 'onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1" '
+                    + 'onclick="selectParamResult(' + i + ')"></div>';
+            }).join('');
+
+            // Legend
+            const methods = [...new Set(results.map(r => r.method))];
+            legend.innerHTML = methods.map(m =>
+                '<span style="display:flex;align-items:center;gap:4px;">'
+                + '<span style="width:10px;height:10px;border-radius:2px;background:' + (METHOD_COLORS[m]||'#888') + ';"></span>'
+                + m.toUpperCase() + '</span>'
+            ).join('');
+        }
+
+        /** Render the top 5 results as a compact table with "use this" buttons */
+        function renderParamTopResults(results) {
+            const container = document.getElementById('param-search-top');
+            if (!container) return;
+            const top5 = results.slice(0, 5);
+            let html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">'
+                + '<tr style="color:#5f6368;font-size:11px;"><th style="text-align:left;padding:4px;">{{ __("ui.method") }}</th>'
+                + '<th style="text-align:left;padding:4px;">{{ __("ui.parameters") }}</th>'
+                + '<th style="text-align:center;padding:4px;">{{ __("ui.clusters") }}</th>'
+                + '<th style="text-align:center;padding:4px;">{{ __("ui.silhouette") }}</th>'
+                + '<th></th></tr>';
+            top5.forEach((r, i) => {
+                const paramStr = Object.entries(r.params || {}).map(([k,v]) => k + '=' + v).join(', ');
+                const silColor = r.silhouette_score >= 0.3 ? '#2e7d32' : r.silhouette_score >= 0.1 ? '#1565c0' : '#555';
+                html += '<tr style="border-top:1px solid #f0f0f2;' + (i === 0 ? 'background:#e8f5e9;' : '') + '">'
+                    + '<td style="padding:6px 4px;font-weight:500;">' + r.label + '</td>'
+                    + '<td style="padding:6px 4px;font-size:11px;color:#5f6368;">' + paramStr + '</td>'
+                    + '<td style="padding:6px 4px;text-align:center;font-weight:600;">' + r.n_clusters + '</td>'
+                    + '<td style="padding:6px 4px;text-align:center;font-weight:700;color:' + silColor + ';">' + r.silhouette_score.toFixed(3) + '</td>'
+                    + '<td style="padding:6px 4px;text-align:right;"><button onclick="applyParamResult(' + results.indexOf(r) + ')" '
+                    + 'style="background:#0071e3;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">'
+                    + '{{ __("ui.use_these_params") }}</button></td></tr>';
+            });
+            html += '</table>';
+            container.innerHTML = html;
+
+            // Store results globally for click handlers
+            window._paramSearchResults = results;
+        }
+
+        /** When user clicks a chart bar or "use these params" button:
+         *  open the recluster form and pre-fill the method + params */
+        function selectParamResult(idx) {
+            applyParamResult(idx);
+        }
+        function applyParamResult(idx) {
+            const r = (window._paramSearchResults || [])[idx];
+            if (!r) return;
+
+            // Open the recluster form
+            const form = document.getElementById('recluster-form');
+            const chevron = document.getElementById('recluster-chevron');
+            if (form) form.style.display = 'block';
+            if (chevron) chevron.style.transform = 'rotate(90deg)';
+
+            // Set method
+            const methodSelect = document.getElementById('rc-method');
+            if (methodSelect) { methodSelect.value = r.method; toggleRcParams(); }
+
+            // Set params based on method
+            const params = r.params || {};
+            if (r.method === 'leiden') {
+                const nb = document.querySelector('#rc-params-leiden input[name="leiden_n_neighbors"]');
+                const res = document.querySelector('#rc-params-leiden input[name="leiden_resolution"]');
+                if (nb) nb.value = params.n_neighbors || params.leiden_n_neighbors || 15;
+                if (res) res.value = params.resolution || params.leiden_resolution || 1.0;
+            } else if (r.method === 'hdbscan') {
+                const mcs = document.querySelector('#rc-params-hdbscan input[name="hdbscan_min_cluster_size"]');
+                const ms = document.querySelector('#rc-params-hdbscan input[name="hdbscan_min_samples"]');
+                if (mcs) mcs.value = params.min_cluster_size || 15;
+                if (ms) ms.value = params.min_samples || 5;
+            } else if (r.method === 'kmeans') {
+                const nc = document.querySelector('#rc-params-kmeans input[name="kmeans_n_clusters"]');
+                if (nc) nc.value = params.n_clusters || 10;
+            } else if (r.method === 'agglomerative') {
+                const nc = document.querySelector('#rc-params-agglomerative input[name="agglomerative_n_clusters"]');
+                if (nc) nc.value = params.n_clusters || 10;
+            }
+
+            // Scroll to the form
+            form?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Start polling if page loaded with a recent parameter search
+        @if($current)
+        pollParameterSearch();
+        @endif
 
         /** Dataset rename (comparison view header) */
         function startDsRename() {
