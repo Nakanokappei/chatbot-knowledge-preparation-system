@@ -394,7 +394,12 @@ class EmbeddingController extends Controller
         $old = $embedding->name;
         $embedding->update(['name' => $request->input('name')]);
 
-        return redirect()->route('workspace.embedding', ['embeddingId' => $embeddingId])
+        // Preserve the current view mode (compare or job) when redirecting back
+        $params = ['embeddingId' => $embeddingId];
+        if ($request->input('compare')) $params['compare'] = 1;
+        if ($request->input('job')) $params['job'] = $request->input('job');
+
+        return redirect()->route('workspace.embedding', $params)
             ->with('success', "Renamed: {$old} → {$embedding->name}");
     }
 

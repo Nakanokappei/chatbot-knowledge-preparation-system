@@ -574,6 +574,7 @@
                         <form id="rename-form" method="POST" action="{{ route('workspace.rename', $current->id) }}"
                               style="display: none; margin-top: 4px;">
                             @csrf @method('PUT')
+                            @if(request('job'))<input type="hidden" name="job" value="{{ request('job') }}">@endif
                             <div style="display: flex; gap: 8px; align-items: center;">
                                 <input type="text" name="name" value="{{ $current->name }}" id="rename-input"
                                        style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 14px; width: 200px;">
