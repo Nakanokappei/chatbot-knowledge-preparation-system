@@ -22,6 +22,13 @@ class SystemMetricsService
     /** JST offset used when formatting PostgreSQL timestamp results. */
     private const TZ = 'Asia/Tokyo';
 
+    /**
+     * SQL expression to convert a TIMESTAMP WITHOUT TIME ZONE column (stored
+     * as UTC) to JST. PostgreSQL needs a two-step AT TIME ZONE conversion:
+     * first declare the value as UTC, then convert to the target timezone.
+     */
+    private const UTC_TO_JST = "AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo'";
+
     public function __construct()
     {
         $this->cloudWatch = new CloudWatchClient([
@@ -31,7 +38,11 @@ class SystemMetricsService
     }
 
     /**
-     * Collect all system metrics for the past 24 hours.
+     * Collect all system metrics for the past 24 completed hours.
+     *
+     * The time range ends at the start of the current hour (i.e., at 10:59
+     * the latest data point is for the 09:00-09:59 window). This avoids
+     * showing a partially aggregated current hour that appears artificially low.
      *
      * Returns a keyed array of metric series. Each series is an array of
      * {key: 'Y-m-d H', hour: 'HH:00', value: ...} objects that the view
@@ -42,6 +53,10 @@ class SystemMetricsService
      */
     public function getLast24Hours(): array
     {
+        // End at the start of the current hour so only completed hours are shown
+        $this->endTime   = now()->startOfHour();
+        $this->startTime = $this->endTime->copy()->subHours(24);
+
         return [
             'ecs'        => $this->fetchEcsMetrics(),
             'rds'        => $this->fetchRdsConnections(),
@@ -50,6 +65,12 @@ class SystemMetricsService
             'error_rate' => $this->fetchErrorRate(),
         ];
     }
+
+    /** End of the metrics window (start of current hour). */
+    private Carbon $endTime;
+
+    /** Start of the metrics window (24 hours before endTime). */
+    private Carbon $startTime;
 
     // ── CloudWatch: ECS ───────────────────────────────────────────────────────
 
@@ -67,8 +88,8 @@ class SystemMetricsService
 
         try {
             $result = $this->cloudWatch->getMetricData([
-                'StartTime'          => now()->subHours(25)->toIso8601String(),
-                'EndTime'            => now()->toIso8601String(),
+                'StartTime'          => $this->startTime->toIso8601String(),
+                'EndTime'            => $this->endTime->toIso8601String(),
                 'ScanBy'             => 'TimestampAscending',
                 'MetricDataQueries'  => [
                     [
@@ -126,8 +147,8 @@ class SystemMetricsService
 
         try {
             $result = $this->cloudWatch->getMetricData([
-                'StartTime'         => now()->subHours(25)->toIso8601String(),
-                'EndTime'           => now()->toIso8601String(),
+                'StartTime'         => $this->startTime->toIso8601String(),
+                'EndTime'           => $this->endTime->toIso8601String(),
                 'ScanBy'            => 'TimestampAscending',
                 'MetricDataQueries' => [
                     [
@@ -169,13 +190,14 @@ class SystemMetricsService
         $rows = DB::table('chat_turns')
             ->where('role', 'assistant')
             ->whereNotNull('response_ms')
-            ->where('created_at', '>=', now()->subHours(24))
+            ->where('created_at', '>=', $this->startTime)
+            ->where('created_at', '<', $this->endTime)
             ->selectRaw("
-                DATE_TRUNC('hour', created_at AT TIME ZONE '" . self::TZ . "') as hour,
+                DATE_TRUNC('hour', created_at " . self::UTC_TO_JST . ") as hour,
                 AVG(response_ms) as avg_ms,
                 COUNT(*) as count
             ")
-            ->groupBy(DB::raw("DATE_TRUNC('hour', created_at AT TIME ZONE '" . self::TZ . "')"))
+            ->groupBy(DB::raw("DATE_TRUNC('hour', created_at " . self::UTC_TO_JST . ")"))
             ->orderBy('hour')
             ->get();
 
@@ -200,13 +222,14 @@ class SystemMetricsService
             ->where('status', 'completed')
             ->whereNotNull('started_at')
             ->whereNotNull('completed_at')
-            ->where('completed_at', '>=', now()->subHours(24))
+            ->where('completed_at', '>=', $this->startTime)
+            ->where('completed_at', '<', $this->endTime)
             ->selectRaw("
-                DATE_TRUNC('hour', completed_at AT TIME ZONE '" . self::TZ . "') as hour,
+                DATE_TRUNC('hour', completed_at " . self::UTC_TO_JST . ") as hour,
                 AVG(EXTRACT(EPOCH FROM (completed_at - started_at))) as avg_seconds,
                 COUNT(*) as count
             ")
-            ->groupBy(DB::raw("DATE_TRUNC('hour', completed_at AT TIME ZONE '" . self::TZ . "')"))
+            ->groupBy(DB::raw("DATE_TRUNC('hour', completed_at " . self::UTC_TO_JST . ")"))
             ->orderBy('hour')
             ->get();
 
@@ -228,13 +251,14 @@ class SystemMetricsService
     {
         $rows = DB::table('chat_turns')
             ->where('role', 'assistant')
-            ->where('created_at', '>=', now()->subHours(24))
+            ->where('created_at', '>=', $this->startTime)
+            ->where('created_at', '<', $this->endTime)
             ->selectRaw("
-                DATE_TRUNC('hour', created_at AT TIME ZONE '" . self::TZ . "') as hour,
+                DATE_TRUNC('hour', created_at " . self::UTC_TO_JST . ") as hour,
                 COUNT(*) FILTER (WHERE action IN ('no_match', 'rejected')) as errors,
                 COUNT(*) as total
             ")
-            ->groupBy(DB::raw("DATE_TRUNC('hour', created_at AT TIME ZONE '" . self::TZ . "')"))
+            ->groupBy(DB::raw("DATE_TRUNC('hour', created_at " . self::UTC_TO_JST . ")"))
             ->orderBy('hour')
             ->get();
 

@@ -108,9 +108,12 @@
             hour: '2-digit', hour12: false,
         });
         const slots = [];
-        const now   = new Date();
-        for (let i = 23; i >= 0; i--) {
-            const d     = new Date(now.getTime() - i * 3600000);
+        // Use the start of the current hour as the boundary — the graph shows
+        // only completed hours (e.g., at 10:59 the last slot is 09:00).
+        const now       = new Date();
+        const hourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
+        for (let i = 24; i >= 1; i--) {
+            const d     = new Date(hourStart.getTime() - i * 3600000);
             const parts = Object.fromEntries(
                 fmt.formatToParts(d)
                    .filter(p => p.type !== 'literal')
