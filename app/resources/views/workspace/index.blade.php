@@ -469,7 +469,6 @@
                     <table class="ku-table compare-table">
                         <thead>
                             <tr>
-                                <th style="width: 40px;"></th>
                                 <th>{{ __('ui.method') }}</th>
                                 <th>{{ __('ui.parameters') }}</th>
                                 <th style="text-align: center;">{{ __('ui.clusters') }}</th>
@@ -500,8 +499,7 @@
                                 @endphp
                                 <tr class="{{ $loop->first ? 'best-run' : '' }}" style="cursor: pointer;"
                                     onclick="if(!event.target.closest('form'))window.location='{{ route('workspace.embedding', ['embeddingId' => $current->id]) }}?job={{ $run->job_id }}'">
-                                    <td style="text-align: center; font-size: 16px;">{{ $loop->first ? '🏆' : '' }}</td>
-                                    <td style="font-weight: 600; white-space: nowrap;">
+                                                                        <td style="font-weight: 600; white-space: nowrap;">
                                         {{ $methodNames[$run->clustering_method] ?? strtoupper($run->clustering_method) }}
                                     </td>
                                     <td style="font-size: 12px; color: #5f6368; max-width: 200px;">
