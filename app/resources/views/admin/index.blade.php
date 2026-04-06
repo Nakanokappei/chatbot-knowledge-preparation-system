@@ -439,8 +439,9 @@
         (function() {
             const rawData = @json($usageData['dailyTrend']);
             const data = [];
+            // Use yesterday as the latest point — today's data is incomplete
             const today = new Date();
-            for (let i = 29; i >= 0; i--) {
+            for (let i = 30; i >= 1; i--) {
                 const d = new Date(today);
                 d.setDate(d.getDate() - i);
                 const dateStr = d.toISOString().slice(0, 10);

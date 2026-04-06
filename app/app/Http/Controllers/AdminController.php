@@ -319,9 +319,11 @@ class AdminController extends Controller
         $costService = new CostTrackingService();
         $monthly = $costService->getMonthlyUsage($workspaceId);
 
+        // Exclude today's incomplete data — only show fully aggregated days
         $dailyTrend = DB::table('daily_cost_summary')
             ->where('workspace_id', $workspaceId)
             ->where('date', '>=', now()->subDays(30)->toDateString())
+            ->where('date', '<', now()->toDateString())
             ->orderBy('date')
             ->get(['date', 'embedding_cost', 'chat_cost', 'pipeline_cost', 'total_cost', 'total_tokens', 'request_count', 'chat_answers', 'upvotes', 'downvotes']);
 
@@ -351,8 +353,10 @@ class AdminController extends Controller
             ')
             ->first();
 
+        // Exclude today's incomplete data — only show fully aggregated days
         $dailyTrend = DB::table('daily_cost_summary')
             ->where('date', '>=', $thirtyDaysAgo->toDateString())
+            ->where('date', '<', now()->toDateString())
             ->groupBy('date')
             ->selectRaw('
                 date,
@@ -390,14 +394,17 @@ class AdminController extends Controller
      */
     private function getPipelineDailyStats(?int $workspaceId = null): \Illuminate\Support\Collection
     {
+        // Exclude today's incomplete data; use double AT TIME ZONE for
+        // TIMESTAMP WITHOUT TIME ZONE columns stored as UTC
         $query = DB::table('pipeline_jobs')
             ->where('created_at', '>=', now()->subDays(30))
+            ->where('created_at', '<', now()->startOfDay())
             ->selectRaw("
-                DATE(created_at AT TIME ZONE 'Asia/Tokyo') as date,
+                DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo') as date,
                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
                 SUM(CASE WHEN status IN ('failed', 'cancelled') THEN 1 ELSE 0 END) as failed
             ")
-            ->groupBy(DB::raw("DATE(created_at AT TIME ZONE 'Asia/Tokyo')"))
+            ->groupBy(DB::raw("DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Tokyo')"))
             ->orderBy('date');
 
         if ($workspaceId !== null) {
