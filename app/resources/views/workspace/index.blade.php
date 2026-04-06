@@ -1805,11 +1805,13 @@
 
                 localizeTimestamps();
 
-                // Stop polling when no more processing jobs
+                // When all processing jobs have finished, reload the full page
+                // so comparison view, sidebar, and KU lists show the latest results.
                 const processingBadge = doc.querySelector('[data-processing-count]');
                 const processingCount = processingBadge ? parseInt(processingBadge.dataset.processingCount) : 0;
                 if (processingCount === 0 && pollingActive) {
                     pollingActive = false;
+                    window.location.reload();
                 }
             } catch (e) { }
         }
