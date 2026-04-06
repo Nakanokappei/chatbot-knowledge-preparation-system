@@ -136,12 +136,7 @@
                                     <line x1="5.5" y1="4.5" x2="10.5" y2="7.5" stroke="currentColor" stroke-width="0.9"/>
                                     <line x1="5.5" y1="11.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width="0.9"/>
                                 </svg>
-                                <span class="tree-dataset-name" style="display: flex; flex-direction: column; gap: 0;">
-                                    {{ $emb->name }}
-                                    @if($emb->dataset)
-                                        <span class="tree-dataset-subtitle">{{ $emb->dataset->name }}</span>
-                                    @endif
-                                </span>
+                                <span class="tree-dataset-name">{{ $emb->dataset?->name ?? $emb->name }}</span>
                             </a>
                             <span class="tree-dataset-count">{{ $completedJobs->count() }}</span>
                         </div>
