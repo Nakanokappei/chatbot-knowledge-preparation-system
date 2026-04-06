@@ -86,6 +86,9 @@
         .compare-table tr:hover td { background: #f0f7ff !important; }
         .compare-table tr.best-run:hover td { background: #d0ebd4 !important; }
 
+        /* Spin animation for deletion spinner */
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         .empty-icon { margin-bottom: 12px; color: #5f6368; }
         .empty-title { font-size: 18px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px; }
 @endsection
@@ -193,29 +196,35 @@
                      sidebar entries so users can navigate to configure and run the pipeline. --}}
                 @foreach(($pendingDatasets ?? collect()) as $ds)
                     @php $hasStoredCsv = !empty($ds->schema_json['stored_path']); @endphp
-                    <div class="tree-dataset">
+                    <div class="tree-dataset" id="pending-ds-{{ $ds->id }}">
                         <div class="tree-dataset-header">
-                            <svg class="tree-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            {{-- Folder icon: replaced by spinner during deletion --}}
+                            <svg class="tree-icon pending-ds-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
                                 <path d="M2 3.5A1.5 1.5 0 013.5 2h3.172a1.5 1.5 0 011.06.44l.828.827a1.5 1.5 0 001.06.44H12.5A1.5 1.5 0 0114 5.207V12.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V3.5z" stroke="currentColor" stroke-width="1.2"/>
                             </svg>
+                            {{-- Deleting spinner: hidden by default, shown during deletion --}}
+                            <svg class="tree-icon pending-ds-spinner" width="16" height="16" viewBox="0 0 16 16" fill="none" style="display:none; animation: spin 1s linear infinite;">
+                                <circle cx="8" cy="8" r="6" stroke="#ccc" stroke-width="2" fill="none"/>
+                                <path d="M8 2a6 6 0 014.24 1.76" stroke="#ff3b30" stroke-width="2" stroke-linecap="round" fill="none"/>
+                            </svg>
                             @if($hasStoredCsv)
-                            <a href="{{ route('dataset.configure', $ds) }}" class="tree-dataset-link" style="flex: 1; min-width: 0;">
+                            <a href="{{ route('dataset.configure', $ds) }}" class="tree-dataset-link pending-ds-link" style="flex: 1; min-width: 0;">
                                 <span class="tree-dataset-name" style="display: flex; flex-direction: column; gap: 0;">
                                     {{ $ds->name }}
-                                    <span class="tree-dataset-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }} — {{ __('ui.ready_to_configure') }}</span>
+                                    <span class="tree-dataset-subtitle pending-ds-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }} — {{ __('ui.ready_to_configure') }}</span>
                                 </span>
                             </a>
                             @else
                             <span class="tree-dataset-name" style="display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0;">
                                 {{ $ds->name }}
-                                <span class="tree-dataset-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }}</span>
+                                <span class="tree-dataset-subtitle pending-ds-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }}</span>
                             </span>
                             @endif
                             <form method="POST" action="{{ route('dataset.destroy', $ds) }}" style="flex-shrink: 0;"
-                                onsubmit="event.stopPropagation(); return confirm('{{ __('ui.confirm_delete_dataset') }}')">
+                                onsubmit="event.stopPropagation(); if(!confirm('{{ __('ui.confirm_delete_dataset') }}')) return false; startDatasetDeletion({{ $ds->id }}); return true;">
                                 @csrf @method('DELETE')
                                 <button type="submit" onclick="event.preventDefault(); event.stopPropagation(); this.closest('form').requestSubmit();"
-                                    class="tree-dataset-menu" style="visibility: visible; color: #ff3b30; font-size: 12px; width: auto; padding: 2px 6px;"
+                                    class="tree-dataset-menu pending-ds-delete-btn" style="visibility: visible; color: #ff3b30; font-size: 12px; width: auto; padding: 2px 6px;"
                                     title="{{ __('ui.delete') }}">✕</button>
                             </form>
                         </div>
@@ -1146,6 +1155,31 @@
 
         // Tree view toggle (open/close dataset nodes)
         /** Toggle the recluster form visibility in the comparison view */
+        /**
+         * Transition a pending dataset row into "deleting" state:
+         * hide the delete button, swap folder icon for a spinner,
+         * grey out the name, disable the configure link, and
+         * update the subtitle to show deletion in progress.
+         */
+        function startDatasetDeletion(datasetId) {
+            const row = document.getElementById('pending-ds-' + datasetId);
+            if (!row) return;
+            // Hide delete button
+            const btn = row.querySelector('.pending-ds-delete-btn');
+            if (btn) btn.style.display = 'none';
+            // Swap icon: folder → spinner
+            const folderIcon = row.querySelector('.pending-ds-icon');
+            const spinner = row.querySelector('.pending-ds-spinner');
+            if (folderIcon) folderIcon.style.display = 'none';
+            if (spinner) spinner.style.display = '';
+            // Disable link and grey out text
+            const link = row.querySelector('.pending-ds-link');
+            if (link) { link.style.pointerEvents = 'none'; link.style.opacity = '0.5'; }
+            // Update subtitle to "Deleting..."
+            const subtitle = row.querySelector('.pending-ds-subtitle');
+            if (subtitle) subtitle.textContent = '{{ __("ui.deleting") }}';
+        }
+
         function toggleReclusterForm() {
             const form = document.getElementById('recluster-form');
             const chevron = document.getElementById('recluster-chevron');

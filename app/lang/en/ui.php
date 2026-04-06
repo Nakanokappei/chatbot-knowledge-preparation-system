@@ -940,6 +940,8 @@ return [
     'clustering_deleted'            => 'Clustering run deleted',
 
     // ── Parameter tooltips ─────────────────────────────
+    'deleting'                      => 'Deleting...',
+
     'tip_leiden_n_neighbors'        => 'k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.',
     'tip_leiden_resolution'         => 'Community detection granularity. Higher = more smaller clusters.',
     'tip_hdbscan_min_cluster_size'  => 'Minimum points to form a cluster. Larger = fewer, denser clusters.',

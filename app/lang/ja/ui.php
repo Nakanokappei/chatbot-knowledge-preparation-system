@@ -941,6 +941,8 @@ return [
     'clustering_deleted'            => 'クラスタリング結果を削除しました',
 
     // ── Parameter tooltips ─────────────────────────────
+    'deleting'                      => '削除中...',
+
     'tip_leiden_n_neighbors'        => 'k-NNグラフの近傍数。大きいほど広いクラスターになります。sqrt(N)が目安。',
     'tip_leiden_resolution'         => 'コミュニティ検出の粒度。大きいほど小さなクラスターが増えます。',
     'tip_hdbscan_min_cluster_size'  => 'クラスターを形成する最小点数。大きいほど少数の密なクラスターになります。',
