@@ -107,11 +107,10 @@
                 <div class="row" style="margin-top: 12px;">
                     <div class="col">
                         <label>{{ __('ui.embedding_model') }}</label>
-                        @php $maxDim = $embeddingModels->max('dimension'); @endphp
                         <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                             @foreach($embeddingModels as $em)
                                 @php $provider = $em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock'); @endphp
-                                <option value="{{ $em->model_id }}" @if($em->dimension === $maxDim) selected @endif>
+                                <option value="{{ $em->model_id }}" @if($loop->first) selected @endif>
                                     [{{ ucfirst($provider) }}] {{ $em->display_name }} ({{ $em->dimension }}d)
                                 </option>
                             @endforeach
@@ -121,7 +120,7 @@
                         <label>{{ __('ui.llm_model') }}</label>
                         <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                             @foreach($llmModels as $model)
-                                <option value="{{ $model->model_id }}" @if($model->is_default) selected @endif>{{ $model->display_name }}</option>
+                                <option value="{{ $model->model_id }}" @if($loop->first) selected @endif>{{ $model->display_name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -341,9 +340,9 @@
                  Each card represents a clustering method+parameter set.
                  Job #1 runs full pipeline; #2..N reuse the same embedding. --}}
             <div class="card">
-                <h2>{{ __('ui.clustering_patterns') ?? 'Clustering Patterns' }}</h2>
+                <h2>{{ __('ui.clustering_patterns') }}</h2>
                 <p style="font-size: 12px; color: #5f6368; margin-bottom: 12px;">
-                    {{ __('ui.clustering_patterns_hint') ?? 'Add multiple patterns to compare different clustering approaches on the same embedding. The first pattern runs a full pipeline; additional patterns reuse the embedding vectors.' }}
+                    {{ __('ui.clustering_patterns_hint') }}
                 </p>
 
                 <div id="clustering-config-list"></div>
@@ -351,7 +350,7 @@
                 <button type="button" id="add-clustering-config" onclick="addClusteringConfig()"
                     style="width: 100%; padding: 10px 16px; font-size: 13px; font-weight: 500; background: #fff; border: 2px dashed #d2d2d7; border-radius: 10px; cursor: pointer; color: #0071e3; margin-top: 4px; transition: background 0.15s;"
                     onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='#fff'">
-                    + {{ __('ui.add_pattern') ?? 'Add Pattern' }}
+                    + {{ __('ui.add_pattern') }}
                 </button>
             </div>
 
@@ -362,8 +361,8 @@
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
                         <span class="config-number" style="font-size: 12px; font-weight: 600; color: #fff; background: #0071e3; border-radius: 4px; padding: 2px 8px;">Pattern #1</span>
                         <button type="button" class="cc-remove" onclick="removeClusteringConfig(this)"
-                            style="width: 24px; height: 24px; background: #f0f0f2; border: 1px solid #d2d2d7; border-radius: 6px; cursor: pointer; color: #ff3b30; font-size: 14px; font-weight: 600; line-height: 22px; text-align: center; padding: 0;"
-                            title="Remove">−</button>
+                            style="background: #f0f0f2; border: 1px solid #d2d2d7; border-radius: 6px; cursor: pointer; color: #ff3b30; font-size: 12px; padding: 3px 10px; white-space: nowrap;"
+                            title="{{ __('ui.delete') }}">{{ __('ui.delete_pattern') }}</button>
                     </div>
                     {{-- Method selector and parameters --}}
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -805,15 +804,45 @@
             });
         }
 
-        /** Add a new clustering config row by cloning the template */
+        /** Add a new clustering config row by cloning the template.
+         *  Copies method and parameter values from the last existing row
+         *  so users can quickly create variations with minor tweaks. */
         function addClusteringConfig() {
             const list = document.getElementById('clustering-config-list');
             if (list.children.length >= 8) return; // Maximum 8 configurations
             const tmpl = document.getElementById('clustering-config-template');
             const clone = tmpl.content.cloneNode(true);
+            const newRow = clone.querySelector('.clustering-config-row');
+
+            // Copy method and parameters from the last existing row
+            const existingRows = list.querySelectorAll('.clustering-config-row');
+            if (existingRows.length > 0) {
+                const lastRow = existingRows[existingRows.length - 1];
+                const lastMethod = lastRow.querySelector('.cc-method').value;
+                newRow.querySelector('.cc-method').value = lastMethod;
+
+                // Copy all parameter input values from the last row
+                const paramInputs = {
+                    '.cc-leiden-neighbors': '.cc-leiden-neighbors',
+                    '.cc-leiden-resolution': '.cc-leiden-resolution',
+                    '.cc-hdbscan-min-cluster': '.cc-hdbscan-min-cluster',
+                    '.cc-hdbscan-min-samples': '.cc-hdbscan-min-samples',
+                    '.cc-kmeans-n': '.cc-kmeans-n',
+                    '.cc-agg-n': '.cc-agg-n',
+                    '.cc-agg-linkage': '.cc-agg-linkage',
+                };
+                for (const [srcSel, dstSel] of Object.entries(paramInputs)) {
+                    const srcEl = lastRow.querySelector(srcSel);
+                    const dstEl = newRow.querySelector(dstSel);
+                    if (srcEl && dstEl) dstEl.value = srcEl.value;
+                }
+
+                // Toggle parameter visibility to match the copied method
+                updateConfigParams(newRow.querySelector('.cc-method'));
+            }
+
             list.appendChild(clone);
             renumberConfigs();
-            // Update add button visibility
             document.getElementById('add-clustering-config').style.display =
                 list.children.length >= 8 ? 'none' : '';
         }

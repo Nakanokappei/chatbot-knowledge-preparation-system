@@ -920,4 +920,19 @@ return [
     'channel_workspace'             => 'ワークスペースチャット',
     'channel_embed'                 => '埋め込みウィジェット',
     'no_chat_data'                  => 'この期間のチャットデータがありません。',
+
+    // ── Clustering patterns (configure page) ───────────
+    'clustering_patterns'           => 'クラスタリングパターン',
+    'clustering_patterns_hint'      => '同じ埋め込みに対して異なるクラスタリング手法・パラメータを比較できます。最初のパターンはフルパイプラインを実行し、追加パターンは埋め込みベクトルを再利用します。',
+    'add_pattern'                   => 'パターンを追加',
+    'delete_pattern'                => '削除する',
+
+    // ── Workspace: comparison view & recluster ─────────
+    'clustering_runs'               => 'クラスタリング結果',
+    'no_clustering_runs'            => 'クラスタリング結果がありません',
+    'run_pipeline_to_compare'       => 'パイプラインを異なるパラメータで実行し、結果を比較してください。',
+    'view_kus'                      => 'KUを表示',
+    'new_clustering_run'            => '新しいクラスタリングを実行',
+    'run_clustering'                => 'クラスタリング実行',
+    'parameters'                    => 'パラメータ',
 ];

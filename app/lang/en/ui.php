@@ -919,4 +919,19 @@ return [
     'channel_workspace'             => 'Workspace Chat',
     'channel_embed'                 => 'Embed Widget',
     'no_chat_data'                  => 'No chat data in this period.',
+
+    // ── Clustering patterns (configure page) ───────────
+    'clustering_patterns'           => 'Clustering Patterns',
+    'clustering_patterns_hint'      => 'Compare different clustering methods and parameters on the same embedding. The first pattern runs a full pipeline; additional patterns reuse the embedding vectors.',
+    'add_pattern'                   => 'Add Pattern',
+    'delete_pattern'                => 'Delete',
+
+    // ── Workspace: comparison view & recluster ─────────
+    'clustering_runs'               => 'clustering runs',
+    'no_clustering_runs'            => 'No clustering runs yet',
+    'run_pipeline_to_compare'       => 'Run the pipeline with different parameters to compare results.',
+    'view_kus'                      => 'View KUs',
+    'new_clustering_run'            => 'New Clustering Run',
+    'run_clustering'                => 'Run Clustering',
+    'parameters'                    => 'Parameters',
 ];

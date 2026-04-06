@@ -177,7 +177,7 @@
                                     <span class="tree-emb-count">{{ $nCl }}c · {{ $sil }}</span>
                                 </a>
                             @empty
-                                <div style="padding: 4px 32px; font-size: 11px; color: #aaa;">{{ __('ui.no_clustering_runs') ?? 'No clustering runs' }}</div>
+                                <div style="padding: 4px 32px; font-size: 11px; color: #aaa;">{{ __('ui.no_clustering_runs') }}</div>
                             @endforelse
                         </div>
                     </div>
@@ -325,10 +325,10 @@
                 <div style="margin-bottom: 24px;">
                     <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ $current->name }}</h2>
                     @if($current->dataset)
-                        <div style="font-size: 13px; color: #5f6368;">{{ $current->dataset->name }} — {{ $clusteringRuns->count() }} {{ __('ui.clustering_runs') ?? 'clustering runs' }}</div>
+                        <div style="font-size: 13px; color: #5f6368;">{{ $current->dataset->name }} — {{ $clusteringRuns->count() }} {{ __('ui.clustering_runs') }}</div>
                     @endif
                     @if($current->embedding_model)
-                        <div style="font-size: 12px; color: #888; margin-top: 4px;">{{ __('ui.embedding_model_used') ?? 'Embedding model' }}: {{ $current->embedding_model }}</div>
+                        <div style="font-size: 12px; color: #888; margin-top: 4px;">{{ __('ui.embedding_model_used') }}: {{ $current->embedding_model }}</div>
                     @endif
                 </div>
 
@@ -338,7 +338,7 @@
                     <button type="button" onclick="toggleReclusterForm()" id="recluster-toggle"
                         style="background: none; border: 1px solid #d2d2d7; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: #0071e3; display: flex; align-items: center; gap: 6px;">
                         <span id="recluster-chevron" style="transition: transform 0.15s;">▸</span>
-                        {{ __('ui.new_clustering_run') ?? 'New Clustering Run' }}
+                        {{ __('ui.new_clustering_run') }}
                     </button>
                     <form method="POST" action="{{ route('workspace.recluster', $current->id) }}" id="recluster-form"
                           style="display: none; margin-top: 8px; padding: 14px 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
@@ -378,10 +378,10 @@
                             </span>
                             <label style="font-size:12px;display:flex;align-items:center;gap:4px;margin-left:8px;">
                                 <input type="checkbox" name="remove_language_bias" value="1" checked style="accent-color:#0071e3;">
-                                {{ __('ui.remove_language_bias') ?? 'Remove lang bias' }}
+                                {{ __('ui.remove_language_bias') }}
                             </label>
                             <button type="submit" class="btn btn-sm btn-primary" style="padding: 6px 16px; font-size: 13px; white-space: nowrap;">
-                                {{ __('ui.run_clustering') ?? 'Run Clustering' }}
+                                {{ __('ui.run_clustering') }}
                             </button>
                         </div>
                     </form>
@@ -394,8 +394,8 @@
                                 <rect x="6" y="30" width="8" height="12" rx="1"/><rect x="20" y="18" width="8" height="24" rx="1"/><rect x="34" y="6" width="8" height="36" rx="1"/>
                             </svg>
                         </div>
-                        <div class="empty-title">{{ __('ui.no_clustering_runs') ?? 'No clustering runs yet' }}</div>
-                        <p>{{ __('ui.run_pipeline_to_compare') ?? 'Run the pipeline with different clustering parameters to compare results.' }}</p>
+                        <div class="empty-title">{{ __('ui.no_clustering_runs') }}</div>
+                        <p>{{ __('ui.run_pipeline_to_compare') }}</p>
                     </div>
                 @else
                     @php
@@ -411,13 +411,13 @@
                         <thead>
                             <tr>
                                 <th style="width: 40px;"></th>
-                                <th>{{ __('ui.method') ?? 'Method' }}</th>
-                                <th>{{ __('ui.parameters') ?? 'Parameters' }}</th>
-                                <th style="text-align: center;">{{ __('ui.clusters') ?? 'Clusters' }}</th>
-                                <th style="text-align: center;">{{ __('ui.silhouette') ?? 'Silhouette' }}</th>
-                                <th style="text-align: center;">{{ __('ui.noise') ?? 'Noise' }}</th>
+                                <th>{{ __('ui.method') }}</th>
+                                <th>{{ __('ui.parameters') }}</th>
+                                <th style="text-align: center;">{{ __('ui.clusters') }}</th>
+                                <th style="text-align: center;">{{ __('ui.silhouette') }}</th>
+                                <th style="text-align: center;">{{ __('ui.noise') }}</th>
                                 <th style="text-align: center;">KUs</th>
-                                <th style="text-align: right;">{{ __('ui.created') ?? 'Date' }}</th>
+                                <th style="text-align: right;">{{ __('ui.created') }}</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -465,7 +465,7 @@
                                     <td style="text-align: right;">
                                         <a href="{{ route('workspace.embedding', ['embeddingId' => $current->id]) }}?job={{ $run->job_id }}"
                                            class="btn btn-sm btn-outline" style="font-size: 12px; white-space: nowrap;">
-                                            {{ __('ui.view_kus') ?? 'View KUs' }} →
+                                            {{ __('ui.view_kus') }} →
                                         </a>
                                     </td>
                                 </tr>

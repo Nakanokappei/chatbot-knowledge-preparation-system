@@ -554,7 +554,10 @@ class EmbeddingController extends Controller
             }
         }
 
-        // Delete related KUs and the embedding
+        // Delete related pipeline jobs, KUs, and the embedding itself.
+        // Pipeline jobs reference the embedding via embedding_id; removing them
+        // keeps the pipeline history clean when the embedding is deleted.
+        PipelineJob::where('embedding_id', $embeddingId)->delete();
         KnowledgeUnit::where('embedding_id', $embeddingId)->delete();
         $embedding->delete();
 
