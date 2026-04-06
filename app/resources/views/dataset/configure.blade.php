@@ -56,7 +56,7 @@
         .preview-label { color: #64d2ff; }
         .preview-value { color: #fff; }
 
-        .pipeline-options { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+
 @endsection
 
 @section('body')
@@ -76,7 +76,7 @@
                 <form id="config-form" method="POST" action="{{ route('dataset.finalize', $dataset) }}">
                     @csrf
 
-            {{-- Basic settings: dataset name, header row toggle, and character encoding --}}
+            {{-- Basic settings: dataset name, header row, encoding, models, and language bias --}}
             <div class="card">
                 <h2>{{ __('ui.basic_settings') }}</h2>
                 <div class="row">
@@ -100,6 +100,38 @@
                             <option value="ISO-8859-1" {{ $detectedEncoding === 'ISO-8859-1' ? 'selected' : '' }}>ISO-8859-1 (Latin)</option>
                         </select>
                     </div>
+                </div>
+
+                {{-- Model selection and language bias: moved here from pipeline settings
+                     so that embedding model and LLM model are shared across all clustering configs --}}
+                <div class="row" style="margin-top: 12px;">
+                    <div class="col">
+                        <label>{{ __('ui.embedding_model') }}</label>
+                        @php $maxDim = $embeddingModels->max('dimension'); @endphp
+                        <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                            @foreach($embeddingModels as $em)
+                                @php $provider = $em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock'); @endphp
+                                <option value="{{ $em->model_id }}" @if($em->dimension === $maxDim) selected @endif>
+                                    [{{ ucfirst($provider) }}] {{ $em->display_name }} ({{ $em->dimension }}d)
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label>{{ __('ui.llm_model') }}</label>
+                        <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                            @foreach($llmModels as $model)
+                                <option value="{{ $model->model_id }}" @if($model->is_default) selected @endif>{{ $model->display_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1d1d1f; cursor: pointer;">
+                        <input type="checkbox" name="remove_language_bias" value="1" checked
+                            style="width: 16px; height: 16px; accent-color: #0071e3;">
+                        {{ __('ui.remove_language_bias') }}
+                    </label>
                 </div>
             </div>
 
@@ -305,124 +337,103 @@
                 </div>
             </div>
 
-            {{-- Pipeline settings: embedding model, LLM model, clustering method, and run buttons --}}
+            {{-- Clustering patterns: card-based repeatable configurations.
+                 Each card represents a clustering method+parameter set.
+                 Job #1 runs full pipeline; #2..N reuse the same embedding. --}}
             <div class="card">
-                <h2>{{ __('ui.pipeline_settings') }}</h2>
-                <div class="pipeline-options">
-                    <div>
-                        <label>{{ __('ui.embedding_model') }}</label>
-                        @php
-                            // Recommend the model with the highest dimension among all active models
-                            $maxDim = $embeddingModels->max('dimension');
-                        @endphp
-                        <select name="embedding_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            @foreach($embeddingModels as $em)
-                                @php $provider = $em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock'); @endphp
-                                <option value="{{ $em->model_id }}" @if($em->dimension === $maxDim) selected @endif>
-                                    [{{ ucfirst($provider) }}] {{ $em->display_name }} ({{ $em->dimension }}d){{ $em->dimension === $maxDim ? ' 🌟' : '' }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>{{ __('ui.llm_model') }}</label>
-                        <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            @foreach($llmModels as $model)
-                                <option value="{{ $model->model_id }}" @if($model->is_default) selected @endif>{{ $model->display_name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
+                <h2>{{ __('ui.clustering_patterns') ?? 'Clustering Patterns' }}</h2>
+                <p style="font-size: 12px; color: #5f6368; margin-bottom: 12px;">
+                    {{ __('ui.clustering_patterns_hint') ?? 'Add multiple patterns to compare different clustering approaches on the same embedding. The first pattern runs a full pipeline; additional patterns reuse the embedding vectors.' }}
+                </p>
 
-                {{-- Clustering configurations: repeatable list allowing multiple
-                     method+parameter combos. Job #1 runs full pipeline; #2..N
-                     reuse the same embedding and run clustering-only. --}}
-                <div style="margin-top: 16px;">
-                    <label style="font-size: 14px; font-weight: 500; margin-bottom: 8px; display: block;">{{ __('ui.clustering_configurations') ?? 'Clustering Configurations' }}</label>
-                    <div id="clustering-config-list"></div>
-                    <button type="button" id="add-clustering-config" onclick="addClusteringConfig()"
-                        style="margin-top: 8px; padding: 6px 16px; font-size: 13px; background: #f0f0f2; border: 1px dashed #c0c0c5; border-radius: 8px; cursor: pointer; color: #5f6368;">
-                        + {{ __('ui.add_configuration') ?? 'Add Configuration' }}
-                    </button>
-                </div>
+                <div id="clustering-config-list"></div>
 
-                {{-- Hidden template for clustering config rows (cloned by JS) --}}
-                <template id="clustering-config-template">
-                    <div class="clustering-config-row" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 8px; margin-bottom: 6px; flex-wrap: wrap;">
-                        <span class="config-number" style="font-size: 12px; font-weight: 600; color: #888; min-width: 20px;">#1</span>
+                <button type="button" id="add-clustering-config" onclick="addClusteringConfig()"
+                    style="width: 100%; padding: 10px 16px; font-size: 13px; font-weight: 500; background: #fff; border: 2px dashed #d2d2d7; border-radius: 10px; cursor: pointer; color: #0071e3; margin-top: 4px; transition: background 0.15s;"
+                    onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='#fff'">
+                    + {{ __('ui.add_pattern') ?? 'Add Pattern' }}
+                </button>
+            </div>
+
+            {{-- Hidden template for clustering config cards (cloned by JS) --}}
+            <template id="clustering-config-template">
+                <div class="clustering-config-row" style="position: relative; padding: 14px 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px; margin-bottom: 8px;">
+                    {{-- Card header: number badge and remove button --}}
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <span class="config-number" style="font-size: 12px; font-weight: 600; color: #fff; background: #0071e3; border-radius: 4px; padding: 2px 8px;">Pattern #1</span>
+                        <button type="button" class="cc-remove" onclick="removeClusteringConfig(this)"
+                            style="width: 24px; height: 24px; background: #f0f0f2; border: 1px solid #d2d2d7; border-radius: 6px; cursor: pointer; color: #ff3b30; font-size: 14px; font-weight: 600; line-height: 22px; text-align: center; padding: 0;"
+                            title="Remove">−</button>
+                    </div>
+                    {{-- Method selector and parameters --}}
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <select class="cc-method" onchange="updateConfigParams(this)"
-                            style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                            <option value="leiden" selected>Leiden 🌟</option>
+                            style="padding: 7px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 13px; font-weight: 500;">
+                            <option value="leiden" selected>HNSW + Leiden</option>
                             <option value="hdbscan">HDBSCAN</option>
-                            <option value="kmeans">K-Means</option>
+                            <option value="kmeans">K-Means++</option>
                             <option value="agglomerative">Agglomerative</option>
                         </select>
                         <span class="cc-params-hdbscan" style="display:none;">
                             <label style="font-size:12px;">min_cluster_size</label>
-                            <input type="number" class="cc-hdbscan-min-cluster" value="15" min="2" max="500" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
-                            <label style="font-size:12px;margin-left:4px;">min_samples</label>
-                            <input type="number" class="cc-hdbscan-min-samples" value="5" min="1" max="100" style="width:50px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            <input type="number" class="cc-hdbscan-min-cluster" value="15" min="2" max="500" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;">
+                            <label style="font-size:12px;margin-left:6px;">min_samples</label>
+                            <input type="number" class="cc-hdbscan-min-samples" value="5" min="1" max="100" style="width:50px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;">
                         </span>
                         <span class="cc-params-kmeans" style="display:none;">
                             <label style="font-size:12px;">n_clusters</label>
-                            <input type="number" class="cc-kmeans-n" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            <input type="number" class="cc-kmeans-n" value="10" min="2" max="200" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;">
                         </span>
                         <span class="cc-params-agglomerative" style="display:none;">
                             <label style="font-size:12px;">n_clusters</label>
-                            <input type="number" class="cc-agg-n" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
-                            <label style="font-size:12px;margin-left:4px;">linkage</label>
-                            <select class="cc-agg-linkage" style="padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            <input type="number" class="cc-agg-n" value="10" min="2" max="200" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;">
+                            <label style="font-size:12px;margin-left:6px;">linkage</label>
+                            <select class="cc-agg-linkage" style="padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;">
                                 <option value="ward">ward</option><option value="complete">complete</option>
                                 <option value="average">average</option><option value="single">single</option>
                             </select>
                         </span>
                         <span class="cc-params-leiden">
                             <label style="font-size:12px;">n_neighbors</label>
-                            <input type="number" class="cc-leiden-neighbors" value="15" min="5" max="100" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
-                            <label style="font-size:12px;margin-left:4px;">resolution</label>
-                            <input type="number" class="cc-leiden-resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                            <input type="number" class="cc-leiden-neighbors" value="15" min="5" max="100" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;">
+                            <label style="font-size:12px;margin-left:6px;">resolution</label>
+                            <input type="number" class="cc-leiden-resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;">
                         </span>
-                        <button type="button" class="cc-remove" onclick="removeClusteringConfig(this)" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#ff3b30;font-size:16px;padding:4px;" title="Remove">✕</button>
                     </div>
-                </template>
-                <div style="margin-top: 12px;">
-                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1d1d1f; cursor: pointer;">
-                        <input type="checkbox" name="remove_language_bias" value="1" checked
-                            style="width: 16px; height: 16px; accent-color: #0071e3;">
-                        {{ __('ui.remove_language_bias') }}
-                    </label>
                 </div>
-                <div style="margin-top: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;">
-                    @if($isReconfigure)
-                    <button type="submit" class="btn" id="start-btn" disabled
-                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
-                        {{ __('ui.create_cluster') }}
-                    </button>
-                    <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
-                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 2px solid #0071e3; border-radius: 8px; cursor: pointer;">
-                        {{ __('ui.test_cluster') }}
-                    </button>
-                    @elseif($hasRunningPipeline)
-                    <button type="submit" class="btn btn-primary" id="start-btn" disabled
-                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
-                        {{ __('ui.queue_pipeline') }}
-                    </button>
-                    <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
-                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer;">
-                        {{ __('ui.queue_test') }}
-                    </button>
-                    @else
-                    <button type="submit" class="btn btn-primary" id="start-btn" disabled
-                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
-                        {{ __('ui.start_pipeline') }}
-                    </button>
-                    <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
-                        style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer;">
-                        {{ __('ui.test_pipeline') }}
-                    </button>
-                    @endif
-                    <span id="col-count-msg" style="font-size: 13px; color: #5f6368; white-space: nowrap;">{{ __('ui.select_one_column') }}</span>
-                </div>
+            </template>
+
+            {{-- Action buttons: start/queue pipeline --}}
+            <div class="card" style="display: flex; gap: 12px; align-items: center; flex-wrap: nowrap;">
+                @if($isReconfigure)
+                <button type="submit" class="btn" id="start-btn" disabled
+                    style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+                    {{ __('ui.create_cluster') }}
+                </button>
+                <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
+                    style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 2px solid #0071e3; border-radius: 8px; cursor: pointer;">
+                    {{ __('ui.test_cluster') }}
+                </button>
+                @elseif($hasRunningPipeline)
+                <button type="submit" class="btn btn-primary" id="start-btn" disabled
+                    style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+                    {{ __('ui.queue_pipeline') }}
+                </button>
+                <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
+                    style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer;">
+                    {{ __('ui.queue_test') }}
+                </button>
+                @else
+                <button type="submit" class="btn btn-primary" id="start-btn" disabled
+                    style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #0071e3; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+                    {{ __('ui.start_pipeline') }}
+                </button>
+                <button type="submit" name="test_mode" value="500" class="btn" id="test-btn" disabled
+                    style="padding: 10px 24px; font-size: 14px; white-space: nowrap; background: #fff; color: #0071e3; border: 1.5px solid #0071e3; border-radius: 8px; cursor: pointer;">
+                    {{ __('ui.test_pipeline') }}
+                </button>
+                @endif
+                <span id="col-count-msg" style="font-size: 13px; color: #5f6368; white-space: nowrap;">{{ __('ui.select_one_column') }}</span>
             </div>
 
                     <div id="hidden-inputs"></div>
@@ -797,14 +808,14 @@
         /** Add a new clustering config row by cloning the template */
         function addClusteringConfig() {
             const list = document.getElementById('clustering-config-list');
-            if (list.children.length >= 10) return; // Maximum 10 configurations
+            if (list.children.length >= 8) return; // Maximum 8 configurations
             const tmpl = document.getElementById('clustering-config-template');
             const clone = tmpl.content.cloneNode(true);
             list.appendChild(clone);
             renumberConfigs();
             // Update add button visibility
             document.getElementById('add-clustering-config').style.display =
-                list.children.length >= 10 ? 'none' : '';
+                list.children.length >= 8 ? 'none' : '';
         }
 
         /** Remove a clustering config row */
@@ -822,7 +833,7 @@
         function renumberConfigs() {
             const list = document.getElementById('clustering-config-list');
             list.querySelectorAll('.clustering-config-row').forEach((row, i) => {
-                row.querySelector('.config-number').textContent = '#' + (i + 1);
+                row.querySelector('.config-number').textContent = 'Pattern #' + (i + 1);
                 // Hide remove button if only one row remains
                 const removeBtn = row.querySelector('.cc-remove');
                 if (removeBtn) removeBtn.style.display = list.children.length <= 1 ? 'none' : '';
