@@ -14,15 +14,19 @@ use Illuminate\View\View;
 /**
  * Controller for the embedding-centric main view.
  *
- * The primary UI: left sidebar lists embeddings, main area shows
- * knowledge units for the selected embedding.
+ * Sidebar hierarchy: Embedding (parent) → Clustering runs (children).
+ * Main area shows either a clustering comparison table (compare mode)
+ * or knowledge units for a specific pipeline job.
  */
 class EmbeddingController extends Controller
 {
     /**
-     * Main workspace view — sidebar + KU list.
+     * Main workspace view — sidebar + KU list or clustering comparison.
      *
-     * If no embedding_id is specified, selects the most recent one.
+     * Query params:
+     *   ?compare=1  — show clustering comparison table for the embedding
+     *   ?job={id}   — show KUs filtered to a specific pipeline job
+     *   (none)      — show KUs from the latest completed job (backward compat)
      */
     public function index(Request $request, ?int $embeddingId = null)
     {
@@ -33,64 +37,75 @@ class EmbeddingController extends Controller
 
         $workspaceId = auth()->user()->workspace_id;
 
-        // Datasets with their embeddings for tree view
-        $datasets = Dataset::where('workspace_id', $workspaceId)
-            ->where('row_count', '>', 0)
-            ->with(['embeddings' => function ($embeddingQuery) use ($workspaceId) {
-                // Exclude embeddings whose pipeline is still in progress
-                $embeddingQuery->where('workspace_id', $workspaceId)
-                  ->whereDoesntHave('pipelineJobs', function ($jobQuery) {
-                      $jobQuery->whereNotIn('status', ['completed', 'failed']);
-                  })
-                  ->withCount('knowledgeUnits')
-                  ->orderByDesc('created_at');
+        // Embeddings with their completed pipeline jobs for sidebar tree.
+        // Each embedding is a parent node; completed jobs are child nodes
+        // showing clustering method, params, cluster count, and silhouette score.
+        $sidebarEmbeddings = Embedding::where('workspace_id', $workspaceId)
+            ->with(['dataset:id,name', 'pipelineJobs' => function ($jobQuery) {
+                $jobQuery->where('status', 'completed')
+                    ->orderByDesc('created_at');
             }])
+            ->withCount('knowledgeUnits')
             ->orderByDesc('created_at')
             ->get();
 
-        // Select current embedding: explicit, or first available across all datasets
+        // Select current embedding: explicit, or first available
         $current = null;
         $knowledgeUnits = collect();
 
-        // Try to load the explicitly requested embedding
         if ($embeddingId) {
-            $current = Embedding::where('workspace_id', $workspaceId)->find($embeddingId);
+            $current = Embedding::where('workspace_id', $workspaceId)
+                ->with('dataset:id,name')
+                ->find($embeddingId);
         }
-        if (!$current) {
-            // Auto-select: first embedding of the first dataset
-            foreach ($datasets as $dataset) {
-                if ($dataset->embeddings->isNotEmpty()) {
-                    $current = $dataset->embeddings->first();
-                    break;
-                }
-            }
+        if (!$current && $sidebarEmbeddings->isNotEmpty()) {
+            // Reuse the sidebar instance (already has dataset loaded)
+            $current = $sidebarEmbeddings->first();
         }
 
+        // Pipeline data (for integrated pipeline section)
+        $pipelineView = $request->query('pipeline');
+        $pipelineFilter = $request->query('pf', 'all');
+
+        // Determine display mode: compare, specific job, pipeline, or default.
+        // Pipeline and embedding selections are mutually exclusive.
+        $compareMode = (bool) $request->query('compare');
+        $currentJobId = $request->query('job');
+        $clusteringRuns = collect();
         $embeddingJob = null;
-        if ($current) {
-            // Load the latest pipeline job for this embedding (for header info)
+
+        if ($pipelineView) {
+            // Pipeline section overrides everything else
+            $current = null;
+            $knowledgeUnits = collect();
+            $compareMode = false;
+        } elseif ($current && $compareMode) {
+            // Build clustering comparison data from all completed jobs
+            $clusteringRuns = $this->buildClusteringRuns($current->id);
+        } elseif ($current && $currentJobId) {
+            // Load KUs filtered to a specific pipeline job
+            $embeddingJob = PipelineJob::where('embedding_id', $current->id)
+                ->where('id', $currentJobId)
+                ->first();
+
+            if ($embeddingJob && $embeddingJob->status === 'completed') {
+                $knowledgeUnits = KnowledgeUnit::where('embedding_id', $current->id)
+                    ->where('pipeline_job_id', $currentJobId)
+                    ->orderByDesc('row_count')
+                    ->get();
+            }
+        } elseif ($current) {
+            // Default: load KUs from the latest completed job
             $embeddingJob = PipelineJob::where('embedding_id', $current->id)
                 ->orderByDesc('created_at')
                 ->first();
 
-            // Only show KUs when the pipeline has fully completed
             if ($embeddingJob && $embeddingJob->status === 'completed') {
                 $knowledgeUnits = KnowledgeUnit::where('embedding_id', $current->id)
                     ->orderByDesc('row_count')
                     ->get();
             }
         }
-
-        // Pipeline data (for integrated pipeline section)
-        $pipelineView = $request->query('pipeline');
-
-        // Pipeline and embedding selections are mutually exclusive
-        if ($pipelineView) {
-            $current = null;
-            $knowledgeUnits = collect();
-            $embeddingJob = null;
-        }
-        $pipelineFilter = $request->query('pf', 'all');
 
         $allJobs = PipelineJob::with('dataset:id,name')
             ->where('workspace_id', $workspaceId)
@@ -119,16 +134,49 @@ class EmbeddingController extends Controller
             ->get();
 
         return view('workspace.index', [
-            'datasets' => $datasets,
+            'sidebarEmbeddings' => $sidebarEmbeddings,
             'current' => $current,
             'knowledgeUnits' => $knowledgeUnits,
             'embeddingJob' => $embeddingJob,
+            'compareMode' => $compareMode,
+            'clusteringRuns' => $clusteringRuns,
+            'currentJobId' => $currentJobId,
             'pipelineView' => $pipelineView,
             'pipelineFilter' => $pipelineFilter,
             'jobs' => $filteredJobs,
             'jobStats' => $jobStats,
             'llmModels' => $llmModels,
         ]);
+    }
+
+    /**
+     * Build a sorted collection of clustering run summaries for comparison.
+     *
+     * Extracts clustering method, parameters, cluster count, silhouette score,
+     * and noise count from each completed pipeline job's step_outputs_json.
+     * Results are sorted by silhouette score descending so the best run appears first.
+     */
+    private function buildClusteringRuns(int $embeddingId): \Illuminate\Support\Collection
+    {
+        return PipelineJob::where('embedding_id', $embeddingId)
+            ->where('status', 'completed')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($job) {
+                $cl = $job->step_outputs_json['clustering'] ?? [];
+                return (object) [
+                    'job_id'            => $job->id,
+                    'clustering_method' => $cl['clustering_method'] ?? 'unknown',
+                    'clustering_params' => $cl['clustering_params'] ?? [],
+                    'n_clusters'        => $cl['n_clusters'] ?? null,
+                    'silhouette_score'  => $cl['silhouette_score'] ?? null,
+                    'n_noise'           => $cl['n_noise'] ?? null,
+                    'ku_count'          => $job->knowledgeUnits()->count(),
+                    'created_at'        => $job->created_at,
+                ];
+            })
+            ->sortByDesc('silhouette_score')
+            ->values();
     }
 
     /**

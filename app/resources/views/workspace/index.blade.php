@@ -15,10 +15,12 @@
         .sidebar.collapsed .upload-label { display: none; }
         .sidebar.collapsed .sidebar-upload-btn a { padding: 8px 0; border: none; background: transparent; }
         .sidebar.collapsed .tree-dataset-name,
+        .sidebar.collapsed .tree-dataset-subtitle,
         .sidebar.collapsed .tree-emb-label,
         .sidebar.collapsed .tree-children,
         .sidebar.collapsed .tree-create-link,
         .sidebar.collapsed .tree-dataset-menu { display: none; }
+        .sidebar.collapsed .tree-dataset-link { pointer-events: none; }
         .sidebar.collapsed .tree-dataset-header { justify-content: center; padding: 7px 0; position: relative; flex-direction: column; gap: 0; align-items: center; }
         .sidebar.collapsed .tree-toggle { display: none; }
         .sidebar.collapsed .tree-dataset-count { font-size: 9px; position: absolute; bottom: -2px; right: 2px; }
@@ -68,6 +70,22 @@
         .ku-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f2; font-size: 15px; }
         .ku-table tr:last-child td { border-bottom: none; }
         .ku-table tr:hover td { background: #F6F6F6; }
+        /* Clickable parent header link (embedding name) — no underline, inherit color */
+        .tree-dataset-link { text-decoration: none; color: inherit; display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
+        .tree-dataset-link:hover { color: inherit; }
+
+        /* Dataset subtitle (shown under embedding name in sidebar) */
+        .tree-dataset-subtitle { font-size: 11px; color: #888; font-weight: 400; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Active parent header when comparison view is shown */
+        .tree-dataset-header.active { background: #DBDBDB; }
+        .tree-dataset-header.active .tree-dataset-name { font-weight: 600; }
+
+        /* Comparison table: highlight the best run (highest silhouette) */
+        .compare-table tr.best-run td { background: #e8f5e9; }
+        .compare-table tr:hover td { background: #f0f7ff !important; }
+        .compare-table tr.best-run:hover td { background: #d0ebd4 !important; }
+
         .empty-icon { margin-bottom: 12px; color: #5f6368; }
         .empty-title { font-size: 18px; font-weight: 600; color: #1d1d1f; margin-bottom: 8px; }
 @endsection
@@ -88,48 +106,78 @@
                 </a>
             </div>
             <div class="sidebar-tree" id="dataset-tree">
-                @forelse($datasets as $ds)
+                {{-- Embedding-first tree: each embedding is a parent node,
+                     completed pipeline jobs (clustering runs) are children.
+                     This lets users compare different clustering approaches
+                     on the same embedded dataset. --}}
+                @forelse($sidebarEmbeddings as $emb)
                     @php
-                        $hasActiveChild = $current && $ds->embeddings->contains('id', $current->id);
-                        $hasStoredCsv = !empty($ds->schema_json['stored_path']);
+                        // Determine whether this embedding is currently selected
+                        $isCurrentEmb = $current && $current->id === $emb->id;
+                        $completedJobs = $emb->pipelineJobs;
+                        // Expand if this embedding is active or it's the first one
+                        $isExpanded = $isCurrentEmb || $loop->first;
                     @endphp
                     <div class="tree-dataset">
-                        <div class="tree-dataset-header" onclick="toggleTree(this)">
-                            <span class="tree-toggle {{ $hasActiveChild || $loop->first ? 'open' : '' }}">&#9654;</span>
-                            <svg class="tree-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                <path d="M2 3.5A1.5 1.5 0 013.5 2h3.172a1.5 1.5 0 011.06.44l.828.827a1.5 1.5 0 001.06.44H12.5A1.5 1.5 0 0114 5.207V12.5a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 012 12.5V3.5z" stroke="currentColor" stroke-width="1.2"/>
-                            </svg>
-                            <span class="tree-dataset-name">{{ $ds->name }}</span>
-                            <span class="tree-dataset-count">{{ $ds->row_count }}</span>
-                            @if($hasStoredCsv)
-                                <a href="{{ route('dataset.configure', $ds) }}" class="tree-dataset-menu"
-                                   onclick="event.stopPropagation();" title="{{ __('ui.reconfigure') }}">⋯</a>
-                            @endif
+                        {{-- Parent header: embedding name with dataset subtitle.
+                             Click navigates to comparison view; chevron toggles expansion. --}}
+                        <div class="tree-dataset-header {{ $isCurrentEmb && ($compareMode ?? false) ? 'active' : '' }}">
+                            <span class="tree-toggle {{ $isExpanded ? 'open' : '' }}"
+                                  onclick="event.stopPropagation(); event.preventDefault(); toggleTree(this.closest('.tree-dataset-header'));">&#9654;</span>
+                            <a href="{{ route('workspace.embedding', ['embeddingId' => $emb->id]) }}?compare=1"
+                               class="tree-dataset-link" onclick="event.stopPropagation();">
+                                <svg class="tree-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <circle cx="4" cy="4" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+                                    <circle cx="12" cy="8" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+                                    <circle cx="4" cy="12" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+                                    <line x1="5.5" y1="4.5" x2="10.5" y2="7.5" stroke="currentColor" stroke-width="0.9"/>
+                                    <line x1="5.5" y1="11.5" x2="10.5" y2="8.5" stroke="currentColor" stroke-width="0.9"/>
+                                </svg>
+                                <span class="tree-dataset-name" style="display: flex; flex-direction: column; gap: 0;">
+                                    {{ $emb->name }}
+                                    @if($emb->dataset)
+                                        <span class="tree-dataset-subtitle">{{ $emb->dataset->name }}</span>
+                                    @endif
+                                </span>
+                            </a>
+                            <span class="tree-dataset-count">{{ $completedJobs->count() }}</span>
                         </div>
-                        <div class="tree-children {{ !$hasActiveChild && !$loop->first ? 'collapsed' : '' }}"
-                             style="max-height: {{ ($hasActiveChild || $loop->first) ? ($ds->embeddings->count() * 40 + 80) . 'px' : '0' }};">
-                            @forelse($ds->embeddings as $emb)
-                                <a href="{{ route('workspace.embedding', ['embeddingId' => $emb->id]) }}"
-                                   class="tree-emb {{ $current && $current->id === $emb->id ? 'active' : '' }}">
+
+                        {{-- Children: completed pipeline jobs as clustering run entries.
+                             Each shows method, key param, cluster count, and silhouette. --}}
+                        <div class="tree-children {{ !$isExpanded ? 'collapsed' : '' }}"
+                             style="max-height: {{ $isExpanded ? ($completedJobs->count() * 40 + 40) . 'px' : '0' }};">
+                            @forelse($completedJobs as $job)
+                                @php
+                                    $cl = $job->step_outputs_json['clustering'] ?? [];
+                                    $method = strtoupper($cl['clustering_method'] ?? '?');
+                                    $sil = isset($cl['silhouette_score']) ? number_format($cl['silhouette_score'], 3) : '—';
+                                    $nCl = $cl['n_clusters'] ?? '?';
+                                    // Extract the most distinctive parameter for compact display
+                                    $params = $cl['clustering_params'] ?? [];
+                                    $keyParam = match($cl['clustering_method'] ?? '') {
+                                        'leiden' => isset($params['resolution']) ? "res={$params['resolution']}" : '',
+                                        'hdbscan' => isset($params['min_cluster_size']) ? "min={$params['min_cluster_size']}" : '',
+                                        'kmeans' => isset($params['n_clusters']) ? "k={$params['n_clusters']}" : '',
+                                        'agglomerative' => isset($params['n_clusters']) ? "n={$params['n_clusters']}" : '',
+                                        default => '',
+                                    };
+                                    // Determine if this specific job is the active child
+                                    $isActiveJob = $isCurrentEmb && isset($currentJobId) && $currentJobId == $job->id;
+                                @endphp
+                                <a href="{{ route('workspace.embedding', ['embeddingId' => $emb->id]) }}?job={{ $job->id }}"
+                                   class="tree-emb {{ $isActiveJob ? 'active' : '' }}"
+                                   title="{{ $method }} {{ $keyParam }} — {{ $nCl }} clusters, silhouette {{ $sil }}">
                                     <svg class="tree-emb-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                        <circle cx="3" cy="3" r="1.2" stroke="currentColor" stroke-width="1"/>
-                                        <circle cx="11" cy="7" r="1.2" stroke="currentColor" stroke-width="1"/>
-                                        <circle cx="3" cy="11" r="1.2" stroke="currentColor" stroke-width="1"/>
-                                        <line x1="4.2" y1="3.4" x2="9.8" y2="6.6" stroke="currentColor" stroke-width="0.8"/>
-                                        <line x1="4.2" y1="10.6" x2="9.8" y2="7.4" stroke="currentColor" stroke-width="0.8"/>
+                                        <circle cx="5" cy="4" r="2" stroke="currentColor" stroke-width="1"/>
+                                        <circle cx="10" cy="6" r="1.5" stroke="currentColor" stroke-width="1"/>
+                                        <circle cx="5" cy="10" r="2" stroke="currentColor" stroke-width="1"/>
                                     </svg>
-                                    <span class="tree-emb-label">{{ $emb->name }}</span>
-                                    <span class="tree-emb-count">{{ $emb->knowledge_units_count > 0 ? $emb->knowledge_units_count : $emb->row_count }}</span>
+                                    <span class="tree-emb-label">{{ $method }} {{ $keyParam ? "($keyParam)" : '' }}</span>
+                                    <span class="tree-emb-count">{{ $nCl }}c · {{ $sil }}</span>
                                 </a>
                             @empty
-                                <div style="padding: 4px 32px; font-size: 11px; color: #aaa;">{{ __('ui.no_embeddings') }}</div>
-                                <form method="POST" action="{{ route('dataset.destroy', $ds) }}" style="padding: 2px 32px;"
-                                    onsubmit="return confirm('{{ __('ui.confirm_delete_dataset') }}')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" style="background: none; border: none; color: #ff3b30; font-size: 11px; cursor: pointer; padding: 2px 0;">
-                                        {{ __('ui.delete_dataset') }}
-                                    </button>
-                                </form>
+                                <div style="padding: 4px 32px; font-size: 11px; color: #aaa;">{{ __('ui.no_clustering_runs') ?? 'No clustering runs' }}</div>
                             @endforelse
                         </div>
                     </div>
@@ -266,6 +314,111 @@
                         </tbody>
                     </table>
                 @endif
+            @elseif(($compareMode ?? false) && $current)
+                {{-- Clustering comparison view: table comparing all clustering runs
+                     for the selected embedding, sorted by silhouette score descending.
+                     Helps users identify optimal clustering parameters. --}}
+                @if(session('success'))
+                    <div style="background: #d4edda; color: #155724; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">✓ {{ session('success') }}</div>
+                @endif
+
+                <div style="margin-bottom: 24px;">
+                    <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 4px;">{{ $current->name }}</h2>
+                    @if($current->dataset)
+                        <div style="font-size: 13px; color: #5f6368;">{{ $current->dataset->name }} — {{ $clusteringRuns->count() }} {{ __('ui.clustering_runs') ?? 'clustering runs' }}</div>
+                    @endif
+                    @if($current->embedding_model)
+                        <div style="font-size: 12px; color: #888; margin-top: 4px;">{{ __('ui.embedding_model_used') ?? 'Embedding model' }}: {{ $current->embedding_model }}</div>
+                    @endif
+                </div>
+
+                @if($clusteringRuns->isEmpty())
+                    <div style="text-align: center; padding: 60px 20px; color: #5f6368;">
+                        <div class="empty-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="6" y="30" width="8" height="12" rx="1"/><rect x="20" y="18" width="8" height="24" rx="1"/><rect x="34" y="6" width="8" height="36" rx="1"/>
+                            </svg>
+                        </div>
+                        <div class="empty-title">{{ __('ui.no_clustering_runs') ?? 'No clustering runs yet' }}</div>
+                        <p>{{ __('ui.run_pipeline_to_compare') ?? 'Run the pipeline with different clustering parameters to compare results.' }}</p>
+                    </div>
+                @else
+                    @php
+                        // Human-readable clustering method names
+                        $methodNames = [
+                            'hdbscan' => 'HDBSCAN',
+                            'kmeans' => 'K-Means++',
+                            'agglomerative' => 'Agglomerative',
+                            'leiden' => 'Leiden (Graph)',
+                        ];
+                    @endphp
+                    <table class="ku-table compare-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th>{{ __('ui.method') ?? 'Method' }}</th>
+                                <th>{{ __('ui.parameters') ?? 'Parameters' }}</th>
+                                <th style="text-align: center;">{{ __('ui.clusters') ?? 'Clusters' }}</th>
+                                <th style="text-align: center;">{{ __('ui.silhouette') ?? 'Silhouette' }}</th>
+                                <th style="text-align: center;">{{ __('ui.noise') ?? 'Noise' }}</th>
+                                <th style="text-align: center;">KUs</th>
+                                <th style="text-align: right;">{{ __('ui.created') ?? 'Date' }}</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($clusteringRuns as $run)
+                                @php
+                                    // Silhouette color coding (same logic as KU detail view)
+                                    $sil = $run->silhouette_score;
+                                    if ($sil === null)       { $silColor = '#888'; }
+                                    elseif ($sil >= 0.5)     { $silColor = '#155724'; }
+                                    elseif ($sil >= 0.3)     { $silColor = '#2e7d32'; }
+                                    elseif ($sil >= 0.1)     { $silColor = '#1565c0'; }
+                                    elseif ($sil >= 0.0)     { $silColor = '#555'; }
+                                    else                     { $silColor = '#721c24'; }
+                                    // Format parameter key-value pairs for display
+                                    $paramParts = [];
+                                    foreach ($run->clustering_params as $pk => $pv) {
+                                        $paramParts[] = "{$pk}={$pv}";
+                                    }
+                                    $paramStr = implode(', ', $paramParts);
+                                @endphp
+                                <tr class="{{ $loop->first ? 'best-run' : '' }}">
+                                    <td style="text-align: center; font-size: 16px;">{{ $loop->first ? '🏆' : '' }}</td>
+                                    <td style="font-weight: 600; white-space: nowrap;">
+                                        {{ $methodNames[$run->clustering_method] ?? strtoupper($run->clustering_method) }}
+                                    </td>
+                                    <td style="font-size: 12px; color: #5f6368; max-width: 200px;">
+                                        {{ $paramStr ?: '—' }}
+                                    </td>
+                                    <td style="text-align: center; font-weight: 600; font-size: 18px;">
+                                        {{ $run->n_clusters ?? '—' }}
+                                    </td>
+                                    <td style="text-align: center; font-weight: 700; font-size: 18px; color: {{ $silColor }};">
+                                        {{ $sil !== null ? number_format($sil, 3) : '—' }}
+                                    </td>
+                                    <td style="text-align: center; color: #5f6368;">
+                                        {{ $run->n_noise ?? '—' }}
+                                    </td>
+                                    <td style="text-align: center; color: #5f6368;">
+                                        {{ $run->ku_count }}
+                                    </td>
+                                    <td style="text-align: right; font-size: 12px; color: #888; white-space: nowrap;">
+                                        {{ $run->created_at->format('m/d H:i') }}
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <a href="{{ route('workspace.embedding', ['embeddingId' => $current->id]) }}?job={{ $run->job_id }}"
+                                           class="btn btn-sm btn-outline" style="font-size: 12px; white-space: nowrap;">
+                                            {{ __('ui.view_kus') ?? 'View KUs' }} →
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endif
+
             @elseif($current)
                 {{-- Embedding detail view: header with stats, rename, chat button, and KU table --}}
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f2;">
