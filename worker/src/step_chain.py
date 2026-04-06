@@ -135,6 +135,14 @@ def dispatch_queued_job(tenant_id: int):
         if embedding_id:
             pipeline_config["embedding_id"] = embedding_id
 
+            # Also update the job's own embedding_id column so the sidebar
+            # displays this job as a child of the correct embedding.
+            with db_cursor(tenant_id=tenant_id) as cur:
+                cur.execute(
+                    "UPDATE pipeline_jobs SET embedding_id = %s WHERE id = %s",
+                    (embedding_id, job_id),
+                )
+
     # Update status to submitted
     from src.db import update_job_status
     update_job_status(job_id, status="submitted")

@@ -231,10 +231,12 @@ class EmbeddingController extends Controller
             ->whereIn('status', ['submitted', 'processing', 'preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
             ->exists();
 
-        // Create a clustering-only job referencing the source job's embeddings
+        // Create a clustering-only job referencing the source job's embeddings.
+        // Set embedding_id so the sidebar shows this job under the correct embedding.
         $job = PipelineJob::create([
             'workspace_id' => $workspaceId,
             'dataset_id' => $embedding->dataset_id,
+            'embedding_id' => $embeddingId,
             'start_step' => 'clustering',
             'source_job_id' => $sourceJob->id,
             'status' => $hasRunningPipeline ? 'queued' : 'submitted',
