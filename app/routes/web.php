@@ -112,6 +112,7 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
         Route::post('/jobs/{pipelineJob}/cancel', [DashboardController::class, 'cancelPipeline'])->name('dashboard.cancel-pipeline');
+        Route::post('/jobs/{pipelineJob}/retry', [DashboardController::class, 'retryJob'])->name('dashboard.retry-job');
         Route::delete('/jobs/{pipelineJob}', [DashboardController::class, 'destroyJob'])->name('dashboard.delete-job');
         Route::get('/jobs/{pipelineJob}/knowledge-units', [DashboardController::class, 'knowledgeUnits'])->name('dashboard.knowledge-units');
         Route::get('/jobs/{pipelineJob}/knowledge-units/export', [DashboardController::class, 'exportKnowledgeUnits'])->name('dashboard.knowledge-units.export');

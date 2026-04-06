@@ -942,6 +942,11 @@ return [
 
     // ── Parameter tooltips ─────────────────────────────
     'deleting'                      => '削除中...',
+    'retry'                         => '再送信',
+    'job_retried'                   => 'ジョブを再送信しました',
+    'job_not_retryable'             => 'このジョブは再送信できません',
+    'retry_no_embedding'            => '埋め込みデータが見つかりません。ソースジョブを確認してください。',
+    'job_stuck_hint'                => 'このジョブは開始されていません。再送信してください。',
 
     'tip_leiden_n_neighbors'        => 'k-NNグラフの近傍数。大きいほど広いクラスターになります。sqrt(N)が目安。',
     'tip_leiden_resolution'         => 'コミュニティ検出の粒度。大きいほど小さなクラスターが増えます。',

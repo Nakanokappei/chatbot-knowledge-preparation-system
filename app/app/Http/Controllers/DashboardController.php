@@ -354,6 +354,74 @@ class DashboardController extends Controller
     }
 
     /**
+     * Retry a stuck pipeline job by re-sending its SQS message.
+     *
+     * A job is considered stuck when it has status='submitted' but progress=0
+     * for an extended period, usually caused by an SQS delivery failure.
+     * This re-dispatches the appropriate step based on the job's start_step.
+     */
+    public function retryJob(PipelineJob $pipelineJob): RedirectResponse
+    {
+        // Only allow retry on submitted jobs with no progress
+        if ($pipelineJob->status !== 'submitted' || $pipelineJob->progress > 0) {
+            return redirect()->back()->with('error', __('ui.job_not_retryable'));
+        }
+
+        $config = $pipelineJob->pipeline_config_snapshot_json ?? [];
+        $startStep = $pipelineJob->start_step ?? 'preprocess';
+        $inputS3Path = null;
+
+        // For clustering-only jobs, resolve the embedding S3 path from the source chain
+        if ($startStep !== 'preprocess') {
+            $sourceId = $pipelineJob->source_job_id;
+            // Walk the source chain to find the full-pipeline job with embedding output
+            for ($i = 0; $i < 5 && $sourceId; $i++) {
+                $source = PipelineJob::find($sourceId);
+                if (!$source) break;
+                $embPath = $source->step_outputs_json['embedding']['output_s3_path'] ?? null;
+                if ($embPath) {
+                    $inputS3Path = $embPath;
+                    $config['embedding_id'] = $source->embedding_id ?? $pipelineJob->embedding_id;
+                    break;
+                }
+                $sourceId = $source->source_job_id;
+            }
+
+            if (!$inputS3Path) {
+                return redirect()->back()->with('error', __('ui.retry_no_embedding'));
+            }
+        }
+
+        // Send to SQS
+        $sqsUrl = env('SQS_QUEUE_URL');
+        if (!$sqsUrl) {
+            $prefix = env('SQS_PREFIX', '');
+            $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
+            if ($prefix) $sqsUrl = $prefix . '/' . $queue;
+        }
+
+        if ($sqsUrl) {
+            $sqs = new \Aws\Sqs\SqsClient([
+                'region' => env('SQS_REGION', 'ap-northeast-1'),
+                'version' => 'latest',
+            ]);
+            $sqs->sendMessage([
+                'QueueUrl' => $sqsUrl,
+                'MessageBody' => json_encode([
+                    'job_id' => $pipelineJob->id,
+                    'workspace_id' => $pipelineJob->workspace_id,
+                    'dataset_id' => $pipelineJob->dataset_id,
+                    'step' => $startStep,
+                    'input_s3_path' => $inputS3Path,
+                    'pipeline_config' => $config,
+                ]),
+            ]);
+        }
+
+        return redirect()->back()->with('success', __('ui.job_retried'));
+    }
+
+    /**
      * Delete a completed/failed pipeline job and its cascade-deleted children
      * (clusters, KUs, etc.). Only allowed for non-running jobs.
      */

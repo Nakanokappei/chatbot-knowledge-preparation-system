@@ -342,8 +342,23 @@
                                         @elseif($job->status === 'cancelled')
                                             <span style="color: #8e8e93;">⊘</span>
                                         @else
+                                            @php
+                                                // Detect stuck jobs: submitted with no progress for over 3 minutes
+                                                $isStuck = $job->status === 'submitted'
+                                                    && $job->progress == 0
+                                                    && $job->created_at->diffInMinutes(now()) >= 3;
+                                            @endphp
                                             <span style="display: inline-flex; align-items: center; gap: 6px;">
-                                                ⏳
+                                                @if($isStuck)
+                                                    {{-- Stuck indicator: warning icon + retry button --}}
+                                                    <span style="color: #ff9500;" title="{{ __('ui.job_stuck_hint') }}">⚠️</span>
+                                                    <form method="POST" action="{{ route('dashboard.retry-job', $job) }}" style="display: inline;">
+                                                        @csrf
+                                                        <button type="submit" style="background: #0071e3; border: none; border-radius: 4px; padding: 2px 8px; font-size: 11px; color: #fff; cursor: pointer;">{{ __('ui.retry') }}</button>
+                                                    </form>
+                                                @else
+                                                    ⏳
+                                                @endif
                                                 <form method="POST" action="{{ route('dashboard.cancel-pipeline', $job) }}"
                                                       onsubmit="return confirm('{{ __('ui.confirm_cancel_job') }}')" style="display: inline;">
                                                     @csrf

@@ -941,6 +941,11 @@ return [
 
     // ── Parameter tooltips ─────────────────────────────
     'deleting'                      => 'Deleting...',
+    'retry'                         => 'Retry',
+    'job_retried'                   => 'Job re-dispatched to queue',
+    'job_not_retryable'             => 'This job cannot be retried',
+    'retry_no_embedding'            => 'Embedding data not found. Check the source job.',
+    'job_stuck_hint'                => 'This job has not started. Click Retry to re-dispatch.',
 
     'tip_leiden_n_neighbors'        => 'k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.',
     'tip_leiden_resolution'         => 'Community detection granularity. Higher = more smaller clusters.',
