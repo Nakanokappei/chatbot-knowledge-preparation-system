@@ -937,4 +937,15 @@ return [
     'parameters'                    => 'パラメータ',
     'ready_to_configure'            => '設定待ち',
     'publishing'                    => '公開中...',
+    'confirm_delete_clustering'     => 'このクラスタリング結果とナレッジユニットを削除しますか？',
+    'clustering_deleted'            => 'クラスタリング結果を削除しました',
+
+    // ── Parameter tooltips ─────────────────────────────
+    'tip_leiden_n_neighbors'        => 'k-NNグラフの近傍数。大きいほど広いクラスターになります。sqrt(N)が目安。',
+    'tip_leiden_resolution'         => 'コミュニティ検出の粒度。大きいほど小さなクラスターが増えます。',
+    'tip_hdbscan_min_cluster_size'  => 'クラスターを形成する最小点数。大きいほど少数の密なクラスターになります。',
+    'tip_hdbscan_min_samples'       => 'コアポイントの閾値。大きいほど密度要件が厳しくなり、ノイズが増えます。',
+    'tip_kmeans_n_clusters'         => '作成するクラスター数。想定されるトピック数に基づいて選択してください。',
+    'tip_agglomerative_n_clusters'  => '作成するクラスター数。',
+    'tip_agglomerative_linkage'     => '結合方法: ward(コンパクト)、complete(最大距離)、average(平均)、single(最小距離)。',
 ];

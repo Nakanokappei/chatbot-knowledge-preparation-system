@@ -374,29 +374,29 @@
                             <option value="agglomerative">Agglomerative</option>
                         </select>
                         <span class="cc-params-hdbscan" style="display:none;">
-                            <label style="font-size:12px;" title="Minimum points to form a cluster. Larger = fewer, denser clusters.">min_cluster_size</label>
-                            <input type="number" class="cc-hdbscan-min-cluster" value="15" min="2" max="500" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="Minimum points to form a cluster. Larger = fewer, denser clusters.">
-                            <label style="font-size:12px;margin-left:6px;" title="Core point threshold. Larger = stricter density requirement, more noise.">min_samples</label>
-                            <input type="number" class="cc-hdbscan-min-samples" value="5" min="1" max="100" style="width:50px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="Core point threshold. Larger = stricter density, more noise.">
+                            <label style="font-size:12px;" title="{{ __('ui.tip_hdbscan_min_cluster_size') }}">min_cluster_size</label>
+                            <input type="number" class="cc-hdbscan-min-cluster" value="15" min="2" max="500" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="{{ __('ui.tip_hdbscan_min_cluster_size') }}">
+                            <label style="font-size:12px;margin-left:6px;" title="{{ __('ui.tip_hdbscan_min_samples') }}">min_samples</label>
+                            <input type="number" class="cc-hdbscan-min-samples" value="5" min="1" max="100" style="width:50px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="{{ __('ui.tip_hdbscan_min_samples') }}">
                         </span>
                         <span class="cc-params-kmeans" style="display:none;">
-                            <label style="font-size:12px;" title="Number of clusters to create. Choose based on expected topic count.">n_clusters</label>
-                            <input type="number" class="cc-kmeans-n" value="10" min="2" max="200" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="Number of clusters to create.">
+                            <label style="font-size:12px;" title="{{ __('ui.tip_kmeans_n_clusters') }}">n_clusters</label>
+                            <input type="number" class="cc-kmeans-n" value="10" min="2" max="200" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="{{ __('ui.tip_kmeans_n_clusters') }}">
                         </span>
                         <span class="cc-params-agglomerative" style="display:none;">
-                            <label style="font-size:12px;" title="Number of clusters to create.">n_clusters</label>
-                            <input type="number" class="cc-agg-n" value="10" min="2" max="200" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="Number of clusters to create.">
-                            <label style="font-size:12px;margin-left:6px;" title="Linkage method: ward (compact), complete (max distance), average, single (min distance).">linkage</label>
-                            <select class="cc-agg-linkage" style="padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="Linkage method for merging clusters.">
+                            <label style="font-size:12px;" title="{{ __('ui.tip_agglomerative_n_clusters') }}">n_clusters</label>
+                            <input type="number" class="cc-agg-n" value="10" min="2" max="200" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="{{ __('ui.tip_agglomerative_n_clusters') }}">
+                            <label style="font-size:12px;margin-left:6px;" title="{{ __('ui.tip_agglomerative_linkage') }}">linkage</label>
+                            <select class="cc-agg-linkage" style="padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="{{ __('ui.tip_agglomerative_linkage') }}">
                                 <option value="ward">ward</option><option value="complete">complete</option>
                                 <option value="average">average</option><option value="single">single</option>
                             </select>
                         </span>
                         <span class="cc-params-leiden">
-                            <label style="font-size:12px;" title="k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.">n_neighbors</label>
-                            <input type="number" class="cc-leiden-neighbors" value="15" min="5" max="100" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="k-NN graph neighbors. Larger = broader clusters.">
-                            <label style="font-size:12px;margin-left:6px;" title="Community detection granularity. Higher = more smaller clusters.">resolution</label>
-                            <input type="number" class="cc-leiden-resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="Community detection granularity. Higher = more smaller clusters.">
+                            <label style="font-size:12px;" title="{{ __('ui.tip_leiden_n_neighbors') }}">n_neighbors</label>
+                            <input type="number" class="cc-leiden-neighbors" value="15" min="5" max="100" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="{{ __('ui.tip_leiden_n_neighbors') }}">
+                            <label style="font-size:12px;margin-left:6px;" title="{{ __('ui.tip_leiden_resolution') }}">resolution</label>
+                            <input type="number" class="cc-leiden-resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:5px 8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;" title="{{ __('ui.tip_leiden_resolution') }}">
                         </span>
                     </div>
                 </div>

@@ -354,6 +354,31 @@ class DashboardController extends Controller
     }
 
     /**
+     * Delete a completed/failed pipeline job and its cascade-deleted children
+     * (clusters, KUs, etc.). Only allowed for non-running jobs.
+     */
+    public function destroyJob(PipelineJob $pipelineJob): RedirectResponse
+    {
+        // Guard: cannot delete jobs that are actively processing
+        if (!in_array($pipelineJob->status, ['completed', 'failed', 'cancelled', 'queued'])) {
+            return redirect()->back()->with('error', __('ui.cannot_delete_running'));
+        }
+
+        $embeddingId = $pipelineJob->embedding_id;
+        $pipelineJob->delete();
+
+        // Redirect back to the comparison view for the parent embedding
+        if ($embeddingId) {
+            return redirect()
+                ->route('workspace.embedding', ['embeddingId' => $embeddingId, 'compare' => 1])
+                ->with('success', __('ui.clustering_deleted'));
+        }
+
+        return redirect()->route('workspace.index')
+            ->with('success', __('ui.clustering_deleted'));
+    }
+
+    /**
      * Dispatch a ping job to SQS for end-to-end testing.
      */
     public function dispatch(Request $request): RedirectResponse

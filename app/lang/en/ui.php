@@ -936,4 +936,15 @@ return [
     'parameters'                    => 'Parameters',
     'ready_to_configure'            => 'Ready to configure',
     'publishing'                    => 'Publishing...',
+    'confirm_delete_clustering'     => 'Delete this clustering run and its knowledge units?',
+    'clustering_deleted'            => 'Clustering run deleted',
+
+    // ── Parameter tooltips ─────────────────────────────
+    'tip_leiden_n_neighbors'        => 'k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.',
+    'tip_leiden_resolution'         => 'Community detection granularity. Higher = more smaller clusters.',
+    'tip_hdbscan_min_cluster_size'  => 'Minimum points to form a cluster. Larger = fewer, denser clusters.',
+    'tip_hdbscan_min_samples'       => 'Core point threshold. Larger = stricter density requirement, more noise.',
+    'tip_kmeans_n_clusters'         => 'Number of clusters to create. Choose based on expected topic count.',
+    'tip_agglomerative_n_clusters'  => 'Number of clusters to create.',
+    'tip_agglomerative_linkage'     => 'Linkage method: ward (compact), complete (max distance), average, single (min distance).',
 ];

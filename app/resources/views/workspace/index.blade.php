@@ -212,10 +212,11 @@
                             </span>
                             @endif
                             <form method="POST" action="{{ route('dataset.destroy', $ds) }}" style="flex-shrink: 0;"
-                                onsubmit="return confirm('{{ __('ui.confirm_delete_dataset') }}')">
+                                onsubmit="event.stopPropagation(); return confirm('{{ __('ui.confirm_delete_dataset') }}')">
                                 @csrf @method('DELETE')
-                                <button type="submit" onclick="event.stopPropagation();"
-                                    style="background: none; border: none; color: #ff3b30; font-size: 11px; cursor: pointer; padding: 2px 4px;">✕</button>
+                                <button type="submit" onclick="event.preventDefault(); event.stopPropagation(); this.closest('form').requestSubmit();"
+                                    class="tree-dataset-menu" style="visibility: visible; color: #ff3b30; font-size: 12px; width: auto; padding: 2px 6px;"
+                                    title="{{ __('ui.delete') }}">✕</button>
                             </form>
                         </div>
                     </div>
@@ -386,26 +387,26 @@
                                 <option value="agglomerative">Agglomerative</option>
                             </select>
                             <span id="rc-params-leiden">
-                                <label style="font-size:12px;" title="k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.">n_neighbors</label>
-                                <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="k-NN graph neighbors. Larger = broader clusters.">
-                                <label style="font-size:12px;margin-left:4px;" title="Community detection granularity. Higher = more smaller clusters.">resolution</label>
-                                <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Community detection granularity. Higher = more smaller clusters.">
+                                <label style="font-size:12px;" title="{{ __('ui.tip_leiden_n_neighbors') }}">n_neighbors</label>
+                                <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="{{ __('ui.tip_leiden_n_neighbors') }}">
+                                <label style="font-size:12px;margin-left:4px;" title="{{ __('ui.tip_leiden_resolution') }}">resolution</label>
+                                <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="{{ __('ui.tip_leiden_resolution') }}">
                             </span>
                             <span id="rc-params-hdbscan" style="display:none;">
-                                <label style="font-size:12px;" title="Minimum points to form a cluster. Larger = fewer, denser clusters.">min_cluster_size</label>
-                                <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Minimum points to form a cluster. Larger = fewer, denser clusters.">
-                                <label style="font-size:12px;margin-left:4px;" title="Core point threshold. Larger = stricter density requirement, more noise.">min_samples</label>
-                                <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width:50px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Core point threshold. Larger = stricter density, more noise.">
+                                <label style="font-size:12px;" title="{{ __('ui.tip_hdbscan_min_cluster_size') }}">min_cluster_size</label>
+                                <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="{{ __('ui.tip_hdbscan_min_cluster_size') }}">
+                                <label style="font-size:12px;margin-left:4px;" title="{{ __('ui.tip_hdbscan_min_samples') }}">min_samples</label>
+                                <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width:50px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="{{ __('ui.tip_hdbscan_min_samples') }}">
                             </span>
                             <span id="rc-params-kmeans" style="display:none;">
-                                <label style="font-size:12px;" title="Number of clusters to create. Choose based on expected topic count.">n_clusters</label>
-                                <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Number of clusters to create.">
+                                <label style="font-size:12px;" title="{{ __('ui.tip_kmeans_n_clusters') }}">n_clusters</label>
+                                <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="{{ __('ui.tip_kmeans_n_clusters') }}">
                             </span>
                             <span id="rc-params-agglomerative" style="display:none;">
-                                <label style="font-size:12px;" title="Number of clusters to create.">n_clusters</label>
-                                <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Number of clusters to create.">
-                                <label style="font-size:12px;margin-left:4px;" title="Linkage method: ward (compact), complete (max distance), average, single (min distance).">linkage</label>
-                                <select name="agglomerative_linkage" style="padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Linkage method for merging clusters.">
+                                <label style="font-size:12px;" title="{{ __('ui.tip_agglomerative_n_clusters') }}">n_clusters</label>
+                                <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="{{ __('ui.tip_agglomerative_n_clusters') }}">
+                                <label style="font-size:12px;margin-left:4px;" title="{{ __('ui.tip_agglomerative_linkage') }}">linkage</label>
+                                <select name="agglomerative_linkage" style="padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="{{ __('ui.tip_agglomerative_linkage') }}">
                                     <option value="ward">ward</option><option value="complete">complete</option>
                                     <option value="average">average</option><option value="single">single</option>
                                 </select>
@@ -473,7 +474,8 @@
                                     }
                                     $paramStr = implode(', ', $paramParts);
                                 @endphp
-                                <tr class="{{ $loop->first ? 'best-run' : '' }}">
+                                <tr class="{{ $loop->first ? 'best-run' : '' }}" style="cursor: pointer;"
+                                    onclick="if(!event.target.closest('form'))window.location='{{ route('workspace.embedding', ['embeddingId' => $current->id]) }}?job={{ $run->job_id }}'">
                                     <td style="text-align: center; font-size: 16px;">{{ $loop->first ? '🏆' : '' }}</td>
                                     <td style="font-weight: 600; white-space: nowrap;">
                                         {{ $methodNames[$run->clustering_method] ?? strtoupper($run->clustering_method) }}
@@ -496,11 +498,14 @@
                                     <td style="text-align: right; font-size: 12px; color: #888; white-space: nowrap;">
                                         {{ $run->created_at->format('m/d H:i') }}
                                     </td>
-                                    <td style="text-align: right;">
-                                        <a href="{{ route('workspace.embedding', ['embeddingId' => $current->id]) }}?job={{ $run->job_id }}"
-                                           class="btn btn-sm btn-outline" style="font-size: 12px; white-space: nowrap;">
-                                            {{ __('ui.view_kus') }} →
-                                        </a>
+                                    <td style="text-align: right;" onclick="event.stopPropagation();">
+                                        <form method="POST" action="{{ route('dashboard.delete-job', $run->job_id) }}"
+                                              onsubmit="return confirm('{{ __('ui.confirm_delete_clustering') }}')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline" style="font-size: 12px; white-space: nowrap; color: #ff3b30; border-color: #ff3b30;">
+                                                {{ __('ui.delete') }}
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             @endforeach
