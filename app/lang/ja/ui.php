@@ -936,4 +936,5 @@ return [
     'run_clustering'                => 'クラスタリング実行',
     'parameters'                    => 'パラメータ',
     'ready_to_configure'            => '設定待ち',
+    'publishing'                    => '公開中...',
 ];

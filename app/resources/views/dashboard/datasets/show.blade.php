@@ -40,7 +40,7 @@
             @if($package->status === 'draft')
                 <form method="POST" action="{{ route('kp.publish', $package) }}">
                     @csrf
-                    <button type="submit" class="btn btn-success" onclick="return confirm('{{ __('ui.publish_confirm') }}')">{{ __('ui.publish') }}</button>
+                    <button type="submit" class="btn btn-success" onclick="if(!confirm('{{ __('ui.publish_confirm') }}')) return false; document.body.style.cursor='wait'; this.disabled=true; this.style.opacity='0.6'; this.innerHTML='&#9203; {{ __('ui.publishing') }}'; this.form.submit(); return false;">{{ __('ui.publish') }}</button>
                 </form>
             @endif
 

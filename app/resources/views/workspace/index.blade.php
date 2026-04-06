@@ -174,7 +174,7 @@
                                         <circle cx="5" cy="10" r="2" stroke="currentColor" stroke-width="1"/>
                                     </svg>
                                     <span class="tree-emb-label">{{ $method }} {{ $keyParam ? "($keyParam)" : '' }}</span>
-                                    <span class="tree-emb-count">{{ $nCl }}c · {{ $sil }}</span>
+                                    <span class="tree-emb-count">{{ $nCl }}</span>
                                 </a>
                             @empty
                                 <div style="padding: 4px 32px; font-size: 11px; color: #aaa;">{{ __('ui.no_clustering_runs') }}</div>
@@ -202,7 +202,7 @@
                             <a href="{{ route('dataset.configure', $ds) }}" class="tree-dataset-link" style="flex: 1; min-width: 0;">
                                 <span class="tree-dataset-name" style="display: flex; flex-direction: column; gap: 0;">
                                     {{ $ds->name }}
-                                    <span class="tree-dataset-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }} — {{ __('ui.ready_to_configure') ?? 'Ready to configure' }}</span>
+                                    <span class="tree-dataset-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }} — {{ __('ui.ready_to_configure') }}</span>
                                 </span>
                             </a>
                             @else
@@ -211,7 +211,12 @@
                                 <span class="tree-dataset-subtitle">{{ $ds->row_count }} {{ __('ui.rows') }}</span>
                             </span>
                             @endif
-                            <span class="tree-dataset-count">{{ $ds->row_count }}</span>
+                            <form method="POST" action="{{ route('dataset.destroy', $ds) }}" style="flex-shrink: 0;"
+                                onsubmit="return confirm('{{ __('ui.confirm_delete_dataset') }}')">
+                                @csrf @method('DELETE')
+                                <button type="submit" onclick="event.stopPropagation();"
+                                    style="background: none; border: none; color: #ff3b30; font-size: 11px; cursor: pointer; padding: 2px 4px;">✕</button>
+                            </form>
                         </div>
                     </div>
                 @endforeach
@@ -375,32 +380,32 @@
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <select name="clustering_method" id="rc-method" onchange="toggleRcParams()"
                                 style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;">
-                                <option value="leiden" selected>Leiden 🌟</option>
+                                <option value="leiden" selected>HNSW + Leiden</option>
                                 <option value="hdbscan">HDBSCAN</option>
-                                <option value="kmeans">K-Means</option>
+                                <option value="kmeans">K-Means++</option>
                                 <option value="agglomerative">Agglomerative</option>
                             </select>
                             <span id="rc-params-leiden">
-                                <label style="font-size:12px;">n_neighbors</label>
-                                <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
-                                <label style="font-size:12px;margin-left:4px;">resolution</label>
-                                <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <label style="font-size:12px;" title="k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.">n_neighbors</label>
+                                <input type="number" name="leiden_n_neighbors" value="15" min="5" max="100" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="k-NN graph neighbors. Larger = broader clusters.">
+                                <label style="font-size:12px;margin-left:4px;" title="Community detection granularity. Higher = more smaller clusters.">resolution</label>
+                                <input type="number" name="leiden_resolution" value="1.0" min="0.1" max="10.0" step="0.1" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Community detection granularity. Higher = more smaller clusters.">
                             </span>
                             <span id="rc-params-hdbscan" style="display:none;">
-                                <label style="font-size:12px;">min_cluster_size</label>
-                                <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
-                                <label style="font-size:12px;margin-left:4px;">min_samples</label>
-                                <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width:50px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <label style="font-size:12px;" title="Minimum points to form a cluster. Larger = fewer, denser clusters.">min_cluster_size</label>
+                                <input type="number" name="hdbscan_min_cluster_size" value="15" min="2" max="500" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Minimum points to form a cluster. Larger = fewer, denser clusters.">
+                                <label style="font-size:12px;margin-left:4px;" title="Core point threshold. Larger = stricter density requirement, more noise.">min_samples</label>
+                                <input type="number" name="hdbscan_min_samples" value="5" min="1" max="100" style="width:50px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Core point threshold. Larger = stricter density, more noise.">
                             </span>
                             <span id="rc-params-kmeans" style="display:none;">
-                                <label style="font-size:12px;">n_clusters</label>
-                                <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <label style="font-size:12px;" title="Number of clusters to create. Choose based on expected topic count.">n_clusters</label>
+                                <input type="number" name="kmeans_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Number of clusters to create.">
                             </span>
                             <span id="rc-params-agglomerative" style="display:none;">
-                                <label style="font-size:12px;">n_clusters</label>
-                                <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
-                                <label style="font-size:12px;margin-left:4px;">linkage</label>
-                                <select name="agglomerative_linkage" style="padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;">
+                                <label style="font-size:12px;" title="Number of clusters to create.">n_clusters</label>
+                                <input type="number" name="agglomerative_n_clusters" value="10" min="2" max="200" style="width:60px;padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Number of clusters to create.">
+                                <label style="font-size:12px;margin-left:4px;" title="Linkage method: ward (compact), complete (max distance), average, single (min distance).">linkage</label>
+                                <select name="agglomerative_linkage" style="padding:4px 6px;border:1px solid #d2d2d7;border-radius:4px;font-size:12px;" title="Linkage method for merging clusters.">
                                     <option value="ward">ward</option><option value="complete">complete</option>
                                     <option value="average">average</option><option value="single">single</option>
                                 </select>

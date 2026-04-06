@@ -935,4 +935,5 @@ return [
     'run_clustering'                => 'Run Clustering',
     'parameters'                    => 'Parameters',
     'ready_to_configure'            => 'Ready to configure',
+    'publishing'                    => 'Publishing...',
 ];
