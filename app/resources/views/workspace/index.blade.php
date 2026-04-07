@@ -589,15 +589,21 @@
                 @endif
 
             @elseif($current)
-                {{-- Embedding detail view: header with stats, rename, chat button, and KU table --}}
+                {{-- Embedding detail view: header with cluster name, dataset subtitle, stats --}}
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f2;">
                     <div style="flex: 1; min-width: 0;">
-                        <!-- Editable name -->
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <h2 id="emb-title" style="font-size: 18px; font-weight: 600; cursor: pointer;"
-                                onclick="startRename()" title="Click to rename">{{ $current->name }}</h2>
-                            <button id="rename-pen" onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #5f6368; padding: 2px;" title="{{ __('ui.rename') }}">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                        {{-- Show which clustering run is selected (matches sidebar child name) --}}
+                        @if($embeddingJob)
+                            <h2 style="font-size: 18px; font-weight: 600;">{{ $embeddingJob->created_at->format('Ymd-Hi') }}</h2>
+                        @else
+                            <h2 style="font-size: 18px; font-weight: 600;">{{ $current->dataset?->name ?? $current->name }}</h2>
+                        @endif
+                        {{-- Dataset name as subtitle + editable pen icon --}}
+                        <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                            <span id="emb-title" style="font-size: 13px; color: #5f6368; cursor: pointer;"
+                                  onclick="startRename()" title="{{ __('ui.click_to_rename') ?? 'Click to rename' }}">{{ $current->dataset?->name ?? $current->name }}</span>
+                            <button id="rename-pen" onclick="startRename()" style="background: none; border: none; cursor: pointer; color: #aaa; padding: 2px;" title="{{ __('ui.rename') }}">
+                                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"/>
                                 </svg>
                             </button>
@@ -608,7 +614,7 @@
                             @csrf @method('PUT')
                             @if(request('job'))<input type="hidden" name="job" value="{{ request('job') }}">@endif
                             <div style="display: flex; gap: 8px; align-items: center;">
-                                <input type="text" name="name" value="{{ $current->name }}" id="rename-input"
+                                <input type="text" name="name" value="{{ $current->dataset?->name ?? $current->name }}" id="rename-input"
                                        style="padding: 6px 10px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 14px; width: 200px;">
                                 <button type="submit" class="btn btn-sm btn-primary" style="white-space: nowrap;">{{ __('ui.save') }}</button>
                                 <button type="button" class="btn btn-sm btn-outline" onclick="cancelRename()" style="white-space: nowrap;">{{ __('ui.cancel') }}</button>
