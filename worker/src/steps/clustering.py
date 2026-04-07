@@ -724,24 +724,10 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         quality_score=quality_score,
     )
 
-    # Link clusters to their parent embedding and rename with method details
+    # Link clusters to their parent embedding
     embedding_id = pipeline_config.get("embedding_id")
     if embedding_id:
         link_clusters_to_embedding(job_id, embedding_id)
-        # Rename embedding with timestamp-based naming convention
-        from datetime import datetime
-        cluster_name = f"KU-{datetime.now().strftime('%Y%m%d-%H%M')}"
-        conn = get_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE embeddings SET name = %s, updated_at = NOW() WHERE id = %s",
-                    (cluster_name, embedding_id),
-                )
-            conn.commit()
-            logger.info("Renamed embedding %d to '%s'", embedding_id, cluster_name)
-        finally:
-            conn.close()
 
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 85))
 

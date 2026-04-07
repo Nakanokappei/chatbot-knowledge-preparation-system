@@ -132,7 +132,20 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     # Step 0: Create or get embedding record for this job
     pipeline_config = kwargs.get("pipeline_config") or {}
     column_config = pipeline_config.get("column_config")
-    dataset_name = pipeline_config.get("dataset_name", f"Embedding (job {job_id})")
+    # Use the dataset's actual name from DB, falling back to pipeline_config or a generic label.
+    # This ensures embedding name matches the dataset name (UI treats them as one entity).
+    dataset_name = None
+    conn_name = get_connection()
+    try:
+        with conn_name.cursor() as cur:
+            cur.execute("SELECT name FROM datasets WHERE id = %s", (dataset_id,))
+            row_name = cur.fetchone()
+            if row_name:
+                dataset_name = row_name[0]
+    finally:
+        conn_name.close()
+    if not dataset_name:
+        dataset_name = pipeline_config.get("dataset_name", f"Embedding (job {job_id})")
     embedding_model = pipeline_config.get("embedding_model", "amazon.titan-embed-text-v2:0")
     embedding_id = create_or_get_embedding(
         job_id=job_id,
