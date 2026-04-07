@@ -42,7 +42,10 @@ class EmbeddingController extends Controller
         // showing clustering method, params, cluster count, and silhouette score.
         $sidebarEmbeddings = Embedding::where('workspace_id', $workspaceId)
             ->with(['dataset:id,name', 'pipelineJobs' => function ($jobQuery) {
+                // Only show completed clustering/full-pipeline jobs in the sidebar.
+                // Exclude parameter_search jobs (they are analysis-only, no KUs).
                 $jobQuery->where('status', 'completed')
+                    ->where('start_step', '!=', 'parameter_search')
                     ->orderByDesc('created_at');
             }])
             ->withCount('knowledgeUnits')

@@ -958,6 +958,16 @@ return [
     'configs_tested'                => 'patterns tested',
     'use_these_params'              => 'Use these params',
 
+    // ── Pipeline step labels (progress display) ────────
+    'step_submitted'                => 'Waiting to start',
+    'step_queued'                   => 'Queued',
+    'step_preprocess'               => 'Preprocessing data',
+    'step_embedding'                => 'Generating embeddings',
+    'step_clustering'               => 'Clustering',
+    'step_cluster_analysis'         => 'Analyzing clusters (LLM)',
+    'step_ku_generation'            => 'Generating knowledge units (LLM)',
+    'step_parameter_search'         => 'Searching parameters',
+
     'tip_leiden_n_neighbors'        => 'k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.',
     'tip_leiden_resolution'         => 'Community detection granularity. Higher = more smaller clusters.',
     'tip_hdbscan_min_cluster_size'  => 'Minimum points to form a cluster. Larger = fewer, denser clusters.',

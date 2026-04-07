@@ -959,6 +959,16 @@ return [
     'configs_tested'                => 'パターンをテスト',
     'use_these_params'              => 'この設定で実行',
 
+    // ── Pipeline step labels (progress display) ────────
+    'step_submitted'                => '開始待ち',
+    'step_queued'                   => 'キュー待ち',
+    'step_preprocess'               => 'データ前処理中',
+    'step_embedding'                => '埋め込みベクトル生成中',
+    'step_clustering'               => 'クラスタリング中',
+    'step_cluster_analysis'         => 'クラスター分析中（LLM）',
+    'step_ku_generation'            => 'ナレッジ生成中（LLM）',
+    'step_parameter_search'         => 'パラメータ探索中',
+
     'tip_leiden_n_neighbors'        => 'k-NNグラフの近傍数。大きいほど広いクラスターになります。sqrt(N)が目安。',
     'tip_leiden_resolution'         => 'コミュニティ検出の粒度。大きいほど小さなクラスターが増えます。',
     'tip_hdbscan_min_cluster_size'  => 'クラスターを形成する最小点数。大きいほど少数の密なクラスターになります。',

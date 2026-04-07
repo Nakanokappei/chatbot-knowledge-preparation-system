@@ -149,9 +149,9 @@
                                 @php
                                     $cl = $job->step_outputs_json['clustering'] ?? [];
                                     $method = strtoupper($cl['clustering_method'] ?? '?');
-                                    $sil = isset($cl['silhouette_score']) ? number_format($cl['silhouette_score'], 3) : '—';
                                     $nCl = $cl['n_clusters'] ?? '?';
-                                    // Extract the most distinctive parameter for compact display
+                                    $sil = isset($cl['silhouette_score']) ? number_format($cl['silhouette_score'], 3) : '—';
+                                    // Extract the most distinctive parameter for tooltip
                                     $params = $cl['clustering_params'] ?? [];
                                     $keyParam = match($cl['clustering_method'] ?? '') {
                                         'leiden' => isset($params['resolution']) ? "res={$params['resolution']}" : '',
@@ -160,7 +160,8 @@
                                         'agglomerative' => isset($params['n_clusters']) ? "n={$params['n_clusters']}" : '',
                                         default => '',
                                     };
-                                    // Determine if this specific job is the active child
+                                    // Display name: creation timestamp (YYYYMMDD-HHMM)
+                                    $jobDisplayName = $job->created_at->format('Ymd-Hi');
                                     $isActiveJob = $isCurrentEmb && isset($currentJobId) && $currentJobId == $job->id;
                                 @endphp
                                 <a href="{{ route('workspace.embedding', ['embeddingId' => $emb->id]) }}?job={{ $job->id }}"
@@ -171,7 +172,7 @@
                                         <circle cx="10" cy="6" r="1.5" stroke="currentColor" stroke-width="1"/>
                                         <circle cx="5" cy="10" r="2" stroke="currentColor" stroke-width="1"/>
                                     </svg>
-                                    <span class="tree-emb-label">{{ $method }} {{ $keyParam ? "($keyParam)" : '' }}</span>
+                                    <span class="tree-emb-label">{{ $jobDisplayName }}</span>
                                     <span class="tree-emb-count">{{ $nCl }}</span>
                                 </a>
                             @empty
@@ -312,7 +313,19 @@
                                             {{ $nClusters }} clusters
                                             @if($silhouette !== null) · silhouette {{ number_format($silhouette, 3) }} @endif
                                         @else
-                                            {{ $job->status }}
+                                            @php
+                                                $jStepLabels = [
+                                                    'submitted' => __('ui.step_submitted'),
+                                                    'queued' => __('ui.step_queued'),
+                                                    'preprocess' => __('ui.step_preprocess'),
+                                                    'embedding' => __('ui.step_embedding'),
+                                                    'clustering' => __('ui.step_clustering'),
+                                                    'cluster_analysis' => __('ui.step_cluster_analysis'),
+                                                    'knowledge_unit_generation' => __('ui.step_ku_generation'),
+                                                    'parameter_search' => __('ui.step_parameter_search'),
+                                                ];
+                                            @endphp
+                                            {{ $jStepLabels[$job->status] ?? $job->status }}
                                             @if($job->progress > 0 && $job->progress < 100) · {{ $job->progress }}% @endif
                                         @endif
                                     </div>
@@ -814,11 +827,25 @@
                         <div style="margin-top: 12px; width: 200px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden;">
                             <div style="width: {{ $embeddingJob->progress }}%; height: 100%; background: #ff9500; border-radius: 2px; transition: width 0.3s;"></div>
                         </div>
-                        <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">
+                        @php
+                            // Translate pipeline step names to user-friendly descriptions
+                            $stepLabels = [
+                                'submitted' => __('ui.step_submitted') ?? 'Waiting to start',
+                                'queued' => __('ui.step_queued') ?? 'Queued',
+                                'preprocess' => __('ui.step_preprocess') ?? 'Preprocessing data',
+                                'embedding' => __('ui.step_embedding') ?? 'Generating embeddings',
+                                'clustering' => __('ui.step_clustering') ?? 'Clustering',
+                                'cluster_analysis' => __('ui.step_cluster_analysis') ?? 'Analyzing clusters (LLM)',
+                                'knowledge_unit_generation' => __('ui.step_ku_generation') ?? 'Generating knowledge units (LLM)',
+                                'parameter_search' => __('ui.step_parameter_search') ?? 'Searching parameters',
+                            ];
+                            $stepLabel = $stepLabels[$embeddingJob->status] ?? $embeddingJob->status;
+                        @endphp
+                        <div style="font-size: 13px; color: #1d1d1f; margin-top: 6px; font-weight: 500;">
+                            {{ $stepLabel }}
+                        </div>
+                        <div style="font-size: 12px; color: #5f6368; margin-top: 2px;">
                             {{ $embeddingJob->progress }}%
-                            @if($embeddingJob->status && !in_array($embeddingJob->status, ['submitted', 'completed', 'failed', 'queued']))
-                                <span style="margin-left: 4px; text-transform: capitalize;">{{ str_replace('_', ' ', $embeddingJob->status) }}</span>
-                            @endif
                         </div>
                     </div>
                 @elseif($knowledgeUnits->isEmpty())

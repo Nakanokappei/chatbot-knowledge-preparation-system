@@ -17,6 +17,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::statement("DROP POLICY IF EXISTS tenant_isolation_embeddings ON embeddings");
+        DB::statement("DROP POLICY IF EXISTS workspace_isolation_embeddings ON embeddings");
         DB::statement("
             CREATE POLICY workspace_isolation_embeddings ON embeddings
             FOR ALL USING (
