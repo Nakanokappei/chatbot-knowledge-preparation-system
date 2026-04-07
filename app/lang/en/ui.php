@@ -967,6 +967,8 @@ return [
     'step_cluster_analysis'         => 'Analyzing clusters (LLM)',
     'step_ku_generation'            => 'Generating knowledge units (LLM)',
     'step_parameter_search'         => 'Searching parameters',
+    'dismiss'                       => 'Dismiss',
+    'confirm_dismiss_param_search'  => 'Dismiss search results?',
 
     'tip_leiden_n_neighbors'        => 'k-NN graph neighbors. Larger = broader clusters. sqrt(N) is a good default.',
     'tip_leiden_resolution'         => 'Community detection granularity. Higher = more smaller clusters.',

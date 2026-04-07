@@ -437,18 +437,38 @@
                     </form>
                 </div>
 
-                {{-- Parameter search results: chart + top results table.
-                     Loaded via AJAX polling when a parameter_search job exists. --}}
-                <div id="param-search-results" style="display: none; margin-bottom: 20px; padding: 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h3 style="font-size: 14px; font-weight: 600; margin: 0;">{{ __('ui.parameter_search_results') }}</h3>
+                {{-- Parameter search results: collapsible panel with chart + top results.
+                     Default collapsed when results exist; expanded while polling. --}}
+                <div id="param-search-results" style="display: none; margin-bottom: 20px;">
+                    {{-- Collapsible header: toggle + title + status + dismiss button --}}
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <button type="button" onclick="toggleParamResults()" id="param-results-toggle"
+                            style="background: none; border: 1px solid #d2d2d7; border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #5f6368; display: flex; align-items: center; gap: 6px;">
+                            <span id="param-results-chevron" style="transition: transform 0.15s;">▸</span>
+                            {{ __('ui.parameter_search_results') }}
+                        </button>
                         <span id="param-search-status" style="font-size: 12px; color: #5f6368;"></span>
+                        <button type="button" id="param-search-dismiss" onclick="dismissParamResults()"
+                            style="display:none; margin-left: auto; background: none; border: none; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 4px 8px;">
+                            ✕ {{ __('ui.dismiss') ?? '消去' }}
+                        </button>
                     </div>
-                    {{-- Bar chart: each bar = one config, height = silhouette, color = method --}}
-                    <div id="param-search-chart" style="display: flex; align-items: flex-end; gap: 2px; height: 160px; padding: 8px 0; border-bottom: 1px solid #e0e0e2;"></div>
-                    <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 8px; font-size: 11px; color: #5f6368;"></div>
-                    {{-- Top results table --}}
-                    <div id="param-search-top" style="margin-top: 12px;"></div>
+                    {{-- Collapsible body --}}
+                    <div id="param-search-body" style="display: none; padding: 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
+                        {{-- Bar chart with Y-axis label and gridlines --}}
+                        <div style="display: flex; gap: 0;">
+                            <div id="param-search-yaxis" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 6px; width: 40px; height: 160px; font-size: 10px; color: #888;"></div>
+                            <div style="flex: 1; position: relative;">
+                                {{-- Gridlines container (absolute positioned behind bars) --}}
+                                <div id="param-search-gridlines" style="position: absolute; inset: 0; pointer-events: none;"></div>
+                                <div id="param-search-chart" style="display: flex; align-items: flex-end; gap: 2px; height: 160px; position: relative; z-index: 1;"></div>
+                            </div>
+                        </div>
+                        <div style="text-align: center; font-size: 10px; color: #888; margin-top: 2px;">{{ __('ui.silhouette') }}</div>
+                        <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: #5f6368;"></div>
+                        {{-- Top results table --}}
+                        <div id="param-search-top" style="margin-top: 12px;"></div>
+                    </div>
                 </div>
 
                 <div style="margin-bottom: 16px;">
@@ -1360,6 +1380,38 @@
         const paramSearchUrl = '{{ $current ? route("workspace.parameter-search-results", $current->id ?? 0) : "" }}';
         const METHOD_COLORS = { leiden: '#0071e3', hdbscan: '#ff9500', kmeans: '#30d158', agglomerative: '#af52de' };
 
+        let paramResultsExpanded = false; // Track collapse state
+
+        /** Toggle the parameter search results body visibility */
+        function toggleParamResults() {
+            const body = document.getElementById('param-search-body');
+            const chevron = document.getElementById('param-results-chevron');
+            if (!body) return;
+            paramResultsExpanded = !paramResultsExpanded;
+            body.style.display = paramResultsExpanded ? '' : 'none';
+            chevron.style.transform = paramResultsExpanded ? 'rotate(90deg)' : '';
+        }
+
+        /** Dismiss (delete) the parameter search results by deleting the job */
+        function dismissParamResults() {
+            if (!confirm('{{ __("ui.confirm_dismiss_param_search") }}')) return;
+            // Find and delete the parameter_search job via the delete-job endpoint
+            fetch(paramSearchUrl)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'not_found') return;
+                    // Use the AJAX endpoint to get job info, then delete via form
+                    document.getElementById('param-search-results').style.display = 'none';
+                    // POST delete request
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+                        || document.querySelector('input[name="_token"]')?.value;
+                    fetch('{{ $current ? route("workspace.dismiss-param-search", $current->id) : "" }}', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                    });
+                });
+        }
+
         /** Poll the parameter search results endpoint and render when complete */
         function pollParameterSearch() {
             if (!paramSearchUrl) return;
@@ -1369,45 +1421,82 @@
                     if (data.status === 'not_found') return;
                     const container = document.getElementById('param-search-results');
                     const statusEl = document.getElementById('param-search-status');
+                    const dismissBtn = document.getElementById('param-search-dismiss');
+                    const body = document.getElementById('param-search-body');
+                    const chevron = document.getElementById('param-results-chevron');
                     if (!container) return;
 
                     if (data.status === 'completed' && data.results) {
-                        // Show results
+                        // Show results — collapsed by default, expanded if just finished polling
                         container.style.display = '';
+                        dismissBtn.style.display = '';
                         statusEl.textContent = data.results.sample_size + ' {{ __("ui.rows") }} {{ __("ui.sampled") }}, '
                             + data.results.configs_tested + ' {{ __("ui.configs_tested") }}';
                         renderParamChart(data.results.results);
                         renderParamTopResults(data.results.results);
+                        // Auto-expand if we were polling (just finished)
+                        if (!paramResultsExpanded && window._paramSearchPolling) {
+                            paramResultsExpanded = true;
+                            body.style.display = '';
+                            chevron.style.transform = 'rotate(90deg)';
+                        }
+                        window._paramSearchPolling = false;
                     } else if (data.status !== 'completed' && data.status !== 'failed') {
-                        // Still running — show progress and keep polling
+                        // Still running — show expanded with progress
                         container.style.display = '';
+                        dismissBtn.style.display = 'none';
+                        paramResultsExpanded = true;
+                        body.style.display = '';
+                        chevron.style.transform = 'rotate(90deg)';
                         statusEl.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite;">🔍</span> '
                             + '{{ __("ui.parameter_search_running") }} (' + data.progress + '%)';
                         document.getElementById('param-search-chart').innerHTML = '';
                         document.getElementById('param-search-top').innerHTML = '';
+                        window._paramSearchPolling = true;
                         setTimeout(pollParameterSearch, 3000);
                     } else if (data.status === 'failed') {
                         container.style.display = '';
+                        dismissBtn.style.display = '';
                         statusEl.textContent = '{{ __("ui.parameter_search_failed") }}';
                     }
                 })
                 .catch(() => {});
         }
 
-        /** Render a bar chart from parameter search results */
+        /** Render a bar chart with Y-axis labels and horizontal gridlines */
         function renderParamChart(results) {
             const chart = document.getElementById('param-search-chart');
             const legend = document.getElementById('param-search-legend');
+            const yaxis = document.getElementById('param-search-yaxis');
+            const gridlines = document.getElementById('param-search-gridlines');
             if (!chart || !results.length) return;
 
-            // Find the max silhouette for scaling bars
-            const maxSil = Math.max(...results.map(r => r.silhouette_score));
-            const chartHeight = 140;
+            // Find the max silhouette for scaling; round up to nearest 0.05
+            const rawMax = Math.max(...results.map(r => r.silhouette_score));
+            const maxSil = Math.ceil(rawMax * 20) / 20; // e.g. 0.17 → 0.20
+            const chartHeight = 160;
 
+            // Generate gridlines at 0.05 intervals
+            const gridStep = 0.05;
+            let gridHtml = '';
+            let yLabels = [];
+            for (let v = 0; v <= maxSil + 0.001; v += gridStep) {
+                const pct = maxSil > 0 ? (v / maxSil) * 100 : 0;
+                gridHtml += '<div style="position:absolute;left:0;right:0;bottom:' + pct + '%;border-top:1px solid #e0e0e2;"></div>';
+                yLabels.push({ value: v, pct: pct });
+            }
+            gridlines.innerHTML = gridHtml;
+
+            // Y-axis labels
+            yaxis.innerHTML = yLabels.reverse().map(l =>
+                '<span style="line-height:1;">' + l.value.toFixed(2) + '</span>'
+            ).join('');
+
+            // Bars
             chart.innerHTML = results.map((r, i) => {
                 const height = maxSil > 0 ? Math.max((r.silhouette_score / maxSil) * chartHeight, 2) : 2;
                 const color = METHOD_COLORS[r.method] || '#888';
-                const tooltip = r.label + '\\n' + r.n_clusters + ' clusters, sil=' + r.silhouette_score;
+                const tooltip = r.label + '\n' + r.n_clusters + ' clusters, sil=' + r.silhouette_score;
                 return '<div data-idx="' + i + '" title="' + tooltip + '" '
                     + 'style="flex:1;min-width:6px;max-width:24px;height:' + height + 'px;'
                     + 'background:' + color + ';border-radius:3px 3px 0 0;cursor:pointer;transition:opacity 0.15s;" '

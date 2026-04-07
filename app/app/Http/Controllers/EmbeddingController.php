@@ -415,6 +415,21 @@ class EmbeddingController extends Controller
     }
 
     /**
+     * Dismiss (delete) the parameter search job for an embedding.
+     */
+    public function dismissParameterSearch(int $embeddingId)
+    {
+        $workspaceId = auth()->user()->workspace_id;
+
+        PipelineJob::where('embedding_id', $embeddingId)
+            ->where('workspace_id', $workspaceId)
+            ->where('start_step', 'parameter_search')
+            ->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
      * Show a single KU detail (edit, review, versions).
      */
     public function showKnowledgeUnit(int $embeddingId, int $kuId): View

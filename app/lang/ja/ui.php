@@ -968,6 +968,8 @@ return [
     'step_cluster_analysis'         => 'クラスター分析中（LLM）',
     'step_ku_generation'            => 'ナレッジ生成中（LLM）',
     'step_parameter_search'         => 'パラメータ探索中',
+    'dismiss'                       => '消去',
+    'confirm_dismiss_param_search'  => '探索結果を消去しますか？',
 
     'tip_leiden_n_neighbors'        => 'k-NNグラフの近傍数。大きいほど広いクラスターになります。sqrt(N)が目安。',
     'tip_leiden_resolution'         => 'コミュニティ検出の粒度。大きいほど小さなクラスターが増えます。',
