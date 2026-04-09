@@ -465,12 +465,12 @@
                                 {{-- SVG overlay for cluster count line (second axis) --}}
                                 <svg id="param-search-line" style="position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: visible;"></svg>
                             </div>
-                            <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 6px; width: 40px; height: 160px; font-size: 10px; color: #ff3b30;"></div>
+                            <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 6px; width: 40px; height: 160px; font-size: 10px; color: #333;"></div>
                         </div>
                         <div style="display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-top: 2px;">
                             <span style="width: 40px;"></span>
                             <span>{{ __('ui.silhouette') }}</span>
-                            <span style="width: 40px; text-align: center; color: #ff3b30;">{{ __('ui.clusters') }}</span>
+                            <span style="width: 40px; text-align: center; color: #333;">{{ __('ui.clusters') }}</span>
                         </div>
                         <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: #5f6368;"></div>
                         {{-- Top results table --}}
