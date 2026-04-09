@@ -449,22 +449,29 @@
                         </button>
                         <span id="param-search-status" style="font-size: 12px; color: #5f6368;"></span>
                         <button type="button" id="param-search-dismiss" onclick="dismissParamResults()"
-                            style="display:none; margin-left: auto; background: none; border: none; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 4px 8px;">
+                            style="display:none; margin-left: auto; background: none; border: 1px solid #ff3b30; border-radius: 6px; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 4px 8px;">
                             ✕ {{ __('ui.dismiss') ?? '消去' }}
                         </button>
                     </div>
                     {{-- Collapsible body --}}
                     <div id="param-search-body" style="display: none; padding: 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
-                        {{-- Bar chart with Y-axis label and gridlines --}}
+                        {{-- Dual-axis chart: bars (silhouette) + line (cluster count) --}}
                         <div style="display: flex; gap: 0;">
                             <div id="param-search-yaxis" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 6px; width: 40px; height: 160px; font-size: 10px; color: #888;"></div>
                             <div style="flex: 1; position: relative;">
                                 {{-- Gridlines container (absolute positioned behind bars) --}}
                                 <div id="param-search-gridlines" style="position: absolute; inset: 0; pointer-events: none;"></div>
                                 <div id="param-search-chart" style="display: flex; align-items: flex-end; gap: 2px; height: 160px; position: relative; z-index: 1;"></div>
+                                {{-- SVG overlay for cluster count line (second axis) --}}
+                                <svg id="param-search-line" style="position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: visible;"></svg>
                             </div>
+                            <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 6px; width: 40px; height: 160px; font-size: 10px; color: #ff3b30;"></div>
                         </div>
-                        <div style="text-align: center; font-size: 10px; color: #888; margin-top: 2px;">{{ __('ui.silhouette') }}</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-top: 2px;">
+                            <span style="width: 40px;"></span>
+                            <span>{{ __('ui.silhouette') }}</span>
+                            <span style="width: 40px; text-align: center; color: #ff3b30;">{{ __('ui.clusters') }}</span>
+                        </div>
                         <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: #5f6368;"></div>
                         {{-- Top results table --}}
                         <div id="param-search-top" style="margin-top: 12px;"></div>
@@ -547,7 +554,6 @@
                                 <th style="text-align: center;">{{ __('ui.clusters') }}</th>
                                 <th style="text-align: center;">{{ __('ui.silhouette') }}</th>
                                 <th style="text-align: center;">{{ __('ui.noise') }}</th>
-                                <th style="text-align: center;">KUs</th>
                                 <th style="text-align: right;">{{ __('ui.created') }}</th>
                                 <th></th>
                             </tr>
@@ -586,9 +592,6 @@
                                     </td>
                                     <td style="text-align: center; color: #5f6368;">
                                         {{ $run->n_noise ?? '—' }}
-                                    </td>
-                                    <td style="text-align: center; color: #5f6368;">
-                                        {{ $run->ku_count }}
                                     </td>
                                     <td style="text-align: right; font-size: 12px; color: #888; white-space: nowrap;">
                                         {{ $run->created_at->format('m/d H:i') }}
@@ -1463,17 +1466,19 @@
                 .catch(() => {});
         }
 
-        /** Render a bar chart with Y-axis labels and horizontal gridlines */
+        /** Render a dual-axis chart: bars (silhouette, left axis) + line (cluster count, right axis) */
         function renderParamChart(results) {
             const chart = document.getElementById('param-search-chart');
             const legend = document.getElementById('param-search-legend');
             const yaxis = document.getElementById('param-search-yaxis');
+            const yaxis2 = document.getElementById('param-search-yaxis2');
             const gridlines = document.getElementById('param-search-gridlines');
+            const lineSvg = document.getElementById('param-search-line');
             if (!chart || !results.length) return;
 
-            // Find the max silhouette for scaling; round up to nearest 0.05
+            // Left axis: silhouette scores — round up to nearest 0.05
             const rawMax = Math.max(...results.map(r => r.silhouette_score));
-            const maxSil = Math.ceil(rawMax * 20) / 20; // e.g. 0.17 → 0.20
+            const maxSil = Math.ceil(rawMax * 20) / 20;
             const chartHeight = 160;
 
             // Generate gridlines at 0.05 intervals
@@ -1487,16 +1492,31 @@
             }
             gridlines.innerHTML = gridHtml;
 
-            // Y-axis labels
-            yaxis.innerHTML = yLabels.reverse().map(l =>
+            // Left Y-axis labels (silhouette)
+            yaxis.innerHTML = yLabels.slice().reverse().map(l =>
                 '<span style="line-height:1;">' + l.value.toFixed(2) + '</span>'
             ).join('');
 
-            // Bars
+            // Right axis: cluster count — find nice max
+            const maxClusters = Math.max(...results.map(r => r.n_clusters));
+            const clusterCeil = Math.ceil(maxClusters / 10) * 10 || 10;
+
+            // Right Y-axis labels (cluster count)
+            const clusterStep = Math.max(Math.round(clusterCeil / 4), 1);
+            let y2Labels = [];
+            for (let v = 0; v <= clusterCeil; v += clusterStep) {
+                y2Labels.push(v);
+            }
+            yaxis2.innerHTML = y2Labels.slice().reverse().map(v =>
+                '<span style="line-height:1;">' + v + '</span>'
+            ).join('');
+
+            // Bars (silhouette)
             chart.innerHTML = results.map((r, i) => {
                 const height = maxSil > 0 ? Math.max((r.silhouette_score / maxSil) * chartHeight, 2) : 2;
                 const color = METHOD_COLORS[r.method] || '#888';
-                const tooltip = r.label + '\n' + r.n_clusters + ' clusters, sil=' + r.silhouette_score;
+                const tooltip = r.label + '\n' + r.n_clusters + ' clusters, sil=' + r.silhouette_score
+                    + (r.n_noise != null ? ', noise=' + r.n_noise : '');
                 return '<div data-idx="' + i + '" title="' + tooltip + '" '
                     + 'style="flex:1;min-width:6px;max-width:24px;height:' + height + 'px;'
                     + 'background:' + color + ';border-radius:3px 3px 0 0;cursor:pointer;transition:opacity 0.15s;" '
@@ -1504,13 +1524,40 @@
                     + 'onclick="selectParamResult(' + i + ')"></div>';
             }).join('');
 
-            // Legend
+            // Line overlay (cluster count) — draw after bars are laid out
+            requestAnimationFrame(() => {
+                const bars = chart.querySelectorAll('[data-idx]');
+                if (!bars.length) return;
+                const chartRect = chart.getBoundingClientRect();
+                lineSvg.setAttribute('width', chartRect.width);
+                lineSvg.setAttribute('height', chartHeight);
+
+                // Build polyline points from bar center positions
+                let points = [];
+                let circles = '';
+                bars.forEach((bar, i) => {
+                    const barRect = bar.getBoundingClientRect();
+                    const cx = barRect.left - chartRect.left + barRect.width / 2;
+                    const cy = chartHeight - (clusterCeil > 0 ? (results[i].n_clusters / clusterCeil) * chartHeight : 0);
+                    points.push(cx + ',' + cy);
+                    circles += '<circle cx="' + cx + '" cy="' + cy + '" r="2.5" fill="#ff3b30"/>';
+                });
+
+                lineSvg.innerHTML = '<polyline points="' + points.join(' ') + '" '
+                    + 'fill="none" stroke="#ff3b30" stroke-width="1.5" stroke-linejoin="round"/>'
+                    + circles;
+            });
+
+            // Legend — add cluster count line indicator
             const methods = [...new Set(results.map(r => r.method))];
             legend.innerHTML = methods.map(m =>
                 '<span style="display:flex;align-items:center;gap:4px;">'
                 + '<span style="width:10px;height:10px;border-radius:2px;background:' + (METHOD_COLORS[m]||'#888') + ';"></span>'
                 + m.toUpperCase() + '</span>'
-            ).join('');
+            ).join('')
+            + '<span style="display:flex;align-items:center;gap:4px;">'
+            + '<span style="width:14px;height:0;border-top:2px solid #ff3b30;"></span>'
+            + '{{ __("ui.clusters") }}</span>';
         }
 
         /** Render the top 5 results as a compact table with "use this" buttons */
@@ -1523,6 +1570,7 @@
                 + '<th style="text-align:left;padding:4px;">{{ __("ui.parameters") }}</th>'
                 + '<th style="text-align:center;padding:4px;">{{ __("ui.clusters") }}</th>'
                 + '<th style="text-align:center;padding:4px;">{{ __("ui.silhouette") }}</th>'
+                + '<th style="text-align:center;padding:4px;">{{ __("ui.noise") }}</th>'
                 + '<th></th></tr>';
             top5.forEach((r, i) => {
                 const paramStr = Object.entries(r.params || {}).map(([k,v]) => k + '=' + v).join(', ');
@@ -1532,6 +1580,7 @@
                     + '<td style="padding:6px 4px;font-size:11px;color:#5f6368;">' + paramStr + '</td>'
                     + '<td style="padding:6px 4px;text-align:center;font-weight:600;">' + r.n_clusters + '</td>'
                     + '<td style="padding:6px 4px;text-align:center;font-weight:700;color:' + silColor + ';">' + r.silhouette_score.toFixed(3) + '</td>'
+                    + '<td style="padding:6px 4px;text-align:center;color:#5f6368;">' + (r.n_noise != null ? r.n_noise : '—') + '</td>'
                     + '<td style="padding:6px 4px;text-align:right;"><button onclick="applyParamResult(' + results.indexOf(r) + ')" '
                     + 'style="background:#0071e3;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer;">'
                     + '{{ __("ui.use_these_params") }}</button></td></tr>';
