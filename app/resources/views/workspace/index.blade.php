@@ -1393,6 +1393,8 @@
             paramResultsExpanded = !paramResultsExpanded;
             body.style.display = paramResultsExpanded ? '' : 'none';
             chevron.style.transform = paramResultsExpanded ? 'rotate(90deg)' : '';
+            // Draw the line overlay once the panel is visible and laid out
+            if (paramResultsExpanded) requestAnimationFrame(drawParamLine);
         }
 
         /** Dismiss (delete) the parameter search results by deleting the job */
@@ -1443,6 +1445,8 @@
                             body.style.display = '';
                             chevron.style.transform = 'rotate(90deg)';
                         }
+                        // Draw line overlay after layout is complete (panel must be visible)
+                        if (paramResultsExpanded) requestAnimationFrame(drawParamLine);
                         window._paramSearchPolling = false;
                     } else if (data.status !== 'completed' && data.status !== 'failed') {
                         // Still running — show expanded with progress
@@ -1524,29 +1528,8 @@
                     + 'onclick="selectParamResult(' + i + ')"></div>';
             }).join('');
 
-            // Line overlay (cluster count) — draw after bars are laid out
-            requestAnimationFrame(() => {
-                const bars = chart.querySelectorAll('[data-idx]');
-                if (!bars.length) return;
-                const chartRect = chart.getBoundingClientRect();
-                lineSvg.setAttribute('width', chartRect.width);
-                lineSvg.setAttribute('height', chartHeight);
-
-                // Build polyline points from bar center positions
-                let points = [];
-                let circles = '';
-                bars.forEach((bar, i) => {
-                    const barRect = bar.getBoundingClientRect();
-                    const cx = barRect.left - chartRect.left + barRect.width / 2;
-                    const cy = chartHeight - (clusterCeil > 0 ? (results[i].n_clusters / clusterCeil) * chartHeight : 0);
-                    points.push(cx + ',' + cy);
-                    circles += '<circle cx="' + cx + '" cy="' + cy + '" r="2.5" fill="#ff3b30"/>';
-                });
-
-                lineSvg.innerHTML = '<polyline points="' + points.join(' ') + '" '
-                    + 'fill="none" stroke="#ff3b30" stroke-width="1.5" stroke-linejoin="round"/>'
-                    + circles;
-            });
+            // Line overlay (cluster count) — store data; drawn by drawParamLine()
+            window._paramLineData = { results: results, clusterCeil: clusterCeil, chartHeight: chartHeight };
 
             // Legend — add cluster count line indicator
             const methods = [...new Set(results.map(r => r.method))];
@@ -1558,6 +1541,53 @@
             + '<span style="display:flex;align-items:center;gap:4px;">'
             + '<span style="width:14px;height:0;border-top:2px solid #ff3b30;"></span>'
             + '{{ __("ui.clusters") }}</span>';
+        }
+
+        /**
+         * Draw the cluster-count polyline on the SVG overlay.
+         * Must be called when the chart container is visible (not display:none)
+         * so that getBoundingClientRect returns real dimensions.
+         */
+        function drawParamLine() {
+            const data = window._paramLineData;
+            if (!data) return;
+            const chart = document.getElementById('param-search-chart');
+            const lineSvg = document.getElementById('param-search-line');
+            if (!chart || !lineSvg) return;
+
+            const bars = chart.querySelectorAll('[data-idx]');
+            if (!bars.length) return;
+            const chartRect = chart.getBoundingClientRect();
+            // Guard: if panel is hidden, rect width will be 0
+            if (chartRect.width === 0) return;
+
+            const { results, clusterCeil, chartHeight } = data;
+            lineSvg.setAttribute('width', chartRect.width);
+            lineSvg.setAttribute('height', chartHeight);
+            lineSvg.setAttribute('viewBox', '0 0 ' + chartRect.width + ' ' + chartHeight);
+
+            // Build polyline points from bar center positions
+            let points = [];
+            let circleEls = '';
+            bars.forEach((bar, i) => {
+                const barRect = bar.getBoundingClientRect();
+                const cx = barRect.left - chartRect.left + barRect.width / 2;
+                const cy = chartHeight - (clusterCeil > 0 ? (results[i].n_clusters / clusterCeil) * chartHeight : 0);
+                points.push(cx.toFixed(1) + ',' + cy.toFixed(1));
+                circleEls += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="2.5" fill="#ff3b30"/>';
+            });
+
+            // Use DOMParser to safely set SVG content
+            const svgContent = '<svg xmlns="http://www.w3.org/2000/svg">'
+                + '<polyline points="' + points.join(' ') + '" fill="none" stroke="#ff3b30" stroke-width="1.5" stroke-linejoin="round"/>'
+                + circleEls + '</svg>';
+            const parsed = new DOMParser().parseFromString(svgContent, 'image/svg+xml');
+            // Clear existing children
+            while (lineSvg.firstChild) lineSvg.removeChild(lineSvg.firstChild);
+            // Move parsed nodes into the live SVG
+            Array.from(parsed.documentElement.childNodes).forEach(n => {
+                lineSvg.appendChild(document.importNode(n, true));
+            });
         }
 
         /** Render the top 5 results as a compact table with "use this" buttons */
