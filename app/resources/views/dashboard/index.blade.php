@@ -217,7 +217,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <!-- Right: date + status icon -->
+                                <!-- Right: date + status icon + live worker action -->
                                 <td style="white-space: nowrap; text-align: right; vertical-align: top;">
                                     <div style="font-size: 12px; color: #5f6368;"><time datetime="{{ $job->created_at->toIso8601String() }}">{{ $job->created_at->format('m/d H:i') }}</time></div>
                                     <div style="font-size: 13px; color: #5f6368; margin-top: 2px;">
@@ -227,9 +227,18 @@
                                             </div>
                                         @endif
                                     </div>
+                                    {{-- Worker heartbeat line. Only visible for running jobs so
+                                         finished jobs stay visually quiet. max-width prevents
+                                         long action strings from blowing out the column. --}}
+                                    @if(!empty($job->current_action) && !in_array($job->status, ['completed', 'failed', 'cancelled']))
+                                        <div style="font-size: 11px; color: #8a8a8e; margin-top: 4px; max-width: 220px; white-space: normal; text-align: right; font-style: italic;">
+                                            {{ $job->current_action }}
+                                        </div>
+                                    @endif
                                     <div style="font-size: 14px; margin-top: 4px;">
                                         @if($job->status === 'completed') ✅
                                         @elseif($job->status === 'failed') ❌
+                                        @elseif($job->status === 'cancelled') 🚫
                                         @else ⏳
                                         @endif
                                     </div>
@@ -277,6 +286,9 @@
                 }
             } catch (e) { }
         }
-        setInterval(refreshJobList, 5000);
+        // 2.5s polling gives near-real-time progress without hammering the server.
+        // Worker writes current_action frequently (per Bedrock batch, per cluster)
+        // so the 5s interval we used before felt "frozen" to users.
+        setInterval(refreshJobList, 2500);
         @endif
 @endsection

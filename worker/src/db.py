@@ -112,20 +112,67 @@ def db_cursor(tenant_id: int = None, autocommit: bool = True):
         conn.close()
 
 
+def is_job_cancelled(job_id: int) -> bool:
+    """
+    Check whether the job has been cancelled by the user.
+
+    The Laravel control plane only flips pipeline_jobs.status to 'cancelled';
+    it does not remove the in-flight SQS message or notify the worker.
+    Worker code reads this flag at two choke points:
+      1. Before invoking a step handler (main.process_message)
+      2. Before dispatching the next step to SQS (step_chain.dispatch_next_step)
+    If a job is cancelled mid-flight, the current step finishes its in-memory
+    work but we stop the chain and skip any further status overwrites.
+
+    Returns True when the row is missing or status == 'cancelled'.
+    Any unexpected error is treated as "not cancelled" so we don't
+    accidentally abort healthy jobs on a transient DB glitch.
+    """
+    try:
+        with db_cursor() as cur:
+            cur.execute("SELECT status FROM pipeline_jobs WHERE id = %s", (job_id,))
+            row = cur.fetchone()
+            if not row:
+                # Missing row: treat as cancelled to avoid processing ghost jobs
+                return True
+            return row[0] == "cancelled"
+    except Exception as exc:
+        logger.warning("is_job_cancelled(%d) failed, assuming not cancelled: %s", job_id, exc)
+        return False
+
+
 def update_job_status(job_id: int, status: str, progress: int = 0, error_detail: str = None):
     """
     Update the pipeline_jobs table with new status and progress.
 
     This is the primary mechanism by which the Python Worker communicates
     completion back to the Laravel Control Plane (Design Principle: DB Polling).
+
+    Cancellation guard: once a job is marked 'cancelled' by the user, this
+    function becomes a no-op for any status other than 'failed' terminal.
+    This prevents a running step handler from resurrecting a cancelled job
+    by overwriting 'cancelled' with the next pipeline status.
     """
     now = datetime.now(timezone.utc)
     with db_cursor() as cur:
+        # Cancellation guard: read current status inside the same transaction.
+        # If the job is already cancelled, only allow 'failed' to win so we can
+        # still record a hard error; every other status write is ignored.
+        cur.execute("SELECT status FROM pipeline_jobs WHERE id = %s FOR UPDATE", (job_id,))
+        existing = cur.fetchone()
+        if existing and existing[0] == "cancelled" and status != "failed":
+            logger.info(
+                "Job %d is cancelled; ignoring status update to '%s'",
+                job_id, status,
+            )
+            return
+
         # Branch on status to set the appropriate timestamp columns
         if status == "completed":
             cur.execute(
                 """UPDATE pipeline_jobs
                    SET status = %s, progress = %s, error_detail = %s,
+                       current_action = NULL,
                        completed_at = %s, updated_at = %s
                    WHERE id = %s""",
                 (status, progress, error_detail, now, now, job_id),
@@ -134,6 +181,7 @@ def update_job_status(job_id: int, status: str, progress: int = 0, error_detail:
             cur.execute(
                 """UPDATE pipeline_jobs
                    SET status = %s, progress = %s, error_detail = %s,
+                       current_action = NULL,
                        updated_at = %s
                    WHERE id = %s""",
                 (status, progress, error_detail, now, job_id),
@@ -147,6 +195,33 @@ def update_job_status(job_id: int, status: str, progress: int = 0, error_detail:
                 (status, progress, now, now, job_id),
             )
     logger.info("Job %d status updated to '%s' (progress: %d%%)", job_id, status, progress)
+
+
+def update_job_action(job_id: int, action: str):
+    """
+    Record a short human-readable description of the current worker activity.
+
+    This is independent of the coarse `status`+`progress` columns. Worker code
+    calls this at the beginning of slow operations (S3 I/O, Bedrock calls,
+    DB batch inserts) so the UI can render "何をしているか" between progress
+    ticks. The column is cleared on completed/failed transitions.
+
+    Silently does nothing when the job is cancelled so late writes don't
+    trample the user's cancellation feedback.
+    """
+    # Truncate to match VARCHAR(255) to avoid DB errors on long messages
+    trimmed = (action or "")[:255]
+    try:
+        with db_cursor() as cur:
+            cur.execute(
+                """UPDATE pipeline_jobs
+                   SET current_action = %s, updated_at = %s
+                   WHERE id = %s AND status NOT IN ('cancelled', 'completed', 'failed')""",
+                (trimmed, datetime.now(timezone.utc), job_id),
+            )
+    except Exception as exc:
+        # Non-fatal: progress reporting should never fail a job
+        logger.warning("update_job_action(%d) failed: %s", job_id, exc)
 
 
 def create_or_get_embedding(job_id: int, tenant_id: int, dataset_id: int,

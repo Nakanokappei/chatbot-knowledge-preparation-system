@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
-from src.db import get_connection, update_job_status, update_job_step_outputs, record_token_usage, global_progress
+from src.db import get_connection, update_job_status, update_job_step_outputs, record_token_usage, global_progress, update_job_action
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -406,6 +406,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     """
     logger.info("Cluster analysis step started for job %d", job_id)
     update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", 10))
+    update_job_action(job_id, "クラスタ解析を開始しています")
 
     # Resolve LLM model from pipeline_config (user-selectable, default: Haiku 4.5)
     pipeline_config = kwargs.get("pipeline_config") or {}
@@ -461,6 +462,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
 
             local_pct = 10 + int((completed / len(clusters)) * 60)
             update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", local_pct))
+            # Show live LLM naming progress — users otherwise see embedding→
+            # cluster_analysis jump and assume it's stuck during slow LLM calls
+            topic = analysis.get("topic_name", "?")
+            update_job_action(
+                job_id,
+                f"LLMでクラスタ命名中 ({completed}/{len(clusters)}): {topic}",
+            )
 
             logger.info(
                 "Pass 1 — Cluster %d named: topic='%s', intent='%s' (%d/%d)",
@@ -471,6 +479,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
             )
 
     update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", 75))
+    update_job_action(job_id, "重複するトピック名を解決中")
 
     # ── Pass 2: Resolve duplicate topic_names ────────────────────────────
     dedup_in, dedup_out = _resolve_duplicates(clusters, llm_model_id, job_id)
@@ -478,6 +487,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     total_output_tokens += dedup_out
 
     update_job_status(job_id, status="cluster_analysis", progress=global_progress("cluster_analysis", 85))
+    update_job_action(job_id, f"解析結果をDBに保存中 ({len(clusters)}件)")
 
     # ── Final: Save all results to DB ────────────────────────────────────
     for cluster in clusters:

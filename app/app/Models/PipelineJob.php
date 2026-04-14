@@ -24,7 +24,7 @@ class PipelineJob extends Model
     protected $fillable = [
         'workspace_id', 'dataset_id', 'embedding_id', 'pipeline_config_id',
         'status', 'start_step', 'source_job_id',
-        'progress', 'pipeline_config_snapshot_json', 'step_outputs_json',
+        'progress', 'current_action', 'pipeline_config_snapshot_json', 'step_outputs_json',
         'error_detail', 'started_at', 'completed_at',
     ];
 

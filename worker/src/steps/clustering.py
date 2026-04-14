@@ -25,7 +25,7 @@ import numpy as np
 from sklearn.metrics import silhouette_score
 
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs, link_clusters_to_embedding, global_progress
+from src.db import get_connection, update_job_status, update_job_step_outputs, link_clusters_to_embedding, global_progress, update_job_action
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -650,8 +650,10 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     logger.info("Clustering step started for job %d", job_id)
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 10))
+    update_job_action(job_id, "クラスタリングを開始しています")
 
     # Step 1: Load embeddings and row_id mapping
+    update_job_action(job_id, "S3から埋め込みベクトルを読み込み中")
     embeddings = download_npy_from_s3(input_s3_path)
     logger.info("Loaded embeddings: shape=%s", embeddings.shape)
 
@@ -667,6 +669,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     lang_stats = {}
     if remove_lang_bias:
         logger.info("Applying language direction removal...")
+        update_job_action(job_id, "多言語バイアスを除去中")
         embeddings, lang_stats = remove_language_direction(embeddings, row_ids)
         logger.info("Language debiasing complete")
     else:
@@ -676,6 +679,10 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     clustering_method = pipeline_config.get("clustering_method", "hdbscan")
     clustering_params = pipeline_config.get("clustering_params", {})
 
+    update_job_action(
+        job_id,
+        f"{clustering_method.upper()} でクラスタリング実行中 ({len(embeddings)}ベクトル)",
+    )
     labels, probabilities, method_used, effective_params = run_clustering(
         embeddings, method=clustering_method, params=clustering_params,
     )
@@ -683,15 +690,18 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 40))
 
     # Step 3: Compute centroids
+    update_job_action(job_id, "セントロイドを計算中")
     centroids = compute_centroids(embeddings, labels)
     logger.info("Computed %d cluster centroids", len(centroids))
 
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 50))
+    update_job_action(job_id, f"代表行を抽出中 ({len(centroids)}クラスタ)")
 
     # Step 4: Find representative rows
     representatives = find_representatives(embeddings, labels, centroids, row_ids)
 
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 60))
+    update_job_action(job_id, "品質指標 (silhouette) を計算中")
 
     # Step 5: Compute quality metrics
     n_clusters = len(centroids)
@@ -711,6 +721,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
             logger.warning("Failed to compute silhouette score: %s", e)
 
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 70))
+    update_job_action(job_id, f"クラスタをDBに保存中 ({n_clusters}件)")
 
     # Step 6: Save to RDS
     save_clusters_to_db(

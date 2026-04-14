@@ -17,7 +17,7 @@ import boto3
 import pandas as pd
 
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs, create_or_get_embedding, global_progress
+from src.db import get_connection, update_job_status, update_job_step_outputs, create_or_get_embedding, global_progress, update_job_action
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -128,6 +128,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     """
     logger.info("Preprocess step started for job %d (dataset %d)", job_id, dataset_id)
     update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 10))
+    update_job_action(job_id, "前処理を開始しています")
 
     # Step 0: Create or get embedding record for this job
     pipeline_config = kwargs.get("pipeline_config") or {}
@@ -160,6 +161,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     kwargs["pipeline_config"] = pipeline_config
 
     # Step 1: Load raw rows from database
+    update_job_action(job_id, "データセット行をDBから読み込み中")
     df = load_dataset_rows(dataset_id)
 
     # Guard: abort early if the dataset has no rows to process
@@ -168,6 +170,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
         return
 
     update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 30))
+    update_job_action(job_id, f"テキストを正規化中 ({len(df)}行)")
 
     # Step 2: Normalize text
     df["normalized_text"] = df["raw_text"].apply(normalize_text)
@@ -184,6 +187,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     )
 
     update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 50))
+    update_job_action(job_id, f"正規化済みテキストをDBに書き戻し中 ({len(df)}行)")
 
     # Step 3: Update normalized_text in database
     updates = [
@@ -193,6 +197,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     save_normalized_text_to_db(updates)
 
     update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 70))
+    update_job_action(job_id, "Parquetに変換してS3へアップロード中")
 
     # Step 4: Save to S3 as Parquet
     output_s3_path = f"s3://{S3_BUCKET}/{tenant_id}/jobs/{job_id}/preprocess/normalized_rows.parquet"

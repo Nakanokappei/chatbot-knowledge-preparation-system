@@ -49,6 +49,17 @@ def dispatch_next_step(
         dispatch_queued_job(tenant_id)
         return None
 
+    # Cancellation check: if the user cancelled mid-step, do NOT enqueue the
+    # next step. Without this guard the pipeline would keep chaining forward
+    # even though the UI shows 'cancelled', defeating the cancel button.
+    from src.db import is_job_cancelled
+    if is_job_cancelled(job_id):
+        logger.info(
+            "Skipping chain from '%s' for job %d: job is cancelled",
+            current_step, job_id,
+        )
+        return None
+
     next_step = STEP_SEQUENCE[idx + 1]
 
     # Build the message for the next step

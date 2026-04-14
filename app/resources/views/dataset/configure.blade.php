@@ -352,6 +352,20 @@
                     onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='#fff'">
                     + {{ __('ui.add_pattern') }}
                 </button>
+
+                {{-- Parameter Search button: an alternative submit path that
+                     bypasses user-chosen clustering configs. Sets a hidden
+                     `run_mode=parameter_search` flag so DatasetWizardController
+                     dispatches a preprocess+embedding job that pivots to the
+                     parameter_search sweep step after embedding finishes.
+                     Lets users explore method/param combinations on a brand-
+                     new dataset without committing to a clustering pattern. --}}
+                <button type="button" id="run-parameter-search-btn"
+                    onclick="submitParameterSearch()"
+                    style="width: 100%; padding: 10px 16px; font-size: 13px; font-weight: 500; background: #fff; border: 1px solid #0071e3; border-radius: 10px; cursor: pointer; color: #0071e3; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s;"
+                    onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='#fff'">
+                    🔍 {{ __('ui.parameter_search') }}
+                </button>
             </div>
 
             {{-- Hidden template for clustering config cards (cloned by JS) --}}
@@ -454,6 +468,31 @@
         let selectedColumns = [];
         let dragSource = null;  // 'available' or 'selected'
         let dragData = null;    // column index (available) or position (selected)
+
+        // Alternative submit path: kick off parameter search instead of clustering.
+        // We inject a hidden run_mode=parameter_search field and submit the same
+        // form, so all the dataset/columns/mapping settings are persisted exactly
+        // the same way — only the post-embedding behaviour changes server-side.
+        function submitParameterSearch() {
+            const form = document.getElementById('config-form');
+            if (!form) return;
+            let modeField = form.querySelector('input[name="run_mode"]');
+            if (!modeField) {
+                modeField = document.createElement('input');
+                modeField.type = 'hidden';
+                modeField.name = 'run_mode';
+                form.appendChild(modeField);
+            }
+            modeField.value = 'parameter_search';
+
+            const btn = document.getElementById('run-parameter-search-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+                btn.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite">🔍</span> {{ __("ui.parameter_search_running") }}';
+            }
+            form.submit();
+        }
 
         // Generate dataset and column descriptions using LLM via AJAX
         async function generateDescriptions() {

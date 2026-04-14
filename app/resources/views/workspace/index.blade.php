@@ -420,7 +420,7 @@
                     @endif
                 </div>
 
-                {{-- Action buttons: new clustering run + parameter search --}}
+                {{-- Action buttons: new clustering run + parameter search + delete dataset --}}
                 <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
                     <button type="button" onclick="toggleReclusterForm()" id="recluster-toggle"
                         style="background: none; border: 1px solid #d2d2d7; border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer; color: #0071e3; display: flex; align-items: center; gap: 6px;">
@@ -435,6 +435,24 @@
                             🔍 {{ __('ui.parameter_search') }}
                         </button>
                     </form>
+                    {{-- Delete the parent dataset. Only enabled when the dataset
+                         has zero Knowledge Units — deleting a dataset that has
+                         produced reviewed KUs would silently destroy the final
+                         product. Server-side guard in DatasetWizardController
+                         enforces the same constraint. --}}
+                    @if($current->dataset_id)
+                        <form method="POST" action="{{ route('dataset.destroy', $current->dataset_id) }}" style="display: inline;"
+                              onsubmit="return confirm('{{ __('ui.confirm_delete_dataset') }}')">
+                            @csrf @method('DELETE')
+                            <button type="submit"
+                                @if($currentDatasetHasKus ?? false) disabled @endif
+                                title="@if($currentDatasetHasKus ?? false){{ __('ui.cannot_delete_dataset_with_kus') ?? 'Cannot delete: this dataset still has knowledge units.' }}@else{{ __('ui.delete_dataset') ?? 'Delete this dataset' }}@endif"
+                                style="background: none; border: 1px solid #ff3b30; border-radius: 8px; padding: 8px 16px; font-size: 13px; display: flex; align-items: center; gap: 6px;
+                                       {{ ($currentDatasetHasKus ?? false) ? 'color: #bbb; border-color: #e5e5e7; cursor: not-allowed;' : 'color: #ff3b30; cursor: pointer;' }}">
+                                🗑 {{ __('ui.delete_dataset') ?? 'Delete dataset' }}
+                            </button>
+                        </form>
+                    @endif
                 </div>
 
                 {{-- Parameter search results: collapsible panel with chart + top results.
@@ -812,18 +830,23 @@
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                             </button>
                             <div data-export-dropdown style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 100; min-width: 180px; overflow: hidden;">
-                                <a href="{{ route('workspace.export', ['embeddingId' => $current->id, 'format' => 'csv']) }}"
+                                {{-- Pass the currently-selected clustering run so the download
+                                     contains only that run's KUs (matches the YYYYMMDD-HHMM
+                                     header shown above). Falls back to all KUs under the
+                                     embedding if no run is selected. --}}
+                                @php $exportJobParam = $embeddingJob ? ['job' => $embeddingJob->id] : []; @endphp
+                                <a href="{{ route('workspace.export', array_merge(['embeddingId' => $current->id, 'format' => 'csv'], $exportJobParam)) }}"
                                    style="display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px;"
                                    onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
                                     {{ __('ui.cluster') }} CSV (UTF-8)
                                 </a>
-                                <a href="{{ route('workspace.export', ['embeddingId' => $current->id, 'format' => 'json']) }}"
+                                <a href="{{ route('workspace.export', array_merge(['embeddingId' => $current->id, 'format' => 'json'], $exportJobParam)) }}"
                                    style="display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px;"
                                    onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
                                     {{ __('ui.cluster') }} JSON
                                 </a>
                                 <div style="border-top: 1px solid #e0e0e0;"></div>
-                                <a href="{{ route('workspace.export-rows', ['embeddingId' => $current->id]) }}"
+                                <a href="{{ route('workspace.export-rows', array_merge(['embeddingId' => $current->id], $exportJobParam)) }}"
                                    style="display: block; padding: 8px 16px; color: #333; text-decoration: none; font-size: 13px;"
                                    onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">
                                     {{ __('ui.export_rows_with_clusters') }}
@@ -876,6 +899,15 @@
                         <div style="font-size: 12px; color: #5f6368; margin-top: 2px;">
                             {{ $embeddingJob->progress }}%
                         </div>
+                        {{-- Worker heartbeat: what the step is doing right now.
+                             Populated by worker's update_job_action() at each slow op
+                             (S3 I/O, Bedrock calls, DB batch writes). Gives users
+                             continuous feedback between coarse %-based updates. --}}
+                        @if(!empty($embeddingJob->current_action))
+                            <div style="font-size: 12px; color: #5f6368; margin-top: 6px; max-width: 360px; text-align: center; font-style: italic;">
+                                {{ $embeddingJob->current_action }}
+                            </div>
+                        @endif
                     </div>
                 @elseif($knowledgeUnits->isEmpty())
                     <div class="empty">
@@ -2219,10 +2251,12 @@
                 }
             } catch (e) { }
         }
-        // Poll every 5 seconds; also poll on page load if jobs are processing
+        // Poll every 2.5s so the current_action heartbeat from the worker
+        // feels continuous. Previous 5s interval was wide enough that users
+        // assumed the pipeline had stalled.
         const pollingInterval = setInterval(() => {
             if (pollingActive) refreshWorkspace();
-        }, 5000);
+        }, 2500);
         @if($jobStats['processing'] > 0)
         refreshWorkspace();
         @endif

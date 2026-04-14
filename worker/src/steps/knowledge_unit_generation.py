@@ -21,7 +21,7 @@ from src.embedding_client import generate_embedding
 from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
 from src.db import (get_connection, db_cursor, update_job_status, update_job_step_outputs,
                     link_knowledge_units_to_embedding, update_embedding_status,
-                    record_token_usage, global_progress)
+                    record_token_usage, global_progress, update_job_action)
 
 logger = logging.getLogger(__name__)
 
@@ -455,6 +455,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     """
     logger.info("Knowledge unit generation started for job %d", job_id)
     update_job_status(job_id, status="knowledge_unit_generation", progress=global_progress("knowledge_unit_generation", 10))
+    update_job_action(job_id, "ナレッジユニット生成を開始しています")
 
     pipeline_config = kwargs.get("pipeline_config") or {}
 
@@ -500,6 +501,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     for item_index, cluster in enumerate(clusters):
         local_pct = 10 + int((item_index / len(clusters)) * 70)
         update_job_status(job_id, status="knowledge_unit_generation", progress=global_progress("knowledge_unit_generation", local_pct))
+        # Per-cluster heartbeat so users see which topic is currently being
+        # synthesized — critical because each KU involves 2-3 LLM calls
+        topic_preview = (cluster.get("topic_name") or "?")[:60]
+        update_job_action(
+            job_id,
+            f"KU生成中 ({item_index + 1}/{len(clusters)}): {topic_preview}",
+        )
 
         # Load full metadata for representative rows
         representative_metadata = load_representative_metadata(cluster["id"])

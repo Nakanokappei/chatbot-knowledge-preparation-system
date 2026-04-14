@@ -145,6 +145,15 @@ class EmbeddingController extends Controller
             ->orderBy('sort_order')
             ->get();
 
+        // Dataset-level KU count for the selected embedding's parent dataset.
+        // Drives the "Delete dataset" button visibility in the detail view —
+        // deletion is only permitted when no KUs exist (matches the server
+        // guard in DatasetWizardController::destroy).
+        $currentDatasetHasKus = false;
+        if ($current && $current->dataset_id) {
+            $currentDatasetHasKus = KnowledgeUnit::where('dataset_id', $current->dataset_id)->exists();
+        }
+
         return view('workspace.index', [
             'sidebarEmbeddings' => $sidebarEmbeddings,
             'pendingDatasets' => $pendingDatasets,
@@ -159,6 +168,7 @@ class EmbeddingController extends Controller
             'jobs' => $filteredJobs,
             'jobStats' => $jobStats,
             'llmModels' => $llmModels,
+            'currentDatasetHasKus' => $currentDatasetHasKus,
         ]);
     }
 
@@ -541,10 +551,21 @@ class EmbeddingController extends Controller
     /**
      * Export approved KUs for an embedding as CSV or JSON.
      * Format is determined by the ?format= query parameter (default: json).
+     *
+     * Scope:
+     *   - ?job={id}  → only KUs produced by that specific clustering run
+     *                  (matches the YYYYMMDD-HHMM header the user selected)
+     *   - no ?job    → backward-compat: all approved KUs under the embedding
+     *                  (aggregated across every clustering run)
+     *
+     * The job-scoped mode exists because the workspace UI shows one clustering
+     * run at a time, and exporting "this one" should not silently include
+     * sibling runs under the same embedding.
      */
     public function export(Request $request, int $embeddingId)
     {
-        $embedding = Embedding::where('workspace_id', auth()->user()->workspace_id)
+        $workspaceId = auth()->user()->workspace_id;
+        $embedding = Embedding::where('workspace_id', $workspaceId)
             ->findOrFail($embeddingId);
 
         $columns = [
@@ -552,13 +573,30 @@ class EmbeddingController extends Controller
             'question', 'symptoms', 'root_cause', 'resolution_summary',
             'primary_filter', 'category', 'language', 'row_count', 'review_status',
         ];
-        $kus = KnowledgeUnit::where('embedding_id', $embeddingId)
-            ->where('review_status', 'approved')
-            ->orderBy('topic')
-            ->get($columns);
+
+        $query = KnowledgeUnit::where('embedding_id', $embeddingId)
+            ->where('review_status', 'approved');
+
+        // When the caller specifies a clustering run, narrow the result to
+        // only KUs from that run. Also verify the job belongs to this
+        // embedding so callers can't read across embeddings via the URL.
+        $jobId = $request->query('job');
+        $filenameSuffix = '';
+        if ($jobId) {
+            $job = PipelineJob::where('id', $jobId)
+                ->where('workspace_id', $workspaceId)
+                ->where('embedding_id', $embeddingId)
+                ->firstOrFail();
+            $query->where('pipeline_job_id', $job->id);
+            // Tag the filename with the run timestamp so multiple exports
+            // from the same embedding are distinguishable on disk.
+            $filenameSuffix = '_' . $job->created_at->format('Ymd-Hi');
+        }
+
+        $kus = $query->orderBy('topic')->get($columns);
 
         $format = $request->query('format', 'json');
-        $baseFilename = Str::slug($embedding->name) . '_clusters';
+        $baseFilename = Str::slug($embedding->name) . '_clusters' . $filenameSuffix;
 
         if ($format === 'csv') {
             return $this->exportAsCsv($kus, $columns, $baseFilename);
@@ -624,28 +662,54 @@ class EmbeddingController extends Controller
      * Joins dataset_rows → cluster_memberships → clusters to produce a CSV
      * containing all original columns plus a "cluster_topic" column. Rows not
      * assigned to any cluster get an empty cluster_topic value.
+     *
+     * Scope:
+     *   - ?job={id}  → cluster assignments from that specific clustering run
+     *                  (matches the YYYYMMDD-HHMM header the user selected)
+     *   - no ?job    → backward-compat: uses the most recent job on the
+     *                  embedding. Legacy behaviour only; the UI now always
+     *                  passes `job` for the currently-selected run.
      */
-    public function exportWithClusters(int $embeddingId)
+    public function exportWithClusters(Request $request, int $embeddingId)
     {
         $workspaceId = auth()->user()->workspace_id;
         $embedding = Embedding::where('workspace_id', $workspaceId)
             ->findOrFail($embeddingId);
 
-        // Fetch all original rows with their cluster topic name via raw SQL
-        // (bypasses RLS by using the app-level workspace filter)
+        // Resolve the target pipeline job. Explicit job beats "latest" so the
+        // downloaded file matches the run visible in the UI.
+        $jobId = $request->query('job');
+        $filenameSuffix = '';
+        if ($jobId) {
+            $job = PipelineJob::where('id', $jobId)
+                ->where('workspace_id', $workspaceId)
+                ->where('embedding_id', $embeddingId)
+                ->firstOrFail();
+            $resolvedJobId = $job->id;
+            $filenameSuffix = '_' . $job->created_at->format('Ymd-Hi');
+        } else {
+            // Legacy path: fall back to the newest job on the embedding.
+            $resolvedJobId = PipelineJob::where('workspace_id', $workspaceId)
+                ->where('embedding_id', $embeddingId)
+                ->orderByDesc('created_at')
+                ->value('id');
+            if (!$resolvedJobId) {
+                return back()->with('error', 'No clustering run found for this embedding.');
+            }
+        }
+
+        // Fetch original rows with the cluster topic name for the resolved job.
+        // Using a parameterised job_id keeps the query deterministic (the old
+        // ORDER BY ... LIMIT 1 subquery drifted whenever new runs were added).
         $rows = \DB::select("
             SELECT dr.row_no, dr.metadata_json, c.topic_name AS cluster_topic
             FROM dataset_rows dr
             LEFT JOIN cluster_memberships cm ON cm.dataset_row_id = dr.id
             LEFT JOIN clusters c ON c.id = cm.cluster_id
-                AND c.pipeline_job_id = (
-                    SELECT pj.id FROM pipeline_jobs pj
-                    WHERE pj.embedding_id = ?
-                    ORDER BY pj.created_at DESC LIMIT 1
-                )
+                AND c.pipeline_job_id = ?
             WHERE dr.dataset_id = ? AND dr.workspace_id = ?
             ORDER BY dr.row_no
-        ", [$embeddingId, $embedding->dataset_id, $workspaceId]);
+        ", [$resolvedJobId, $embedding->dataset_id, $workspaceId]);
 
         if (empty($rows)) {
             return back()->with('error', 'No data rows found.');
@@ -675,7 +739,7 @@ class EmbeddingController extends Controller
         $csvContent = stream_get_contents($handle);
         fclose($handle);
 
-        $filename = Str::slug($embedding->name) . '_rows_with_clusters.csv';
+        $filename = Str::slug($embedding->name) . '_rows_with_clusters' . $filenameSuffix . '.csv';
 
         return response($csvContent, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',

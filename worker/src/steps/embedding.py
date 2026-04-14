@@ -30,7 +30,7 @@ from src.embedding_client import EMBEDDING_DIMENSION as DEFAULT_EMBEDDING_DIMENS
 from src.embedding_client import MODEL_ID as DEFAULT_MODEL_ID
 from src.embedding_client import generate_embeddings_batch
 from src.config import S3_BUCKET, S3_REGION
-from src.db import get_connection, update_job_status, update_job_step_outputs, global_progress
+from src.db import get_connection, update_job_status, update_job_step_outputs, global_progress, update_job_action
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -231,6 +231,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     """
     logger.info("Embedding step started for job %d", job_id)
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 10))
+    update_job_action(job_id, "埋め込みステップを開始しています")
 
     # Resolve embedding model from pipeline config (or use defaults)
     pipeline_config = kwargs.get("pipeline_config") or {}
@@ -239,10 +240,12 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     logger.info("Using embedding model: %s (%dd)", model_id, embedding_dimension)
 
     # Step 1: Load normalized data from S3
+    update_job_action(job_id, "S3から前処理済みデータを読み込み中")
     df = download_parquet_from_s3(input_s3_path)
     logger.info("Loaded %d rows from %s", len(df), input_s3_path)
 
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 15))
+    update_job_action(job_id, f"埋め込みキャッシュを確認中 ({len(df)}件)")
 
     # Step 2: Compute cache keys and check cache (parallel S3 reads)
     df["cache_key"] = df["normalized_text"].apply(
@@ -261,6 +264,10 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     )
 
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 25))
+    update_job_action(
+        job_id,
+        f"キャッシュヒット {cache_hits}件 / 新規生成 {cache_misses}件",
+    )
 
     # Step 3: Generate embeddings for uncached rows (2-thread Bedrock calls)
     # Identify rows that need Bedrock API calls (not found in cache)
@@ -272,6 +279,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         logger.info("Generating %d embeddings (model=%s)...", len(uncached_texts), model_id)
 
         _last_reported_pct = [0]
+        _uncached_total = len(uncached_texts)
 
         def progress_cb(completed, total):
             # Map embedding progress to 25-75% of local step range.
@@ -281,6 +289,13 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
             if local_pct > _last_reported_pct[0]:
                 _last_reported_pct[0] = local_pct
                 update_job_status(job_id, status="embedding", progress=global_progress("embedding", local_pct))
+                # Refresh current_action in lockstep so the UI shows live counts
+                # while Bedrock is being hammered. Without this the whole
+                # embedding phase looks frozen to the user.
+                update_job_action(
+                    job_id,
+                    f"Bedrockで埋め込み生成中 ({completed}/{_uncached_total})",
+                )
 
         vectors = generate_embeddings_batch(
             uncached_texts,
@@ -307,10 +322,12 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
             })
 
         # Step 4: Save to cache (parallel S3 writes + single DB transaction)
+        update_job_action(job_id, f"S3にキャッシュ保存中 ({len(cache_entries)}件)")
         save_cache_batch(cache_entries)
         logger.info("Saved %d new embeddings to cache", len(cache_entries))
 
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 80))
+    update_job_action(job_id, f"埋め込み行列を組み立て中 ({len(all_keys)}件)")
 
     # Assemble all embeddings in original row order from cache and new results
     all_embeddings = []
@@ -325,6 +342,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     embedding_matrix = np.array(all_embeddings, dtype=np.float32)
 
     # Save row_id mapping alongside embeddings (needed by clustering step)
+    update_job_action(job_id, "埋め込み結果をS3にアップロード中")
     output_s3_path = f"s3://{S3_BUCKET}/{tenant_id}/jobs/{job_id}/embedding/embeddings.npy"
     upload_npy_to_s3(embedding_matrix, output_s3_path)
 
@@ -355,7 +373,42 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     logger.info("Embedding step completed for job %d", job_id)
 
-    # Step 7: Chain to clustering
+    # Step 7: Chain to next step.
+    #
+    # Special case: when the dataset wizard dispatched this job in
+    # "parameter search" mode (flag set by DatasetWizardController::finalize
+    # when the user clicks the Parameter Search button on the configure
+    # screen), skip clustering and friends entirely and hand the embedding
+    # vectors directly to the parameter_search step on the same job_id.
+    # This lets the user get a method/parameter sweep for a brand-new
+    # dataset without first committing to a clustering config.
+    cfg = kwargs.get("pipeline_config") or {}
+    if cfg.get("post_embedding_action") == "parameter_search":
+        update_job_action(job_id, "パラメータ探索ステップに移行中")
+        # Reuse the same SQS queue the regular chain uses. Late import keeps
+        # module load simple (SQS_QUEUE_URL/SQS_REGION live next to other
+        # config constants used only at dispatch time).
+        from src.config import SQS_QUEUE_URL, SQS_REGION
+        message = {
+            "job_id": job_id,
+            "tenant_id": tenant_id,
+            "dataset_id": dataset_id,
+            "step": "parameter_search",
+            "input_s3_path": output_s3_path,
+            "pipeline_config": cfg,
+        }
+        sqs_client = boto3.client("sqs", region_name=SQS_REGION)
+        sqs_client.send_message(
+            QueueUrl=SQS_QUEUE_URL,
+            MessageBody=json.dumps(message),
+        )
+        logger.info(
+            "Embedding->parameter_search divert for job %d (bypassing clustering chain)",
+            job_id,
+        )
+        return
+
+    # Normal path: chain preprocess → embedding → clustering → ...
     next_step = dispatch_next_step(
         current_step="embedding",
         job_id=job_id,

@@ -572,61 +572,87 @@ class DatasetWizardController extends Controller
                 }
             }
 
-            // Collect clustering configurations: either multi-config array or single legacy config.
-            // Multi-config: clustering_configs[0][method], clustering_configs[0][leiden_resolution], etc.
-            // Legacy: clustering_method, hdbscan_min_cluster_size, etc.
-            $clusteringConfigs = $request->input('clustering_configs', []);
-            if (empty($clusteringConfigs)) {
-                // Backward compatibility: build single config from legacy form fields
-                $clusteringConfigs = [[
-                    'method' => $request->input('clustering_method', 'hdbscan'),
-                    'hdbscan_min_cluster_size' => $request->input('hdbscan_min_cluster_size'),
-                    'hdbscan_min_samples' => $request->input('hdbscan_min_samples'),
-                    'kmeans_n_clusters' => $request->input('kmeans_n_clusters'),
-                    'agglomerative_n_clusters' => $request->input('agglomerative_n_clusters'),
-                    'agglomerative_linkage' => $request->input('agglomerative_linkage'),
-                    'leiden_n_neighbors' => $request->input('leiden_n_neighbors'),
-                    'leiden_resolution' => $request->input('leiden_resolution'),
-                ]];
-            }
+            // Detect "parameter search only" run mode. The configure screen has
+            // a dedicated button that submits the form with run_mode=parameter_search.
+            // In that mode we skip creating per-clustering-config jobs and instead
+            // dispatch a single preprocess+embedding job whose config tells the
+            // worker to pivot to the parameter_search step after embedding.
+            $runMode = $request->input('run_mode', 'clustering');
 
-            // Create pipeline jobs: first job runs full pipeline, additional jobs are clustering-only
-            $firstJob = null;
-            $totalJobs = count($clusteringConfigs);
+            if ($runMode === 'parameter_search') {
+                // Single preprocess→embedding→parameter_search job. No clustering
+                // configs required because the sweep generates its own parameters.
+                $paramSearchConfig = $baseConfig;
+                // Intentionally omit clustering_method/clustering_params so the
+                // chain diverts cleanly after embedding (see embedding.py).
+                $paramSearchConfig['post_embedding_action'] = 'parameter_search';
+                $paramSearchConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
 
-            foreach ($clusteringConfigs as $i => $cc) {
-                $isFirst = ($i === 0);
-
-                // Build per-job pipeline config with this config's clustering params
-                $jobConfig = $baseConfig;
-                $jobConfig['clustering_method'] = $cc['method'] ?? 'hdbscan';
-                $jobConfig['clustering_params'] = array_filter([
-                    'hdbscan_min_cluster_size' => $cc['hdbscan_min_cluster_size'] ?? null,
-                    'hdbscan_min_samples' => $cc['hdbscan_min_samples'] ?? null,
-                    'kmeans_n_clusters' => $cc['kmeans_n_clusters'] ?? null,
-                    'agglomerative_n_clusters' => $cc['agglomerative_n_clusters'] ?? null,
-                    'agglomerative_linkage' => $cc['agglomerative_linkage'] ?? null,
-                    'leiden_n_neighbors' => $cc['leiden_n_neighbors'] ?? null,
-                    'leiden_resolution' => $cc['leiden_resolution'] ?? null,
-                ], fn($v) => $v !== null && $v !== '');
-                $jobConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
-
-                // First job: full pipeline. Subsequent jobs: clustering-only, queued.
-                $job = \App\Models\PipelineJob::create([
+                $firstJob = \App\Models\PipelineJob::create([
                     'workspace_id' => $workspaceId,
                     'dataset_id' => $dataset->id,
-                    'start_step' => $isFirst ? 'preprocess' : 'clustering',
-                    'source_job_id' => $isFirst ? null : $firstJob->id,
-                    'status' => ($hasRunningPipeline || !$isFirst) ? 'queued' : 'submitted',
+                    'start_step' => 'preprocess',
+                    'status' => $hasRunningPipeline ? 'queued' : 'submitted',
                     'progress' => 0,
-                    'pipeline_config_snapshot_json' => $jobConfig,
+                    'pipeline_config_snapshot_json' => $paramSearchConfig,
                 ]);
-
-                if ($isFirst) {
-                    $firstJob = $job;
+                $totalJobs = 1;
+                Log::info("Parameter-search job {$firstJob->id} created for dataset {$dataset->id}");
+            } else {
+                // Normal mode: collect clustering configurations from the form.
+                // Multi-config: clustering_configs[0][method], clustering_configs[0][leiden_resolution], etc.
+                // Legacy: clustering_method, hdbscan_min_cluster_size, etc.
+                $clusteringConfigs = $request->input('clustering_configs', []);
+                if (empty($clusteringConfigs)) {
+                    // Backward compatibility: build single config from legacy form fields
+                    $clusteringConfigs = [[
+                        'method' => $request->input('clustering_method', 'hdbscan'),
+                        'hdbscan_min_cluster_size' => $request->input('hdbscan_min_cluster_size'),
+                        'hdbscan_min_samples' => $request->input('hdbscan_min_samples'),
+                        'kmeans_n_clusters' => $request->input('kmeans_n_clusters'),
+                        'agglomerative_n_clusters' => $request->input('agglomerative_n_clusters'),
+                        'agglomerative_linkage' => $request->input('agglomerative_linkage'),
+                        'leiden_n_neighbors' => $request->input('leiden_n_neighbors'),
+                        'leiden_resolution' => $request->input('leiden_resolution'),
+                    ]];
                 }
+                $firstJob = null;
+                $totalJobs = count($clusteringConfigs);
 
-                Log::info("Pipeline job {$job->id} created (config {$i}/{$totalJobs}, start_step={$job->start_step})");
+                foreach ($clusteringConfigs as $i => $cc) {
+                    $isFirst = ($i === 0);
+
+                    // Build per-job pipeline config with this config's clustering params
+                    $jobConfig = $baseConfig;
+                    $jobConfig['clustering_method'] = $cc['method'] ?? 'hdbscan';
+                    $jobConfig['clustering_params'] = array_filter([
+                        'hdbscan_min_cluster_size' => $cc['hdbscan_min_cluster_size'] ?? null,
+                        'hdbscan_min_samples' => $cc['hdbscan_min_samples'] ?? null,
+                        'kmeans_n_clusters' => $cc['kmeans_n_clusters'] ?? null,
+                        'agglomerative_n_clusters' => $cc['agglomerative_n_clusters'] ?? null,
+                        'agglomerative_linkage' => $cc['agglomerative_linkage'] ?? null,
+                        'leiden_n_neighbors' => $cc['leiden_n_neighbors'] ?? null,
+                        'leiden_resolution' => $cc['leiden_resolution'] ?? null,
+                    ], fn($v) => $v !== null && $v !== '');
+                    $jobConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
+
+                    // First job: full pipeline. Subsequent jobs: clustering-only, queued.
+                    $job = \App\Models\PipelineJob::create([
+                        'workspace_id' => $workspaceId,
+                        'dataset_id' => $dataset->id,
+                        'start_step' => $isFirst ? 'preprocess' : 'clustering',
+                        'source_job_id' => $isFirst ? null : $firstJob->id,
+                        'status' => ($hasRunningPipeline || !$isFirst) ? 'queued' : 'submitted',
+                        'progress' => 0,
+                        'pipeline_config_snapshot_json' => $jobConfig,
+                    ]);
+
+                    if ($isFirst) {
+                        $firstJob = $job;
+                    }
+
+                    Log::info("Pipeline job {$job->id} created (config {$i}/{$totalJobs}, start_step={$job->start_step})");
+                }
             }
 
             // Only send the first job to SQS if not queued
@@ -667,7 +693,13 @@ class DatasetWizardController extends Controller
 
             // Keep CSV file for reconfiguration (stored in persistent volume)
 
-            $jobLabel = $totalJobs > 1 ? "{$totalJobs} jobs (1 full + " . ($totalJobs - 1) . " clustering-only)" : "Job #{$firstJob->id}";
+            if ($runMode === 'parameter_search') {
+                $jobLabel = "Parameter search job #{$firstJob->id}";
+            } else {
+                $jobLabel = $totalJobs > 1
+                    ? "{$totalJobs} jobs (1 full + " . ($totalJobs - 1) . " clustering-only)"
+                    : "Job #{$firstJob->id}";
+            }
             $successMessage = $hasRunningPipeline
                 ? __('ui.pipeline_queued')
                 : "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). {$jobLabel} dispatched.";
@@ -777,6 +809,17 @@ class DatasetWizardController extends Controller
         if ($hasRunningJobs) {
             return redirect()->route('workspace.index')
                 ->with('error', __('ui.cannot_delete_running'));
+        }
+
+        // Guard: once a dataset has produced Knowledge Units it represents the
+        // *final product* of this system (Design Principle 7). Accidental
+        // deletion would lose reviewed/approved knowledge. Users must delete
+        // the embeddings/KUs first, then the dataset becomes deletable.
+        $hasKnowledgeUnits = \App\Models\KnowledgeUnit::where('dataset_id', $dataset->id)->exists();
+        if ($hasKnowledgeUnits) {
+            return redirect()->route('workspace.index')
+                ->with('error', __('ui.cannot_delete_dataset_with_kus')
+                    ?? 'Cannot delete: this dataset still has knowledge units. Delete the clustering runs first.');
         }
 
         $name = $dataset->name;

@@ -17,7 +17,7 @@ import time
 import boto3
 
 from src.config import LOG_LEVEL, SQS_POLL_INTERVAL, SQS_QUEUE_URL, SQS_REGION
-from src.db import clear_tenant_context, set_tenant_context, update_job_status
+from src.db import clear_tenant_context, is_job_cancelled, set_tenant_context, update_job_status
 from src.steps import ping
 from src.steps import preprocess
 from src.steps import embedding
@@ -90,6 +90,17 @@ def process_message(message_body: dict):
     set_tenant_context(tenant_id)
 
     try:
+        # Cancellation check: SQS cannot selectively remove in-flight messages,
+        # so the Laravel Cancel button only flips pipeline_jobs.status to
+        # 'cancelled'. Honour that flag here before doing any work — otherwise
+        # the handler would run, overwrite the cancelled status, and the job
+        # would silently resurrect itself.
+        if is_job_cancelled(job_id):
+            logger.info(
+                "Skipping step '%s' for job %d: job is cancelled", step, job_id,
+            )
+            return
+
         logger.info("Processing step '%s' for job %d", step, job_id)
         handler.execute(
             job_id=job_id,

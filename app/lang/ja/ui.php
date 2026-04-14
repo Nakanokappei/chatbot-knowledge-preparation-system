@@ -192,6 +192,8 @@ return [
     'km_hint_col_direct_resolution' => 'この列の値を解決策として使用',
     'cannot_delete_running' => 'パイプライン処理中は削除できません。',
     'cannot_delete_has_embeddings' => '埋め込みがあるため削除できません。',
+    'cannot_delete_dataset_with_kus' => 'このデータセットにはナレッジが存在するため削除できません。先にクラスタリング結果を削除してください。',
+    'delete_dataset' => 'データセットを削除',
     'km_hint_field_empty' => 'この項目は空になります',
 
     // ── Settings: Models ────────────────────────────────
