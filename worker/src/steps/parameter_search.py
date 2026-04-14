@@ -12,12 +12,21 @@ Sweep configurations:
   - Leiden: resolution in [0.3, 0.5, 0.7, 0.9, 1.0, 1.1, 1.3, 1.5, 2.0]
   - HDBSCAN: min_cluster_size in [5, 10, 15, 20, 30, 50, 80, 100]
   - K-Means: n_clusters in [5, 10, 15, 20, 30, 50, 80]
+
+Auto-add top-N: when pipeline_config has `auto_add_top_n=N`, after the sweep
+finishes the step also materialises the N best sweep results (plus any
+user-entered configs carried via `user_clustering_configs`) as queued
+clustering-only follow-up jobs. This is how the dataset wizard's "Search
+parameters and auto-add top patterns" button works end-to-end.
 """
 
+import json
 import logging
+from datetime import datetime, timezone
+
 import numpy as np
 
-from src.db import update_job_status, update_job_step_outputs, global_progress
+from src.db import db_cursor, update_job_status, update_job_step_outputs, global_progress
 from src.steps.clustering import (
     run_clustering,
     remove_language_direction,
@@ -186,3 +195,183 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         results[0]["silhouette_score"] if results else -1,
         results[0]["label"] if results else "none",
     )
+
+    # Step 7: Auto-materialise follow-up clustering jobs.
+    # When the wizard ran this with auto_add_top_n, pick the best N sweep
+    # results plus any user-entered patterns and create clustering-only
+    # PipelineJob rows pointing back at this job as the embedding source.
+    auto_add = pipeline_config.get("auto_add_top_n")
+    user_configs = pipeline_config.get("user_clustering_configs") or []
+    if auto_add and int(auto_add) > 0:
+        _create_follow_up_clustering_jobs(
+            parent_job_id=job_id,
+            tenant_id=tenant_id,
+            dataset_id=dataset_id,
+            base_config=pipeline_config,
+            sweep_results=results,
+            top_n=int(auto_add),
+            user_configs=user_configs,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Follow-up job materialisation (wizard "auto-add top patterns" flow)
+# ---------------------------------------------------------------------------
+
+# Which sweep-result params belong to which method. The Python worker mirrors
+# the Laravel clustering_configs form convention (method-prefixed keys) so the
+# downstream clustering step receives familiar inputs.
+_METHOD_PARAM_KEYS = {
+    "leiden": {
+        "resolution": "leiden_resolution",
+        "n_neighbors": "leiden_n_neighbors",
+    },
+    "hdbscan": {
+        "min_cluster_size": "hdbscan_min_cluster_size",
+        "min_samples": "hdbscan_min_samples",
+    },
+    "kmeans": {
+        "n_clusters": "kmeans_n_clusters",
+    },
+    "agglomerative": {
+        "n_clusters": "agglomerative_n_clusters",
+        "linkage": "agglomerative_linkage",
+    },
+}
+
+
+def _sweep_result_to_clustering_params(method: str, sweep_params: dict) -> dict:
+    """
+    Normalise a sweep result's bare params dict into the method-prefixed
+    dict shape the clustering step expects (matches Laravel wizard form).
+    """
+    key_map = _METHOD_PARAM_KEYS.get(method, {})
+    out = {}
+    for src_key, prefixed_key in key_map.items():
+        if src_key in sweep_params:
+            out[prefixed_key] = sweep_params[src_key]
+    return out
+
+
+def _user_config_to_clustering_params(user_config: dict) -> dict:
+    """
+    Extract the prefixed param keys (hdbscan_*, kmeans_*, leiden_*,
+    agglomerative_*) from a user-entered clustering_configs entry, filtering
+    out empty values. Mirrors DatasetWizardController::finalize's array_filter.
+    """
+    method = user_config.get("method", "hdbscan")
+    all_keys = set()
+    for keymap in _METHOD_PARAM_KEYS.values():
+        all_keys.update(keymap.values())
+
+    out = {}
+    for k in all_keys:
+        v = user_config.get(k)
+        if v is None or v == "":
+            continue
+        out[k] = v
+    return out
+
+
+def _create_follow_up_clustering_jobs(
+    parent_job_id: int,
+    tenant_id: int,
+    dataset_id: int,
+    base_config: dict,
+    sweep_results: list,
+    top_n: int,
+    user_configs: list,
+):
+    """
+    Create clustering-only PipelineJob rows for (user_configs + top-N sweep
+    results) in a single transaction, then kick off the first queued one.
+
+    Each new job:
+      - start_step = 'clustering'
+      - source_job_id = parent_job_id (parameter_search job, holds embedding)
+      - status = 'queued'
+      - pipeline_config = base_config minus wizard-only flags, plus
+        clustering_method + clustering_params for this pattern.
+
+    Uses dispatch_queued_job() to hand off to the existing queue processor.
+    """
+    # Build the list of pattern specs to materialise: user-entered first
+    # (so they appear in the sidebar in the order the user typed them),
+    # then auto-picked top-N by silhouette.
+    patterns: list[tuple[str, dict, str]] = []
+
+    for cfg in user_configs:
+        method = cfg.get("method", "hdbscan")
+        params = _user_config_to_clustering_params(cfg)
+        label = f"user: {method}"
+        patterns.append((method, params, label))
+
+    # Filter out clearly failed sweep results (silhouette == -1) before
+    # picking the top-N, otherwise we might queue a run of "n_clusters=0".
+    valid_sweep = [r for r in sweep_results if r.get("silhouette_score", -1) > -1]
+    for r in valid_sweep[:top_n]:
+        method = r["method"]
+        params = _sweep_result_to_clustering_params(method, r.get("params", {}))
+        label = f"auto: {r.get('label', method)}"
+        patterns.append((method, params, label))
+
+    if not patterns:
+        logger.info(
+            "auto_add_top_n requested for job %d but no patterns to materialise",
+            parent_job_id,
+        )
+        return
+
+    # Strip wizard-only flags so they don't recurse into the follow-ups.
+    child_base = {
+        k: v for k, v in base_config.items()
+        if k not in ("post_embedding_action", "auto_add_top_n", "user_clustering_configs")
+    }
+
+    now = datetime.now(timezone.utc)
+    created_job_ids = []
+    with db_cursor(tenant_id=tenant_id) as cur:
+        for method, params, label in patterns:
+            child_config = dict(child_base)
+            child_config["clustering_method"] = method
+            child_config["clustering_params"] = params
+            # Carry the language-bias flag as it was on the parent.
+            child_config.setdefault(
+                "remove_language_bias",
+                base_config.get("remove_language_bias", True),
+            )
+
+            cur.execute(
+                """INSERT INTO pipeline_jobs
+                   (workspace_id, dataset_id, start_step, source_job_id,
+                    status, progress, pipeline_config_snapshot_json,
+                    created_at, updated_at)
+                   VALUES (%s, %s, 'clustering', %s, 'queued', 0, %s, %s, %s)
+                   RETURNING id""",
+                (tenant_id, dataset_id, parent_job_id,
+                 json.dumps(child_config), now, now),
+            )
+            new_id = cur.fetchone()[0]
+            created_job_ids.append(new_id)
+            logger.info(
+                "Queued follow-up clustering job %d (%s) from parent %d",
+                new_id, label, parent_job_id,
+            )
+
+    logger.info(
+        "Auto-added %d clustering jobs for parent %d: %s",
+        len(created_job_ids), parent_job_id, created_job_ids,
+    )
+
+    # Kick off the first queued job. dispatch_queued_job scans the workspace
+    # for the oldest 'queued' row and sends it to SQS; subsequent jobs are
+    # fired from dispatch_next_step at pipeline completion (existing logic).
+    try:
+        from src.step_chain import dispatch_queued_job
+        dispatch_queued_job(tenant_id)
+    except Exception as exc:
+        # Non-fatal: the queue scan is idempotent, so a later completion of
+        # any pipeline will pick these up even if this call failed.
+        logger.warning(
+            "dispatch_queued_job failed after auto-adding follow-ups: %s", exc,
+        )

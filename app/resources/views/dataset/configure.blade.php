@@ -354,17 +354,19 @@
                 </button>
 
                 {{-- Parameter Search button: an alternative submit path that
-                     bypasses user-chosen clustering configs. Sets a hidden
+                     runs parameter_search AND auto-queues the top-N sweep
+                     results as clustering-only follow-up jobs (plus any
+                     patterns the user has entered above). Sets a hidden
                      `run_mode=parameter_search` flag so DatasetWizardController
                      dispatches a preprocess+embedding job that pivots to the
-                     parameter_search sweep step after embedding finishes.
-                     Lets users explore method/param combinations on a brand-
-                     new dataset without committing to a clustering pattern. --}}
+                     parameter_search sweep step after embedding finishes;
+                     the sweep step then materialises the follow-up clustering
+                     jobs (see worker/src/steps/parameter_search.py). --}}
                 <button type="button" id="run-parameter-search-btn"
                     onclick="submitParameterSearch()"
                     style="width: 100%; padding: 10px 16px; font-size: 13px; font-weight: 500; background: #fff; border: 1px solid #0071e3; border-radius: 10px; cursor: pointer; color: #0071e3; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s;"
                     onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='#fff'">
-                    🔍 {{ __('ui.parameter_search') }}
+                    🔍 {{ __('ui.parameter_search_auto_add') }}
                 </button>
             </div>
 

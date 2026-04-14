@@ -587,6 +587,18 @@ class DatasetWizardController extends Controller
                 // chain diverts cleanly after embedding (see embedding.py).
                 $paramSearchConfig['post_embedding_action'] = 'parameter_search';
                 $paramSearchConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
+                // Auto-add: after parameter_search finishes, worker will
+                // materialise the top N silhouette results as clustering-only
+                // follow-up jobs. 3 is a small enough number to complete in
+                // a reasonable wall time while giving the user useful variety.
+                $paramSearchConfig['auto_add_top_n'] = 3;
+                // Carry the user-entered patterns forward. The worker will
+                // materialise them together with the top-N auto-picked ones
+                // in a single batch (see parameter_search.py). We cannot
+                // create them as jobs here because their source_job_id
+                // (the parameter_search job) has not produced embedding
+                // output yet — _resolve_source_embedding would return null.
+                $paramSearchConfig['user_clustering_configs'] = $request->input('clustering_configs', []);
 
                 $firstJob = \App\Models\PipelineJob::create([
                     'workspace_id' => $workspaceId,
@@ -597,7 +609,7 @@ class DatasetWizardController extends Controller
                     'pipeline_config_snapshot_json' => $paramSearchConfig,
                 ]);
                 $totalJobs = 1;
-                Log::info("Parameter-search job {$firstJob->id} created for dataset {$dataset->id}");
+                Log::info("Parameter-search job {$firstJob->id} created for dataset {$dataset->id} (user_configs=" . count($paramSearchConfig['user_clustering_configs']) . ")");
             } else {
                 // Normal mode: collect clustering configurations from the form.
                 // Multi-config: clustering_configs[0][method], clustering_configs[0][leiden_resolution], etc.

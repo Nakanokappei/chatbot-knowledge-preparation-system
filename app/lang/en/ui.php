@@ -952,10 +952,12 @@ return [
 
     // ── Parameter search ───────────────────────────────
     'parameter_search'              => 'Parameter Search',
+    'parameter_search_auto_add'     => 'Search parameters and auto-add top patterns',
     'parameter_search_started'      => 'Parameter search started (24 patterns, ~1 min)',
     'parameter_search_running'      => 'Searching...',
     'parameter_search_results'      => 'Search Results',
     'parameter_search_failed'       => 'Search failed',
+    'parameter_search_pdf_export'   => '📄 Download PDF',
     'sampled'                       => 'sampled',
     'configs_tested'                => 'patterns tested',
     'use_these_params'              => 'Use these params',

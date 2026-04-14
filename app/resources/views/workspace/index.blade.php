@@ -458,7 +458,7 @@
                 {{-- Parameter search results: collapsible panel with chart + top results.
                      Default collapsed when results exist; expanded while polling. --}}
                 <div id="param-search-results" style="display: none; margin-bottom: 20px;">
-                    {{-- Collapsible header: toggle + title + status + dismiss button --}}
+                    {{-- Collapsible header: toggle + title + status + pdf + dismiss buttons --}}
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                         <button type="button" onclick="toggleParamResults()" id="param-results-toggle"
                             style="background: none; border: 1px solid #d2d2d7; border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: #5f6368; display: flex; align-items: center; gap: 6px;">
@@ -466,8 +466,16 @@
                             {{ __('ui.parameter_search_results') }}
                         </button>
                         <span id="param-search-status" style="font-size: 12px; color: #5f6368;"></span>
+                        {{-- Export the current chart + top-5 table as a PDF
+                             report (client-side via html2canvas + jsPDF). Only
+                             shown once results are populated — dispatched by
+                             renderParamSearchChart() at render time. --}}
+                        <button type="button" id="param-search-pdf" onclick="exportParamSearchPdf()"
+                            style="display:none; margin-left: auto; background: none; border: 1px solid #0071e3; border-radius: 6px; color: #0071e3; font-size: 12px; cursor: pointer; padding: 4px 10px;">
+                            {{ __('ui.parameter_search_pdf_export') ?? '📄 PDF' }}
+                        </button>
                         <button type="button" id="param-search-dismiss" onclick="dismissParamResults()"
-                            style="display:none; margin-left: auto; background: none; border: 1px solid #ff3b30; border-radius: 6px; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 4px 8px;">
+                            style="display:none; background: none; border: 1px solid #ff3b30; border-radius: 6px; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 4px 8px;">
                             ✕ {{ __('ui.dismiss') ?? '消去' }}
                         </button>
                     </div>
@@ -1467,6 +1475,9 @@
                         // Show results — collapsed by default, expanded if just finished polling
                         container.style.display = '';
                         dismissBtn.style.display = '';
+                        // Reveal the PDF export button once real results exist
+                        const pdfBtn = document.getElementById('param-search-pdf');
+                        if (pdfBtn) pdfBtn.style.display = '';
                         statusEl.textContent = data.results.sample_size + ' {{ __("ui.rows") }} {{ __("ui.sampled") }}, '
                             + data.results.configs_tested + ' {{ __("ui.configs_tested") }}';
                         renderParamChart(data.results.results);
@@ -2273,4 +2284,125 @@
             }).then(() => window.location.reload());
         }
         @endif
+
+        // ── Parameter Search → PDF report export ─────────────────────────
+        // Captures the existing chart panel + top-results table as images,
+        // assembles them into an A4 PDF, and triggers a download. Uses
+        // jsPDF + html2canvas loaded lazily from CDN on first click so the
+        // main page load doesn't pay for it.
+        function _loadScriptOnce(src) {
+            // Avoid adding the same <script src> twice if the user clicks
+            // the PDF button more than once; resolve immediately when it's
+            // already in the DOM.
+            return new Promise((resolve, reject) => {
+                if (document.querySelector('script[data-lazy-src="' + src + '"]')) {
+                    resolve();
+                    return;
+                }
+                const s = document.createElement('script');
+                s.src = src;
+                s.dataset.lazySrc = src;
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error('failed to load ' + src));
+                document.head.appendChild(s);
+            });
+        }
+
+        async function exportParamSearchPdf() {
+            const btn = document.getElementById('param-search-pdf');
+            const body = document.getElementById('param-search-body');
+            const chartWrap = document.getElementById('param-search-results');
+            const toggle = document.getElementById('param-results-toggle');
+            if (!chartWrap) return;
+
+            // The chart + table live inside the collapsible body. If the user
+            // kept it collapsed, we have to open it so html2canvas has a
+            // laid-out DOM to capture (display:none produces a blank canvas).
+            const wasCollapsed = body && body.style.display === 'none';
+            if (wasCollapsed) {
+                body.style.display = '';
+                document.getElementById('param-results-chevron').style.transform = 'rotate(90deg)';
+                // Let the browser lay out + SVG line overlay re-draw before capture.
+                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+                if (typeof drawParamLine === 'function') drawParamLine();
+                await new Promise(r => setTimeout(r, 150));
+            }
+
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ ...'; }
+            try {
+                await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+
+                const jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
+                if (!jsPDF || typeof window.html2canvas !== 'function') {
+                    throw new Error('PDF libraries failed to initialise');
+                }
+
+                // A4 portrait in mm; allocate a 14mm margin on every side.
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const pageW = doc.internal.pageSize.getWidth();
+                const margin = 14;
+                const usableW = pageW - margin * 2;
+
+                // Title block — dataset name + timestamp for traceability.
+                const datasetName = @json($current?->dataset?->name ?? $current?->name ?? 'dataset');
+                const now = new Date();
+                const pad = n => String(n).padStart(2, '0');
+                const stamp = now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate())
+                            + '-' + pad(now.getHours()) + pad(now.getMinutes());
+
+                doc.setFontSize(14);
+                doc.text('Parameter Search Report', margin, margin + 2);
+                doc.setFontSize(10);
+                doc.setTextColor(90);
+                doc.text(datasetName + '  /  ' + now.toLocaleString(), margin, margin + 8);
+                doc.setTextColor(0);
+
+                let cursorY = margin + 14;
+
+                // Capture the chart region (bars + axes + SVG line overlay).
+                // Use scale=2 for crisp output on retina printouts.
+                const chartEl = body || chartWrap;
+                const chartCanvas = await window.html2canvas(chartEl, {
+                    scale: 2, backgroundColor: '#ffffff', logging: false,
+                });
+                // Fit to usable width, preserve aspect ratio.
+                const chartImg = chartCanvas.toDataURL('image/png');
+                const chartAspect = chartCanvas.height / chartCanvas.width;
+                const chartH = Math.min(usableW * chartAspect, 180);
+                doc.addImage(chartImg, 'PNG', margin, cursorY, usableW, chartH);
+                cursorY += chartH + 8;
+
+                // Top-results table is rendered into #param-search-top by
+                // renderParamTopResults(); capture it separately so we can
+                // page-break if it overflows. Already captured above since
+                // #param-search-body is its parent — but we also add a
+                // dedicated snapshot for clarity if there's room.
+                const topEl = document.getElementById('param-search-top');
+                if (topEl && cursorY < 260) {
+                    // If there's room on the same page for a clean table shot
+                    // (separate from the chart image), render it here.
+                    // Otherwise we rely on the full-body capture above.
+                    // No-op — intentionally left as enhancement.
+                }
+
+                // File name: param-search-<slug>_<YYYYMMDD-HHMM>.pdf
+                const slug = datasetName.toString()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-+|-+$/g, '')
+                    .slice(0, 60) || 'dataset';
+                doc.save('param-search-' + slug + '_' + stamp + '.pdf');
+            } catch (e) {
+                console.error('PDF export failed', e);
+                alert('PDF export failed: ' + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '{{ __('ui.parameter_search_pdf_export') ?? '📄 PDF' }}'; }
+                if (wasCollapsed) {
+                    // Restore the collapsed state so the user's UI state is preserved.
+                    body.style.display = 'none';
+                    document.getElementById('param-results-chevron').style.transform = '';
+                }
+            }
+        }
 @endsection
