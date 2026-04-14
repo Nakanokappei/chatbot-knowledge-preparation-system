@@ -488,13 +488,16 @@
                     {{-- Collapsible body --}}
                     <div id="param-search-body" style="display: none; padding: 16px; background: #fafafa; border: 1px solid #e5e5e7; border-radius: 10px;">
                         {{-- Dual-axis chart: bars (silhouette) + line (cluster count).
+                             This is a true dual-axis plot: both metrics are
+                             Y-axes. Silhouette title sits on the left edge
+                             (vertically centred, rotated bottom-up); cluster-
+                             count title sits on the right edge (vertically
+                             centred, rotated top-down).
                              Wrapper id is used by the PDF exporter to grab
-                             the vertical axis title, chart, and x-axis labels
-                             together in one capture. --}}
+                             both titles, chart, and x-axis labels together. --}}
                         <div id="param-search-chart-wrap" style="display: flex; align-items: stretch; gap: 4px;">
-                            {{-- Left-edge vertical axis title for the silhouette axis.
-                                 Rotated 180° so the text reads bottom-up, matching
-                                 standard chart conventions. --}}
+                            {{-- Left Y-axis title (silhouette). Rotated 180° so
+                                 it reads bottom-up, matching chart conventions. --}}
                             <div style="display: flex; align-items: center; justify-content: center; width: 14px; font-size: 10px; color: #888;">
                                 <span style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap;">{{ __('ui.silhouette') }}</span>
                             </div>
@@ -520,9 +523,12 @@
                                     <div style="width: 40px;"></div>
                                 </div>
                             </div>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; font-size: 10px; color: #333; margin-top: 2px;">
-                            <span>{{ __('ui.clusters') }}</span>
+                            {{-- Right Y-axis title (clusters). Rotated top-down
+                                 so it reads the same way as the left title when
+                                 you tilt your head to the right. --}}
+                            <div style="display: flex; align-items: center; justify-content: center; width: 14px; font-size: 10px; color: #333;">
+                                <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.clusters') }}</span>
+                            </div>
                         </div>
                         <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: #5f6368;"></div>
                         {{-- Top results table --}}
