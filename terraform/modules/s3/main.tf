@@ -37,22 +37,52 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   }
 }
 
-# Lifecycle rule: delete objects after 90 days. CSV data uploaded
-# for processing is temporary and should not persist indefinitely.
+# Lifecycle rules — per-prefix retention.
+#
+# Replaces the previous bucket-wide 90-day rule, which would have deleted
+# active dataset CSVs and embedding cache entries together with worker
+# scratch data. Now each prefix gets a policy aligned with its purpose.
+#
+# Note: when multiple lifecycle rules match an object, S3 picks the
+# shortest expiration. That's why we removed the catch-all rule — having
+# both a 90-day catch-all and a 365-day cache rule would still expire the
+# cache at 90 days. Each prefix below is the only rule that matches it.
 
 resource "aws_s3_bucket_lifecycle_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
+  # Embedding cache: kept long enough to absorb routine pipeline re-runs
+  # (parameter sweeps, knowledge mapping changes), but eventually purged
+  # so abandoned per-text fingerprints don't accumulate forever. Cache
+  # misses fall back to Bedrock automatically (see embedding.py).
   rule {
-    id     = "expire-temporary-data"
+    id     = "expire-embedding-cache"
     status = "Enabled"
 
-    filter {}
+    filter {
+      prefix = "cache/embeddings/"
+    }
 
     expiration {
-      days = 90
+      days = 365
     }
   }
+
+  # Uploaded CSVs (csv-uploads/) are intentionally NOT expired by S3.
+  # Their lifecycle is owned by the app:
+  #   - DatasetWizardController::destroy deletes stored_path + raw_path
+  #     when a dataset is removed.
+  #   - kps:cleanup-orphan-csv artisan command sweeps anything that
+  #     escapes that path (legacy uploads, abandoned configures).
+  # If a CSV stays here, it's tied to a live dataset that the user is
+  # still working with — auto-deleting would break re-encoding flows.
+
+  # Worker scratch artifacts (`{workspace_id}/jobs/{job_id}/...`) are
+  # not yet covered by a lifecycle rule. They include embeddings.npy
+  # (needed for re-clustering on the same embedding) so a blanket
+  # expiration would silently break the "Use these params" workflow.
+  # Tracked as future work — likely needs a per-object tag added by the
+  # worker so we can target only safely-deletable artifacts.
 }
 
 # CORS configuration: allow PUT from any origin so that browser-based
