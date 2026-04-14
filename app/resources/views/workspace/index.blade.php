@@ -496,14 +496,14 @@
                              Wrapper id is used by the PDF exporter to grab
                              both titles, chart, and x-axis labels together. --}}
                         <div id="param-search-chart-wrap" style="display: flex; align-items: stretch; gap: 4px;">
-                            {{-- Left Y-axis title (silhouette). Rotated 180° so
-                                 it reads bottom-up, matching chart conventions.
-                                 Width is auto / content-sized because the chart
-                                 has plenty of horizontal room for 24 narrow bars;
-                                 let the label take whatever it needs to read
-                                 cleanly in Japanese. --}}
+                            {{-- Left Y-axis title (silhouette). Plain
+                                 vertical-rl writing mode keeps each character
+                                 upright and the text reading top→bottom (the
+                                 previous transform: rotate(180deg) flipped
+                                 individual glyphs upside-down). Width is
+                                 content-sized so Japanese labels can breathe. --}}
                             <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0;">
-                                <span style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap;">{{ __('ui.silhouette') }}</span>
+                                <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.silhouette') }}</span>
                             </div>
                             <div style="flex: 1;">
                                 <div style="display: flex; gap: 0;">
@@ -1728,14 +1728,42 @@
             window._paramSearchResults = results;
         }
 
+        // Shared "US accounting" table styling tokens used by both the
+        // results table and the glossary in the PDF. The intent is a
+        // calm, reading-friendly layout: no vertical lines, only thin
+        // horizontal rules to separate header from body, and a thicker
+        // line capping the bottom — the convention used on financial
+        // statements.
+        const _PDF_TABLE_STYLES = {
+            container: 'background:#fff;padding:12px;font-family:inherit;',
+            heading:   'margin:0 0 6px 0;font-size:12px;color:#1d1d1f;font-weight:500;letter-spacing:0.02em;',
+            table:     'width:100%;border-collapse:collapse;font-size:10.5px;',
+            // Header: thin double rule above and a single rule below
+            theadRow:  'color:#5f6368;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:9.5px;',
+            theadCell: 'padding:6px 8px;border-top:1.5px solid #1d1d1f;border-bottom:0.5px solid #1d1d1f;text-align:left;',
+            theadCellNum: 'padding:6px 8px;border-top:1.5px solid #1d1d1f;border-bottom:0.5px solid #1d1d1f;text-align:right;',
+            // Body rows: no row separators (US-accounting style is to
+            // rely on vertical alignment, not horizontal rules)
+            bodyCell:    'padding:5px 8px;text-align:left;vertical-align:top;',
+            bodyCellNum: 'padding:5px 8px;text-align:right;vertical-align:top;font-variant-numeric:tabular-nums;',
+            // Closing rule under the body — single line, like a totals
+            // row separator on a balance sheet
+            footerCell:  'border-top:0.5px solid #1d1d1f;',
+            // Glossary-specific muted variant (smaller + greyer)
+            mutedHeading:    'margin:0 0 6px 0;font-size:10px;color:#8a8a8e;font-weight:500;letter-spacing:0.02em;',
+            mutedTable:      'width:100%;border-collapse:collapse;font-size:9.5px;color:#555;',
+            mutedTheadRow:   'color:#8a8a8e;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:9px;',
+            mutedTheadCell:  'padding:5px 8px;border-top:1px solid #8a8a8e;border-bottom:0.5px solid #8a8a8e;text-align:left;',
+        };
+
         /**
          * Build a compact, low-emphasis glossary describing each clustering
          * method and its parameters. Rendered as the final section of the
          * PDF report so readers unfamiliar with HDBSCAN / Leiden / K-Means
          * / Agglomerative can interpret the results above.
          *
-         * Styled in muted grey so it doesn't compete with the actual
-         * results — it's reference material, not a primary finding.
+         * Same horizontal-rules-only style as the results table, but in
+         * muted grey so it reads as supporting reference material.
          */
         function _renderParamGlossaryHtml() {
             const entries = [
@@ -1777,73 +1805,87 @@
                 },
             ];
 
+            const S = _PDF_TABLE_STYLES;
             const wrap = document.createElement('div');
-            wrap.style.cssText = 'background:#fff;padding:12px;font-family:inherit;color:#6b6b70;';
-            let html = '<h3 style="margin:0 0 6px 0;font-size:11px;color:#8a8a8e;font-weight:500;">専門用語の説明 / Glossary</h3>';
-            html += '<table style="width:100%;font-size:9px;border-collapse:collapse;">'
-                + '<thead><tr style="color:#8a8a8e;background:#fafafa;">'
-                + '<th style="text-align:left;padding:3px 4px;border:1px solid #eee;width:18%;">手法 / Method</th>'
-                + '<th style="text-align:left;padding:3px 4px;border:1px solid #eee;">説明 / Description & Parameters</th>'
+            wrap.style.cssText = S.container + 'color:#6b6b70;';
+            let html = '<h3 style="' + S.mutedHeading + '">専門用語の説明 / Glossary</h3>';
+            html += '<table style="' + S.mutedTable + '">'
+                + '<thead><tr style="' + S.mutedTheadRow + '">'
+                + '<th style="' + S.mutedTheadCell + 'width:18%;">手法 / Method</th>'
+                + '<th style="' + S.mutedTheadCell + '">説明 / Description &amp; Parameters</th>'
                 + '</tr></thead><tbody>';
             entries.forEach(e => {
                 let paramsHtml = '';
                 if (e.params.length) {
-                    paramsHtml = '<div style="margin-top:3px;padding-left:8px;">';
+                    paramsHtml = '<div style="margin-top:4px;padding-left:8px;">';
                     e.params.forEach(([name, desc]) => {
-                        paramsHtml += '<div style="margin-bottom:1px;"><code style="font-family:monospace;color:#333;">' + name + '</code>: <span style="color:#6b6b70;">' + desc + '</span></div>';
+                        paramsHtml += '<div style="margin-bottom:2px;"><code style="font-family:monospace;color:#333;">' + name + '</code>: <span style="color:#6b6b70;">' + desc + '</span></div>';
                     });
                     paramsHtml += '</div>';
                 }
                 html += '<tr>'
-                    + '<td style="padding:4px;border:1px solid #eee;vertical-align:top;font-weight:500;color:#555;">' + e.method + '</td>'
-                    + '<td style="padding:4px;border:1px solid #eee;">'
+                    + '<td style="' + S.bodyCell + 'font-weight:500;color:#555;">' + e.method + '</td>'
+                    + '<td style="' + S.bodyCell + '">'
                     + '<span style="color:#555;">' + e.desc + '</span>'
                     + paramsHtml
                     + '</td></tr>';
             });
-            html += '</tbody></table>';
+            html += '</tbody><tfoot><tr><td colspan="2" style="' + S.footerCell + '"></td></tr></tfoot></table>';
             wrap.innerHTML = html;
             return wrap;
         }
 
         /**
-         * Render ALL parameter-search results (not just top 5) for the PDF
-         * export. Columns: # (rank), method, params, clusters, silhouette,
-         * noise, size (sample_size — same for every row but requested so the
-         * reader knows what 'clusters'/'noise' are measured against).
-         * Returned as a detached DOM node that gets mounted into the PDF
-         * capture area only during export, then removed.
+         * Render the top-N parameter-search results for the PDF export.
+         * Columns: # (rank), method, params, clusters, silhouette, noise,
+         * size (sample_size shared by all rows; useful as denominator for
+         * the clusters/noise columns).
+         *
+         * Limited to top 10 by silhouette so the table fits comfortably
+         * on the same page as the chart instead of paginating across
+         * pages and obscuring the chart capture.
+         *
+         * Styled in US-accounting convention (no vertical lines, only
+         * thin horizontal rules around the header and below the body).
+         * Returned as a detached DOM node that the PDF exporter mounts
+         * into the document briefly during capture.
          */
         function _renderParamAllResultsHtml(results, sampleSize) {
+            const S = _PDF_TABLE_STYLES;
+            const top = results.slice(0, 10);
             const wrap = document.createElement('div');
-            wrap.style.cssText = 'background:#fff;padding:12px;font-family:inherit;';
-            let html = '<h3 style="margin:0 0 8px 0;font-size:13px;color:#1d1d1f;">'
-                + '{{ __("ui.parameter_search_results") }} ({{ __("ui.configs_tested") }}: ' + results.length + ')</h3>';
-            html += '<table style="width:100%;font-size:11px;border-collapse:collapse;">'
-                + '<thead><tr style="color:#5f6368;font-size:10px;background:#fafafa;">'
-                + '<th style="text-align:center;padding:4px;border:1px solid #e5e5e7;">#</th>'
-                + '<th style="text-align:left;padding:4px;border:1px solid #e5e5e7;">{{ __("ui.method") }}</th>'
-                + '<th style="text-align:left;padding:4px;border:1px solid #e5e5e7;">{{ __("ui.parameters") }}</th>'
-                + '<th style="text-align:center;padding:4px;border:1px solid #e5e5e7;">{{ __("ui.clusters") }}</th>'
-                + '<th style="text-align:center;padding:4px;border:1px solid #e5e5e7;">{{ __("ui.silhouette") }}</th>'
-                + '<th style="text-align:center;padding:4px;border:1px solid #e5e5e7;">{{ __("ui.noise") }}</th>'
-                + '<th style="text-align:center;padding:4px;border:1px solid #e5e5e7;">{{ __("ui.sampled") }}</th>'
+            wrap.style.cssText = S.container;
+            let html = '<h3 style="' + S.heading + '">'
+                + '{{ __("ui.parameter_search_results") }} (Top ' + top.length
+                + ' / ' + results.length + ' tested)</h3>';
+            html += '<table style="' + S.table + '">'
+                + '<thead><tr style="' + S.theadRow + '">'
+                + '<th style="' + S.theadCellNum + 'width:5%;">#</th>'
+                + '<th style="' + S.theadCell + 'width:24%;">{{ __("ui.method") }}</th>'
+                + '<th style="' + S.theadCell + '">{{ __("ui.parameters") }}</th>'
+                + '<th style="' + S.theadCellNum + 'width:9%;">{{ __("ui.clusters") }}</th>'
+                + '<th style="' + S.theadCellNum + 'width:11%;">{{ __("ui.silhouette") }}</th>'
+                + '<th style="' + S.theadCellNum + 'width:8%;">{{ __("ui.noise") }}</th>'
+                + '<th style="' + S.theadCellNum + 'width:9%;">{{ __("ui.sampled") }}</th>'
                 + '</tr></thead><tbody>';
-            results.forEach((r, i) => {
+            top.forEach((r, i) => {
                 const paramStr = Object.entries(r.params || {}).map(([k,v]) => k + '=' + v).join(', ');
-                const silColor = r.silhouette_score >= 0.3 ? '#2e7d32' : r.silhouette_score >= 0.1 ? '#1565c0' : '#555';
-                const bg = i < 3 ? 'background:#e8f5e9;' : '';
-                html += '<tr style="' + bg + '">'
-                    + '<td style="padding:4px;text-align:center;border:1px solid #e5e5e7;font-weight:600;">' + (i + 1) + '</td>'
-                    + '<td style="padding:4px;border:1px solid #e5e5e7;font-weight:500;">' + (r.label || r.method) + '</td>'
-                    + '<td style="padding:4px;border:1px solid #e5e5e7;font-size:10px;color:#5f6368;">' + paramStr + '</td>'
-                    + '<td style="padding:4px;text-align:center;border:1px solid #e5e5e7;">' + r.n_clusters + '</td>'
-                    + '<td style="padding:4px;text-align:center;border:1px solid #e5e5e7;font-weight:700;color:' + silColor + ';">' + (r.silhouette_score != null ? r.silhouette_score.toFixed(3) : '—') + '</td>'
-                    + '<td style="padding:4px;text-align:center;border:1px solid #e5e5e7;color:#5f6368;">' + (r.n_noise != null ? r.n_noise : '—') + '</td>'
-                    + '<td style="padding:4px;text-align:center;border:1px solid #e5e5e7;color:#5f6368;">' + (sampleSize != null ? sampleSize : '—') + '</td>'
+                // Silhouette colour cue: green for excellent, blue for good,
+                // grey otherwise. No row background (US-accounting style).
+                const silColor = r.silhouette_score >= 0.3 ? '#2e7d32'
+                              : r.silhouette_score >= 0.1 ? '#1565c0'
+                              : '#1d1d1f';
+                html += '<tr>'
+                    + '<td style="' + S.bodyCellNum + 'color:#5f6368;">' + (i + 1) + '</td>'
+                    + '<td style="' + S.bodyCell + 'font-weight:500;">' + (r.label || r.method) + '</td>'
+                    + '<td style="' + S.bodyCell + 'font-size:9.5px;color:#5f6368;">' + paramStr + '</td>'
+                    + '<td style="' + S.bodyCellNum + '">' + r.n_clusters + '</td>'
+                    + '<td style="' + S.bodyCellNum + 'font-weight:600;color:' + silColor + ';">' + (r.silhouette_score != null ? r.silhouette_score.toFixed(3) : '—') + '</td>'
+                    + '<td style="' + S.bodyCellNum + 'color:#5f6368;">' + (r.n_noise != null ? r.n_noise : '—') + '</td>'
+                    + '<td style="' + S.bodyCellNum + 'color:#5f6368;">' + (sampleSize != null ? sampleSize : '—') + '</td>'
                     + '</tr>';
             });
-            html += '</tbody></table>';
+            html += '</tbody><tfoot><tr><td colspan="7" style="' + S.footerCell + '"></td></tr></tfoot></table>';
             wrap.innerHTML = html;
             return wrap;
         }
@@ -2618,9 +2660,16 @@
                         // Otherwise start a new page and paginate by slicing the source
                         // canvas vertically into page-height chunks.
                         if (tableFullH <= availableFirstPage) {
+                            // Common case (top-10 fits comfortably alongside chart)
                             doc.addImage(tableImg, 'PNG', margin, cursorY, usableW, tableFullH);
                             cursorY += tableFullH + 6;
                         } else {
+                            // Table is too big for the remaining space on the
+                            // current page. Always start the table on a fresh
+                            // page (otherwise the first slice draws at margin,
+                            // margin and overwrites the chart we just placed).
+                            doc.addPage();
+                            cursorY = margin;
                             const pagePixelsPerMm = tableCanvas.width / usableW;
                             const pageBudgetMm = pageH - margin * 2;
                             const pageBudgetPx = pageBudgetMm * pagePixelsPerMm;
@@ -2636,6 +2685,8 @@
                                     0, 0, tableCanvas.width, sliceH,
                                 );
                                 const sliceMmH = sliceH / pagePixelsPerMm;
+                                // First iteration uses the page we just added;
+                                // subsequent iterations need their own pages.
                                 if (!first) doc.addPage();
                                 doc.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, usableW, sliceMmH);
                                 srcY += sliceH;
