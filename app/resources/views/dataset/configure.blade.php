@@ -353,19 +353,23 @@
                     + {{ __('ui.add_pattern') }}
                 </button>
 
-                {{-- Parameter Search button: an alternative submit path that
-                     runs parameter_search AND auto-queues the top-N sweep
-                     results as clustering-only follow-up jobs (plus any
-                     patterns the user has entered above). Sets a hidden
-                     `run_mode=parameter_search` flag so DatasetWizardController
-                     dispatches a preprocess+embedding job that pivots to the
-                     parameter_search sweep step after embedding finishes;
-                     the sweep step then materialises the follow-up clustering
-                     jobs (see worker/src/steps/parameter_search.py). --}}
+                {{-- Parameter Search button: runs the sampled 24-pattern
+                     sweep (same code path as the workspace sidebar button).
+                     After completion the user reviews the chart/top-5 and
+                     uses the existing "Use these params" buttons in the
+                     workspace compare view to add patterns and run them.
+
+                     Disabled until the user has (a) selected at least one
+                     clustering target column AND (b) mapped at least one
+                     knowledge-structure field, because parameter_search
+                     needs real embedding text input and the embeddings are
+                     built from those column selections. See
+                     updateParamSearchBtnState() for the live toggle. --}}
                 <button type="button" id="run-parameter-search-btn"
                     onclick="submitParameterSearch()"
-                    style="width: 100%; padding: 10px 16px; font-size: 13px; font-weight: 500; background: #fff; border: 1px solid #0071e3; border-radius: 10px; cursor: pointer; color: #0071e3; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s;"
-                    onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='#fff'">
+                    disabled
+                    title="{{ __('ui.param_search_btn_disabled_hint') ?? 'クラスタリング対象列とナレッジ構造を先に設定してください' }}"
+                    style="width: 100%; padding: 10px 16px; font-size: 13px; font-weight: 500; background: #fff; border: 1px solid #d2d2d7; border-radius: 10px; cursor: not-allowed; color: #aaa; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.15s; opacity: 0.6;">
                     🔍 {{ __('ui.parameter_search_auto_add') }}
                 </button>
             </div>
@@ -495,6 +499,64 @@
             }
             form.submit();
         }
+
+        /**
+         * Live-enable the parameter-search button when the form has enough
+         * information to build embeddings from.
+         *
+         * Required:
+         *   1. At least one column in #selected-list (clustering target)
+         *   2. At least one knowledge-structure mapping is not '_none'
+         *      (otherwise the pipeline has nothing to extract into KUs and
+         *      the parameter sweep is over empty input)
+         *
+         * Re-runs on: drag-drop mapper changes, knowledge-mapping <select>
+         * changes, and once on initial DOMContentLoaded.
+         */
+        function updateParamSearchBtnState() {
+            const btn = document.getElementById('run-parameter-search-btn');
+            if (!btn) return;
+
+            const selectedList = document.getElementById('selected-list');
+            const hasColumns = selectedList && selectedList.querySelectorAll('.col-item').length > 0;
+
+            // Any km_{field}_source select with a value other than '_none'
+            // counts as "knowledge structure configured".
+            let hasMapping = false;
+            document.querySelectorAll('select[name^="km_"][name$="_source"]').forEach(s => {
+                if (s.value && s.value !== '_none') hasMapping = true;
+            });
+
+            const ready = hasColumns && hasMapping;
+            btn.disabled = !ready;
+            btn.style.opacity = ready ? '' : '0.6';
+            btn.style.cursor = ready ? 'pointer' : 'not-allowed';
+            btn.style.color = ready ? '#0071e3' : '#aaa';
+            btn.style.borderColor = ready ? '#0071e3' : '#d2d2d7';
+            if (!ready) {
+                btn.setAttribute('title', '{{ __("ui.param_search_btn_disabled_hint") ?? "クラスタリング対象列とナレッジ構造を先に設定してください" }}');
+            } else {
+                btn.removeAttribute('title');
+            }
+        }
+
+        // Wire up the live toggle. Drag-drop mapper events mutate #selected-list
+        // directly, so MutationObserver is the most robust hook.
+        document.addEventListener('DOMContentLoaded', () => {
+            updateParamSearchBtnState();
+
+            const selectedList = document.getElementById('selected-list');
+            if (selectedList) {
+                new MutationObserver(updateParamSearchBtnState).observe(selectedList, {
+                    childList: true, subtree: true,
+                });
+            }
+
+            // Knowledge-mapping selects fire plain 'change' events.
+            document.querySelectorAll('select[name^="km_"][name$="_source"]').forEach(s => {
+                s.addEventListener('change', updateParamSearchBtnState);
+            });
+        });
 
         // Generate dataset and column descriptions using LLM via AJAX
         async function generateDescriptions() {

@@ -959,6 +959,7 @@ return [
     'parameter_search_results'      => '探索結果',
     'parameter_search_failed'       => '探索に失敗しました',
     'parameter_search_pdf_export'   => '📄 PDF でダウンロード',
+    'param_search_btn_disabled_hint' => 'クラスタリング対象列とナレッジ構造を先に設定してください',
     'sampled'                       => 'サンプル',
     'configs_tested'                => 'パターンをテスト',
     'use_these_params'              => 'この設定で実行',

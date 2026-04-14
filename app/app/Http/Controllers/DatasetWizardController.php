@@ -580,25 +580,18 @@ class DatasetWizardController extends Controller
             $runMode = $request->input('run_mode', 'clustering');
 
             if ($runMode === 'parameter_search') {
-                // Single preprocess→embedding→parameter_search job. No clustering
-                // configs required because the sweep generates its own parameters.
+                // Single preprocess→embedding→parameter_search job. We do NOT
+                // auto-queue follow-up clustering jobs here: the user asked
+                // for "the sidebar parameter-search flow" which is just the
+                // sampled sweep; the user reviews results and picks which
+                // patterns to actually run via the existing "Use these params"
+                // button in the workspace compare view.
                 $paramSearchConfig = $baseConfig;
-                // Intentionally omit clustering_method/clustering_params so the
-                // chain diverts cleanly after embedding (see embedding.py).
+                // Omit clustering_method/clustering_params so embedding.py
+                // diverts cleanly to parameter_search after embedding finishes
+                // (see post_embedding_action handling there).
                 $paramSearchConfig['post_embedding_action'] = 'parameter_search';
                 $paramSearchConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
-                // Auto-add: after parameter_search finishes, worker will
-                // materialise the top N silhouette results as clustering-only
-                // follow-up jobs. 3 is a small enough number to complete in
-                // a reasonable wall time while giving the user useful variety.
-                $paramSearchConfig['auto_add_top_n'] = 3;
-                // Carry the user-entered patterns forward. The worker will
-                // materialise them together with the top-N auto-picked ones
-                // in a single batch (see parameter_search.py). We cannot
-                // create them as jobs here because their source_job_id
-                // (the parameter_search job) has not produced embedding
-                // output yet — _resolve_source_embedding would return null.
-                $paramSearchConfig['user_clustering_configs'] = $request->input('clustering_configs', []);
 
                 $firstJob = \App\Models\PipelineJob::create([
                     'workspace_id' => $workspaceId,
@@ -609,7 +602,7 @@ class DatasetWizardController extends Controller
                     'pipeline_config_snapshot_json' => $paramSearchConfig,
                 ]);
                 $totalJobs = 1;
-                Log::info("Parameter-search job {$firstJob->id} created for dataset {$dataset->id} (user_configs=" . count($paramSearchConfig['user_clustering_configs']) . ")");
+                Log::info("Parameter-search job {$firstJob->id} created for dataset {$dataset->id}");
             } else {
                 // Normal mode: collect clustering configurations from the form.
                 // Multi-config: clustering_configs[0][method], clustering_configs[0][leiden_resolution], etc.
@@ -715,6 +708,16 @@ class DatasetWizardController extends Controller
             $successMessage = $hasRunningPipeline
                 ? __('ui.pipeline_queued')
                 : "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). {$jobLabel} dispatched.";
+
+            // For parameter_search mode we redirect the user to the workspace
+            // index (sidebar + progress view) instead of the pipeline list so
+            // they stay inside the main dataset workflow and can watch their
+            // new embedding appear live, then open the compare view to review
+            // the sweep results and pick patterns to run.
+            if ($runMode === 'parameter_search') {
+                return redirect()->route('workspace.index')
+                    ->with('success', $successMessage);
+            }
 
             return redirect()->route('dashboard')
                 ->with('success', $successMessage);

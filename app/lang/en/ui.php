@@ -958,6 +958,7 @@ return [
     'parameter_search_results'      => 'Search Results',
     'parameter_search_failed'       => 'Search failed',
     'parameter_search_pdf_export'   => '📄 Download PDF',
+    'param_search_btn_disabled_hint' => 'Select clustering target columns and configure knowledge mapping first',
     'sampled'                       => 'sampled',
     'configs_tested'                => 'patterns tested',
     'use_these_params'              => 'Use these params',
