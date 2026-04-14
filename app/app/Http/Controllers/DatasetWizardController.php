@@ -815,7 +815,15 @@ class DatasetWizardController extends Controller
         // *final product* of this system (Design Principle 7). Accidental
         // deletion would lose reviewed/approved knowledge. Users must delete
         // the embeddings/KUs first, then the dataset becomes deletable.
-        $hasKnowledgeUnits = \App\Models\KnowledgeUnit::where('dataset_id', $dataset->id)->exists();
+        //
+        // Scope: only KUs still tied to an existing pipeline_job block deletion.
+        // "Orphan" KUs (pipeline_job_id IS NULL) are leftovers from previously
+        // deleted jobs (FK is ON DELETE SET NULL) — they are not user-visible
+        // knowledge anymore since the parent job / clustering run is gone, and
+        // the dataset FK's ON DELETE CASCADE will clean them up automatically.
+        $hasKnowledgeUnits = \App\Models\KnowledgeUnit::where('dataset_id', $dataset->id)
+            ->whereNotNull('pipeline_job_id')
+            ->exists();
         if ($hasKnowledgeUnits) {
             return redirect()->route('workspace.index')
                 ->with('error', __('ui.cannot_delete_dataset_with_kus')

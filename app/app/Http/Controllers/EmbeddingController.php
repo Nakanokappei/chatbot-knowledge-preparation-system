@@ -147,11 +147,16 @@ class EmbeddingController extends Controller
 
         // Dataset-level KU count for the selected embedding's parent dataset.
         // Drives the "Delete dataset" button visibility in the detail view —
-        // deletion is only permitted when no KUs exist (matches the server
-        // guard in DatasetWizardController::destroy).
+        // deletion is only permitted when no KUs exist that are still tied to
+        // a live pipeline_job. Orphan KUs (pipeline_job_id IS NULL, left over
+        // from a previously-deleted job) are ignored here to match the server
+        // guard in DatasetWizardController::destroy — they would otherwise
+        // silently lock the button forever after jobs are cleaned up.
         $currentDatasetHasKus = false;
         if ($current && $current->dataset_id) {
-            $currentDatasetHasKus = KnowledgeUnit::where('dataset_id', $current->dataset_id)->exists();
+            $currentDatasetHasKus = KnowledgeUnit::where('dataset_id', $current->dataset_id)
+                ->whereNotNull('pipeline_job_id')
+                ->exists();
         }
 
         return view('workspace.index', [

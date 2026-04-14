@@ -441,7 +441,18 @@ class DashboardController extends Controller
         }
 
         $embeddingId = $pipelineJob->embedding_id;
-        $pipelineJob->delete();
+
+        // Explicitly delete KUs produced by this job BEFORE deleting the job
+        // itself. The FK is ON DELETE SET NULL by migration, so without this
+        // the KUs would become "orphans" (pipeline_job_id=NULL) and linger
+        // invisibly — they would still block dataset deletion even though the
+        // user has no UI surface to manage them. Deleting them together with
+        // the job matches user intent ("delete this clustering run and what
+        // it produced").
+        DB::transaction(function () use ($pipelineJob) {
+            KnowledgeUnit::where('pipeline_job_id', $pipelineJob->id)->delete();
+            $pipelineJob->delete();
+        });
 
         // Redirect back to the comparison view for the parent embedding
         if ($embeddingId) {
