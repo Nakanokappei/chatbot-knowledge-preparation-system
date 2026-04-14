@@ -673,6 +673,20 @@
                             @endforeach
                         </tbody>
                     </table>
+                    {{-- Metric transparency note.
+                         HDBSCAN / K-Means / Agglomerative rely on Euclidean
+                         distance internally (shown as metric=euclidean in the
+                         parameters column), but the pipeline L2-normalises
+                         every row before clustering, which makes Euclidean
+                         distance monotonically equivalent to cosine distance
+                         on the unit hypersphere — the mathematically correct
+                         choice for text embeddings. Leiden uses cosine
+                         directly via its HNSW index. --}}
+                    <p style="font-size: 11px; color: #8a8a8e; margin-top: 10px; line-height: 1.5;">
+                        ※ 距離指標: HDBSCAN / K-Means / Agglomerative は内部的に euclidean を使用していますが、
+                        クラスタリング前にベクトルを L2 正規化しているため、単位超球面上では euclidean が cosine と等価な順序関係になります（テキスト埋め込みの推奨挙動）。
+                        Leiden は HNSW インデックスで cosine を直接使用。
+                    </p>
                 @endif
 
             @elseif($current)
@@ -1782,16 +1796,16 @@
             const entries = [
                 {
                     method: 'HDBSCAN',
-                    desc: 'Hierarchical Density-Based Spatial Clustering。密度ベースで自動的にクラスタ数を決定し、ノイズ点を検出できる手法。',
+                    desc: 'Hierarchical Density-Based Spatial Clustering。密度ベースで自動的にクラスタ数を決定し、ノイズ点を検出できる手法。距離指標は euclidean ですが、入力ベクトルを L2 正規化しているため cosine 順位と等価。',
                     params: [
                         ['min_cluster_size', 'クラスタとして扱う最小のデータ点数。大きいほど少数の大きなクラスタに、小さいほど多数の細かいクラスタになる'],
                         ['min_samples', 'コア点と判定する近傍点の最小数。大きいほどノイズに敏感になり、小さいほど緩く判定する'],
-                        ['metric', '距離尺度。euclidean は通常、cosine は方向性を重視'],
+                        ['metric', '距離尺度。euclidean on L2-normalized vectors = cosine-equivalent'],
                     ],
                 },
                 {
                     method: 'K-Means',
-                    desc: '指定したクラスタ数 K でデータを分割する古典的手法。全点が必ずいずれかのクラスタに属する（ノイズ無し）。',
+                    desc: '指定したクラスタ数 K でデータを分割する古典的手法。全点が必ずいずれかのクラスタに属する（ノイズ無し）。距離は euclidean ですが、L2 正規化された入力に対しては cosine 相当（spherical k-means に相当）。',
                     params: [
                         ['n_clusters', '分割するクラスタ数。事前に決める必要がある'],
                         ['n_init', 'ランダム初期化の試行回数。多いほど安定するが遅い'],
@@ -1800,7 +1814,7 @@
                 },
                 {
                     method: 'Agglomerative',
-                    desc: '階層的クラスタリング。近いもの同士をボトムアップに結合していき、指定クラスタ数で切る。',
+                    desc: '階層的クラスタリング。近いもの同士をボトムアップに結合していき、指定クラスタ数で切る。ward linkage を使用、距離は euclidean（L2 正規化により cosine 相当）。',
                     params: [
                         ['n_clusters', '最終的な切り出しクラスタ数'],
                         ['linkage', '結合基準。ward は分散最小化（デフォルト）、average は平均距離、single は最小距離'],
@@ -1808,7 +1822,7 @@
                 },
                 {
                     method: 'Leiden (HNSW + Leiden)',
-                    desc: 'HNSW で近傍グラフを構築し、Leiden アルゴリズムでコミュニティを検出するグラフベース手法。高次元埋め込みで自然なクラスタを見つけやすい。',
+                    desc: 'HNSW で近傍グラフを構築し、Leiden アルゴリズムでコミュニティを検出するグラフベース手法。高次元埋め込みで自然なクラスタを見つけやすい。HNSW インデックスで cosine 距離を直接使用。',
                     params: [
                         ['n_neighbors', '各点の近傍として考える数。小さいと細かく、大きいと粗く分かれる'],
                         ['resolution', 'コミュニティの粒度パラメータ。大きいほどクラスタ数が増える'],

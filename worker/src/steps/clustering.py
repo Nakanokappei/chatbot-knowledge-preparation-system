@@ -355,6 +355,29 @@ CLUSTERING_METHODS = {
 }
 
 
+def _normalize_rows(embeddings: np.ndarray) -> np.ndarray:
+    """
+    Force every row to unit length. Idempotent — already-normalised vectors
+    come out unchanged within float32 precision.
+
+    Why this matters: HDBSCAN / K-Means / Agglomerative in sklearn operate
+    on Euclidean distance, but with unit-length rows Euclidean distance is
+    a monotonic function of cosine distance (||a-b||² = 2 - 2·cos(a,b)).
+    That means cluster-member ranking is identical to what a cosine-metric
+    run would produce — which is the semantically correct choice for text
+    embeddings. Leiden already configures HNSW with space='cosine' and is
+    unaffected by this step.
+
+    Running this as the first thing inside run_clustering makes "inputs
+    are unit vectors" an enforced invariant rather than an assumption.
+    """
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    # Guard against zero-vectors (degenerate text like pure punctuation):
+    # leave them alone rather than dividing by zero.
+    norms = np.where(norms == 0, 1.0, norms)
+    return embeddings / norms
+
+
 def run_clustering(
     embeddings: np.ndarray,
     method: str = "hdbscan",
@@ -377,6 +400,11 @@ def run_clustering(
             f"Unknown clustering method '{method}'. "
             f"Supported: {list(CLUSTERING_METHODS.keys())}"
         )
+
+    # Enforce unit-length rows so Euclidean-based algorithms (HDBSCAN,
+    # K-Means, Agglomerative) become cosine-equivalent by construction.
+    # See _normalize_rows for the mathematical justification.
+    embeddings = _normalize_rows(embeddings)
 
     # Merge user params over defaults.
     # Form params arrive with method prefix (e.g. "hdbscan_min_cluster_size"),
