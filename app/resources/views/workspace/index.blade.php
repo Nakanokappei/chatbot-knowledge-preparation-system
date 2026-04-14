@@ -913,7 +913,18 @@
                     <p style="color: #34c759; font-size: 13px; margin-bottom: 16px;">✓ {{ session('success') }}</p>
                 @endif
 
-                @if($embeddingJob && !in_array($embeddingJob->status, ['completed', 'failed']))
+                {{-- Split the conditional branches:
+                     #embedding-progress-panel wraps ONLY the "running" branch
+                     so the refresh-polling can swap its innerHTML every few
+                     seconds without touching the KU list below (which holds
+                     user selections / scroll position we want to preserve).
+                     When no job is running the panel is empty and the page
+                     falls through to the empty/KU-list branches. --}}
+                @php
+                    $showProgress = $embeddingJob && !in_array($embeddingJob->status, ['completed', 'failed']);
+                @endphp
+                <div id="embedding-progress-panel">
+                @if($showProgress)
                     <div class="empty">
                         <div class="empty-icon" style="color: #ff9500;">
                             <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -955,7 +966,9 @@
                             </div>
                         @endif
                     </div>
-                @elseif($knowledgeUnits->isEmpty())
+                @endif
+                </div>
+                @if(!$showProgress && $knowledgeUnits->isEmpty())
                     <div class="empty">
                         <div class="empty-icon">
                             <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -965,7 +978,7 @@
                         <div class="empty-title">{{ __('ui.no_clusters_yet') }}</div>
                         <p>{{ __('ui.run_pipeline_to_generate') }}</p>
                     </div>
-                @else
+                @elseif(!$showProgress)
                     @php
                         $approvedCount = $knowledgeUnits->where('review_status', 'approved')->count();
                         $totalCount = $knowledgeUnits->count();
@@ -2497,6 +2510,15 @@
                 const freshJobs = doc.getElementById('job-list');
                 const currentJobs = document.getElementById('job-list');
                 if (freshJobs && currentJobs) currentJobs.innerHTML = freshJobs.innerHTML;
+
+                // Refresh embedding-detail progress panel (progress bar,
+                // current step label, %, and worker heartbeat). Without this
+                // swap the panel is frozen at the values present when the
+                // page first rendered, so the user sees a static percentage
+                // and a spinning hourglass that never advances.
+                const freshProgress = doc.getElementById('embedding-progress-panel');
+                const currentProgress = document.getElementById('embedding-progress-panel');
+                if (freshProgress && currentProgress) currentProgress.innerHTML = freshProgress.innerHTML;
 
                 localizeTimestamps();
 
