@@ -497,8 +497,12 @@
                              both titles, chart, and x-axis labels together. --}}
                         <div id="param-search-chart-wrap" style="display: flex; align-items: stretch; gap: 4px;">
                             {{-- Left Y-axis title (silhouette). Rotated 180° so
-                                 it reads bottom-up, matching chart conventions. --}}
-                            <div style="display: flex; align-items: center; justify-content: center; width: 14px; font-size: 10px; color: #888;">
+                                 it reads bottom-up, matching chart conventions.
+                                 Width is auto / content-sized because the chart
+                                 has plenty of horizontal room for 24 narrow bars;
+                                 let the label take whatever it needs to read
+                                 cleanly in Japanese. --}}
+                            <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0;">
                                 <span style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap;">{{ __('ui.silhouette') }}</span>
                             </div>
                             <div style="flex: 1;">
@@ -525,8 +529,10 @@
                             </div>
                             {{-- Right Y-axis title (clusters). Rotated top-down
                                  so it reads the same way as the left title when
-                                 you tilt your head to the right. --}}
-                            <div style="display: flex; align-items: center; justify-content: center; width: 14px; font-size: 10px; color: #333;">
+                                 you tilt your head to the right. Width auto so
+                                 the text can breathe — there's plenty of chart
+                                 width to spare. --}}
+                            <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0;">
                                 <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.clusters') }}</span>
                             </div>
                         </div>
