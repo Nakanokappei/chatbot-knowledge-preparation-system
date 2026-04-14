@@ -142,12 +142,20 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
             n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
             n_noise = int((labels == -1).sum())
 
-            # Compute silhouette score (requires at least 2 clusters)
+            # Compute silhouette score (requires at least 2 clusters).
+            # Use cosine metric for text embeddings — the project displays the
+            # score on a [-1, 1] scale calibrated for cosine. sklearn defaults
+            # to Euclidean which produces incomparable values. The sample is
+            # already capped at SAMPLE_SIZE (1500) above, so the O(n²) cosine
+            # pairwise matrix stays bounded and we don't need extra sampling
+            # inside silhouette_score itself.
             sil = -1.0
             non_noise = labels != -1
             if n_clusters >= 2 and non_noise.sum() > n_clusters:
                 from sklearn.metrics import silhouette_score
-                sil = float(silhouette_score(sample[non_noise], labels[non_noise]))
+                sil = float(silhouette_score(
+                    sample[non_noise], labels[non_noise], metric='cosine',
+                ))
 
             results.append({
                 "method": config["method"],

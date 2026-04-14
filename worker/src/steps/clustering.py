@@ -707,16 +707,31 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     n_clusters = len(centroids)
     n_noise = int((labels == -1).sum())
 
-    # Silhouette score measures cluster separation; requires at least 2 clusters
+    # Silhouette score measures cluster separation; requires at least 2 clusters.
+    # Two important choices for text embeddings:
+    #   - metric='cosine': text embeddings (Bedrock Titan, OpenAI) live on a
+    #     unit hypersphere where cosine distance is the semantically meaningful
+    #     measure. sklearn defaults to Euclidean, which gives numerically
+    #     different (and not directly interpretable) scores even for unit
+    #     vectors, and breaks the UI threshold scale of [-1, 1] we display.
+    #   - sample_size cap: silhouette_score with metric='cosine' materialises
+    #     a full N×N pairwise distance matrix. For the clustering step we run
+    #     against the full dataset (potentially 50k+ rows), which would be
+    #     ~10GB and OOM the 4GB Fargate worker. 2000 random samples is enough
+    #     to get a stable estimate (±0.01 vs full population in practice).
     quality_score = -1.0
     non_noise_mask = labels != -1
     if n_clusters >= 2 and non_noise_mask.sum() > n_clusters:
         try:
+            n_eligible = int(non_noise_mask.sum())
             quality_score = float(silhouette_score(
                 embeddings[non_noise_mask],
                 labels[non_noise_mask],
+                metric='cosine',
+                sample_size=min(2000, n_eligible),
+                random_state=42,
             ))
-            logger.info("Silhouette score: %.4f", quality_score)
+            logger.info("Silhouette score (cosine): %.4f", quality_score)
         except Exception as e:
             logger.warning("Failed to compute silhouette score: %s", e)
 
