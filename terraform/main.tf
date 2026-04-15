@@ -15,11 +15,11 @@
 module "vpc" {
   source = "./modules/vpc"
 
-  vpc_cidr            = var.vpc_cidr
-  name_prefix         = local.name_prefix
-  availability_zones  = local.availability_zones
-  nat_gateway_count   = var.nat_gateway_count
-  common_tags         = local.common_tags
+  vpc_cidr           = var.vpc_cidr
+  name_prefix        = local.name_prefix
+  availability_zones = local.availability_zones
+  nat_gateway_count  = var.nat_gateway_count
+  common_tags        = local.common_tags
 }
 
 module "security_groups" {
@@ -52,9 +52,10 @@ module "sqs" {
 module "s3" {
   source = "./modules/s3"
 
-  bucket_name = local.csv_bucket_name
-  name_prefix = local.name_prefix
-  common_tags = local.common_tags
+  bucket_name          = local.csv_bucket_name
+  name_prefix          = local.name_prefix
+  common_tags          = local.common_tags
+  cors_allowed_origins = var.s3_cors_allowed_origins
 }
 
 module "cdn" {
@@ -83,13 +84,13 @@ module "secrets" {
 module "ssm_parameters" {
   source = "./modules/ssm-parameters"
 
-  name_prefix    = local.name_prefix
-  sqs_queue_url  = module.sqs.queue_url
-  s3_bucket      = module.s3.bucket_name
-  db_host        = module.rds.address
-  db_name        = var.db_name
-  aws_region     = var.aws_region
-  common_tags    = local.common_tags
+  name_prefix   = local.name_prefix
+  sqs_queue_url = module.sqs.queue_url
+  s3_bucket     = module.s3.bucket_name
+  db_host       = module.rds.address
+  db_name       = var.db_name
+  aws_region    = var.aws_region
+  common_tags   = local.common_tags
 }
 
 # ------------------------------------------------------------------
@@ -99,9 +100,9 @@ module "ssm_parameters" {
 module "iam" {
   source = "./modules/iam"
 
-  name_prefix     = local.name_prefix
-  common_tags     = local.common_tags
-  secret_arns     = concat(
+  name_prefix = local.name_prefix
+  common_tags = local.common_tags
+  secret_arns = concat(
     [module.secrets.db_secret_arn, module.secrets.app_key_secret_arn],
     var.openai_api_key_secret_arn != "" ? [var.openai_api_key_secret_arn] : []
   )
@@ -163,51 +164,57 @@ module "alb" {
 module "ecs_service_app" {
   source = "./modules/ecs-service-app"
 
-  name_prefix        = local.name_prefix
-  common_tags        = local.common_tags
-  environment        = var.environment
-  cluster_id         = module.ecs.cluster_id
-  execution_role_arn = module.iam.execution_role_arn
-  app_task_role_arn  = module.iam.app_task_role_arn
-  app_image          = var.app_image != "" ? var.app_image : "${module.ecr.app_repository_url}:latest"
-  app_cpu            = var.app_cpu
-  app_memory         = var.app_memory
-  desired_count      = var.app_desired_count
-  private_subnet_ids = module.vpc.private_subnet_ids
-  app_sg_id          = module.security_groups.app_sg_id
-  target_group_arn   = module.alb.target_group_arn
-  log_group_name     = "/ecs/${local.name_prefix}/app"
-  db_host            = module.rds.address
-  db_name            = var.db_name
-  db_secret_arn      = module.secrets.db_secret_arn
-  app_key_secret_arn = module.secrets.app_key_secret_arn
-  sqs_queue_url      = module.sqs.queue_url
-  s3_bucket          = module.s3.bucket_name
-  aws_region         = var.aws_region
-  alb_dns_name       = module.alb.alb_dns_name
+  name_prefix               = local.name_prefix
+  common_tags               = local.common_tags
+  environment               = var.environment
+  cluster_id                = module.ecs.cluster_id
+  execution_role_arn        = module.iam.execution_role_arn
+  app_task_role_arn         = module.iam.app_task_role_arn
+  app_image                 = var.app_image != "" ? var.app_image : "${module.ecr.app_repository_url}:latest"
+  app_cpu                   = var.app_cpu
+  app_memory                = var.app_memory
+  desired_count             = var.app_desired_count
+  private_subnet_ids        = module.vpc.private_subnet_ids
+  app_sg_id                 = module.security_groups.app_sg_id
+  target_group_arn          = module.alb.target_group_arn
+  log_group_name            = "/ecs/${local.name_prefix}/app"
+  db_host                   = module.rds.address
+  db_name                   = var.db_name
+  db_secret_arn             = module.secrets.db_secret_arn
+  app_key_secret_arn        = module.secrets.app_key_secret_arn
+  sqs_queue_url             = module.sqs.queue_url
+  s3_bucket                 = module.s3.bucket_name
+  aws_region                = var.aws_region
+  alb_dns_name              = module.alb.alb_dns_name
   cdn_domain                = module.cdn.domain_name
   openai_api_key_secret_arn = var.openai_api_key_secret_arn
+  # Laravel runtime hardening — see terraform/envs/*.tfvars
+  app_debug             = var.app_debug
+  app_url               = var.domain_name != "" ? "https://${var.domain_name}" : ""
+  session_secure_cookie = var.session_secure_cookie
+  session_encrypt       = var.session_encrypt
+  session_same_site     = var.session_same_site
 }
 
 module "ecs_service_worker" {
   source = "./modules/ecs-service-worker"
 
-  name_prefix          = local.name_prefix
-  common_tags          = local.common_tags
-  cluster_id           = module.ecs.cluster_id
-  execution_role_arn   = module.iam.execution_role_arn
-  worker_task_role_arn = module.iam.worker_task_role_arn
-  worker_image         = var.worker_image != "" ? var.worker_image : "${module.ecr.worker_repository_url}:latest"
-  worker_cpu           = var.worker_cpu
-  worker_memory        = var.worker_memory
-  desired_count        = var.worker_desired_count
-  private_subnet_ids   = module.vpc.private_subnet_ids
-  worker_sg_id         = module.security_groups.worker_sg_id
-  log_group_name       = "/ecs/${local.name_prefix}/worker"
-  db_host              = module.rds.address
-  db_name              = var.db_name
-  db_secret_arn        = module.secrets.db_secret_arn
-  sqs_queue_url        = module.sqs.queue_url
+  name_prefix               = local.name_prefix
+  common_tags               = local.common_tags
+  cluster_id                = module.ecs.cluster_id
+  execution_role_arn        = module.iam.execution_role_arn
+  worker_task_role_arn      = module.iam.worker_task_role_arn
+  worker_image              = var.worker_image != "" ? var.worker_image : "${module.ecr.worker_repository_url}:latest"
+  worker_cpu                = var.worker_cpu
+  worker_memory             = var.worker_memory
+  desired_count             = var.worker_desired_count
+  private_subnet_ids        = module.vpc.private_subnet_ids
+  worker_sg_id              = module.security_groups.worker_sg_id
+  log_group_name            = "/ecs/${local.name_prefix}/worker"
+  db_host                   = module.rds.address
+  db_name                   = var.db_name
+  db_secret_arn             = module.secrets.db_secret_arn
+  sqs_queue_url             = module.sqs.queue_url
   s3_bucket                 = module.s3.bucket_name
   aws_region                = var.aws_region
   openai_api_key_secret_arn = var.openai_api_key_secret_arn

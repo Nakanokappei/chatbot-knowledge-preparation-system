@@ -41,3 +41,9 @@ multi_az            = false
 force_ssl           = false
 skip_final_snapshot = true
 enable_waf          = false
+
+# Laravel runtime — defaults are safe. When deploying to a publicly
+# reachable environment (even for demo), flip these to hardened values:
+#   app_debug             = "false"
+#   session_secure_cookie = "true"
+#   session_encrypt       = "true"

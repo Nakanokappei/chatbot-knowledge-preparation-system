@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Trust ALB proxy headers so Laravel generates HTTPS URLs
         $middleware->trustProxies(at: '*');
 
+        // Emit hardening response headers (HSTS / CSP / X-Frame-Options / …)
+        // on every request — web and API alike. Runs as a global middleware
+        // so embed routes, health checks, and static endpoints are covered.
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
         // Set locale from session before anything else
         $middleware->appendToGroup('web', \App\Http\Middleware\SetLocale::class);
 

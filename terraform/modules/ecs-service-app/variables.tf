@@ -127,8 +127,46 @@ variable "aws_region" {
 }
 
 variable "alb_dns_name" {
-  description = "Public DNS name of the ALB, used to construct APP_URL."
+  description = "Public DNS name of the ALB, used to construct APP_URL when no custom domain is configured."
   type        = string
+}
+
+# --------------------------------------------------------------------------
+# Laravel runtime — security-sensitive flags
+# --------------------------------------------------------------------------
+# These must be overridden per-environment. Production requires:
+#   app_debug            = "false"
+#   session_secure_cookie = "true"
+#   app_url              = "https://<your-domain>"
+
+variable "app_debug" {
+  description = "Value for Laravel APP_DEBUG (\"true\" or \"false\"). Must be \"false\" in production."
+  type        = string
+  default     = "false"
+}
+
+variable "app_url" {
+  description = "Canonical URL for the application (e.g. https://demo02.poc-pxt.com). Used for password-reset and invitation links. Falls back to http://<alb_dns> when empty."
+  type        = string
+  default     = ""
+}
+
+variable "session_secure_cookie" {
+  description = "Laravel SESSION_SECURE_COOKIE value. \"true\" in production (HTTPS only)."
+  type        = string
+  default     = "false"
+}
+
+variable "session_encrypt" {
+  description = "Laravel SESSION_ENCRYPT value. Recommended \"true\" — encrypts session payload before DB write."
+  type        = string
+  default     = "true"
+}
+
+variable "session_same_site" {
+  description = "Laravel SESSION_SAME_SITE (lax / strict / none)."
+  type        = string
+  default     = "lax"
 }
 
 variable "cdn_domain" {

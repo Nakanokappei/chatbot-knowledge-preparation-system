@@ -44,19 +44,31 @@ Route::get('/setup', [\App\Http\Controllers\SetupController::class, 'show'])->na
 Route::post('/setup', [\App\Http\Controllers\SetupController::class, 'createAdmin']);
 
 // Authentication (public)
+// Login POST is throttled ('login' limiter in AppServiceProvider) so a
+// credential-spraying bot can't probe one account endlessly.
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Password reset (public)
+// Password reset (public). Throttle the "send link" and "submit reset"
+// endpoints separately: the former protects user enumeration and inbox
+// flooding, the latter protects the random token from brute-force.
 Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])->name('password.request');
-Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->name('password.email');
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])
+    ->middleware('throttle:forgot-password')
+    ->name('password.email');
 Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])->name('password.reset');
-Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])->name('password.update');
+Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+    ->middleware('throttle:reset-password')
+    ->name('password.update');
 
-// Invitation registration (public — accessed via emailed link)
-Route::get('/invitation/{token}', [InvitationController::class, 'showRegisterForm'])->name('invitation.register');
-Route::post('/invitation/{token}', [InvitationController::class, 'register']);
+// Invitation registration (public — accessed via emailed link).
+// Throttled to slow token-guessing when the allowlist is removed.
+Route::get('/invitation/{token}', [InvitationController::class, 'showRegisterForm'])
+    ->middleware('throttle:invitation')
+    ->name('invitation.register');
+Route::post('/invitation/{token}', [InvitationController::class, 'register'])
+    ->middleware('throttle:invitation');
 
 // ── Embed routes (public — no session/Sanctum auth) ──────────────
 // Chat page served in iframe (API key is the URL token)

@@ -41,5 +41,39 @@ class AppServiceProvider extends ServiceProvider
             $limit = $workspace?->chat_rate_limit ?? 20;
             return Limit::perMinute($limit)->by($request->user()?->workspace_id ?? $request->ip());
         });
+
+        // -----------------------------------------------------------------
+        // Brute-force protection for credential-carrying public endpoints
+        // -----------------------------------------------------------------
+        // Login attempts: limit per (email, ip) pair so a slow attacker
+        // rotating IPs can't probe one account without being throttled,
+        // and a shared-NAT user isn't blocked by a neighbour's typos.
+        RateLimiter::for('login', function (Request $request) {
+            $email = strtolower(trim((string) $request->input('email')));
+            $key   = $email !== '' ? $email . '|' . $request->ip() : $request->ip();
+
+            return [
+                Limit::perMinute(5)->by($key),
+                Limit::perMinute(20)->by($request->ip()),
+            ];
+        });
+
+        // Password-reset requests: per-IP so attackers can't enumerate users
+        // or flood the inbox of a known victim.
+        RateLimiter::for('forgot-password', function (Request $request) {
+            return Limit::perMinute(3)->by($request->ip());
+        });
+
+        // Reset-token submissions: guard the /reset-password POST against
+        // brute-forcing the random token itself.
+        RateLimiter::for('reset-password', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        // Invitation-token registration: throttle both the GET render and
+        // the POST submission on /invitation/{token} to slow token-guessing.
+        RateLimiter::for('invitation', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
     }
 }

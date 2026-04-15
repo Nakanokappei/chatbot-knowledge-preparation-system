@@ -132,6 +132,38 @@ variable "app_image" {
 }
 
 # ----------------------------------------------------------
+# Laravel Application Runtime — security-sensitive defaults
+# ----------------------------------------------------------
+
+# APP_DEBUG controls whether Laravel renders stack traces and env-vars on
+# error pages. MUST be "false" in production to avoid leaking server state.
+variable "app_debug" {
+  description = "Laravel APP_DEBUG value. Use \"false\" for prod, \"true\" only for dev."
+  type        = string
+  default     = "false"
+}
+
+# Session cookie flags. Prod MUST set secure_cookie = true (HTTPS only).
+# Encrypt = true keeps the sessions table unreadable if DB is exfiltrated.
+variable "session_secure_cookie" {
+  description = "Emit session cookies with Secure flag. Set true when serving over HTTPS."
+  type        = string
+  default     = "false"
+}
+
+variable "session_encrypt" {
+  description = "Encrypt session payloads at rest (database driver). Recommended true for all envs."
+  type        = string
+  default     = "true"
+}
+
+variable "session_same_site" {
+  description = "SameSite attribute for the session cookie (lax / strict / none)."
+  type        = string
+  default     = "lax"
+}
+
+# ----------------------------------------------------------
 # ECS — Worker Container
 # ----------------------------------------------------------
 
@@ -177,6 +209,15 @@ variable "csv_bucket_name" {
   description = "Override S3 bucket name for CSV uploads (auto-generated if empty)"
   type        = string
   default     = ""
+}
+
+# Origins allowed to PUT to the CSV bucket via browser-side presigned URLs.
+# Default is open for local dev convenience; any public environment MUST
+# narrow this to concrete HTTPS origins via the env-specific tfvars file.
+variable "s3_cors_allowed_origins" {
+  description = "S3 bucket CORS allowed_origins for presigned PUT uploads."
+  type        = list(string)
+  default     = ["*"]
 }
 
 # ----------------------------------------------------------

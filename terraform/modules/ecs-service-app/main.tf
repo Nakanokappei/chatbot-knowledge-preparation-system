@@ -47,20 +47,33 @@ resource "aws_ecs_task_definition" "app" {
       }
 
       # Plain-text environment variables for the Laravel runtime.
+      #
+      # Security-sensitive flags (APP_DEBUG, SESSION_SECURE_COOKIE, APP_URL)
+      # are driven by module variables so prod can disable debug output,
+      # enforce Secure cookies over HTTPS, and generate correct password-
+      # reset / invitation links. See terraform/envs/*.tfvars.
       environment = [
-        { name = "APP_ENV",            value = var.environment },
-        { name = "APP_DEBUG",          value = "true" },
-        { name = "LOG_CHANNEL",        value = "stderr" },
-        { name = "DB_CONNECTION",      value = "pgsql" },
-        { name = "DB_HOST",            value = var.db_host },
-        { name = "DB_PORT",            value = "5432" },
-        { name = "DB_DATABASE",        value = var.db_name },
-        { name = "SQS_QUEUE_URL",      value = var.sqs_queue_url },
+        { name = "APP_ENV", value = var.environment },
+        { name = "APP_DEBUG", value = var.app_debug },
+        { name = "LOG_CHANNEL", value = "stderr" },
+        { name = "DB_CONNECTION", value = "pgsql" },
+        { name = "DB_HOST", value = var.db_host },
+        { name = "DB_PORT", value = "5432" },
+        { name = "DB_DATABASE", value = var.db_name },
+        { name = "SQS_QUEUE_URL", value = var.sqs_queue_url },
         { name = "AWS_DEFAULT_REGION", value = var.aws_region },
-        { name = "S3_BUCKET",          value = var.s3_bucket },
-        { name = "CSV_DISK_DRIVER",   value = "s3" },
-        { name = "CDN_DOMAIN",         value = var.cdn_domain },
-        { name = "APP_URL",            value = "http://${var.alb_dns_name}" },
+        { name = "S3_BUCKET", value = var.s3_bucket },
+        { name = "CSV_DISK_DRIVER", value = "s3" },
+        { name = "CDN_DOMAIN", value = var.cdn_domain },
+        # When a custom HTTPS domain is configured, use it. Otherwise fall
+        # back to the ALB DNS name over plain HTTP (dev/bootstrap only).
+        { name = "APP_URL", value = var.app_url != "" ? var.app_url : "http://${var.alb_dns_name}" },
+        # Session cookie hardening — prod must override to "true" so the
+        # browser never sends the cookie over a plaintext channel.
+        { name = "SESSION_SECURE_COOKIE", value = var.session_secure_cookie },
+        { name = "SESSION_ENCRYPT", value = var.session_encrypt },
+        { name = "SESSION_SAME_SITE", value = var.session_same_site },
+        { name = "SESSION_HTTP_ONLY", value = "true" },
       ]
 
       # Secrets injected from AWS Secrets Manager at task launch.
@@ -68,8 +81,8 @@ resource "aws_ecs_task_definition" "app" {
       secrets = concat([
         { name = "DB_USERNAME", valueFrom = "${var.db_secret_arn}:username::" },
         { name = "DB_PASSWORD", valueFrom = "${var.db_secret_arn}:password::" },
-        { name = "APP_KEY",     valueFrom = var.app_key_secret_arn },
-      ], var.openai_api_key_secret_arn != "" ? [
+        { name = "APP_KEY", valueFrom = var.app_key_secret_arn },
+        ], var.openai_api_key_secret_arn != "" ? [
         { name = "OPENAI_API_KEY", valueFrom = var.openai_api_key_secret_arn },
       ] : [])
     }

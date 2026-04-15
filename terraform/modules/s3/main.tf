@@ -85,16 +85,18 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
   # worker so we can target only safely-deletable artifacts.
 }
 
-# CORS configuration: allow PUT from any origin so that browser-based
-# direct uploads via presigned URLs work without a proxy.
-
+# CORS configuration: allow PUT from an explicit origin allowlist so that
+# browser-based direct uploads via presigned URLs work without a proxy.
+# Keeping the origin list tight prevents a leaked presigned URL from being
+# replayed by a third-party page that tricks a logged-in user.
 resource "aws_s3_bucket_cors_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["PUT"]
-    allowed_origins = ["*"]
+    allowed_origins = var.cors_allowed_origins
+    expose_headers  = ["ETag"]
     max_age_seconds = 3600
   }
 }
