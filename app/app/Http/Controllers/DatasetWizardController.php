@@ -663,13 +663,7 @@ class DatasetWizardController extends Controller
             // clustering-only jobs ride the queue mechanism that fires
             // when the previous job completes (worker dispatch_queued_job).
             if (!$hasRunningPipeline && $firstJob) {
-                \App\Services\SqsDispatcher::dispatch(
-                    jobId: $firstJob->id,
-                    workspaceId: $workspaceId,
-                    datasetId: $dataset->id,
-                    step: 'preprocess',
-                    pipelineConfig: $firstJob->pipeline_config_snapshot_json,
-                );
+                \App\Services\PipelineJobService::dispatch($firstJob, 'preprocess');
             }
 
             DB::commit();

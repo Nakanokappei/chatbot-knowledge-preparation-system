@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Dataset;
 use App\Models\PipelineJob;
-use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -78,33 +77,14 @@ class PipelineJobController extends Controller
     /**
      * Send a job message to SQS for the Python Worker to consume.
      *
-     * Message format follows ADR-0005: SQS + DB Polling.
+     * Message format follows ADR-0005: SQS + DB Polling. Delegates to
+     * the shared PipelineJobService so the SQS plumbing lives in one
+     * place across all controllers.
      */
     private function dispatchToSqs(PipelineJob $job): void
     {
-        $message = [
-            'job_id' => $job->id,
-            'workspace_id' => $job->workspace_id,
-            'dataset_id' => $job->dataset_id,
-            'step' => 'ping', // Phase 0: ping step only
-            'input_s3_path' => null,
-            'pipeline_config' => $job->pipeline_config_snapshot_json,
-        ];
-
         try {
-            $sqsClient = new SqsClient([
-                'region' => config('queue.connections.sqs.region', 'ap-northeast-1'),
-                'version' => 'latest',
-            ]);
-
-            $queueUrl = config('queue.connections.sqs.prefix') . '/' . config('queue.connections.sqs.queue');
-
-            $sqsClient->sendMessage([
-                'QueueUrl' => $queueUrl,
-                'MessageBody' => json_encode($message),
-            ]);
-
-            Log::info('SQS message dispatched', ['job_id' => $job->id, 'queue' => $queueUrl]);
+            \App\Services\PipelineJobService::dispatch($job, 'ping');
         } catch (\Exception $e) {
             // Log the error but do not fail the job creation
             Log::error('Failed to dispatch SQS message', [

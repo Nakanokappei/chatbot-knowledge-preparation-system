@@ -973,6 +973,9 @@ return [
     'step_cluster_analysis'         => 'クラスター分析中（LLM）',
     'step_ku_generation'            => 'ナレッジ生成中（LLM）',
     'step_parameter_search'         => 'パラメータ探索中',
+    'step_completed'                => '完了',
+    'step_failed'                   => '失敗',
+    'step_cancelled'                => 'キャンセル済み',
     'dismiss'                       => '消去',
     'confirm_dismiss_param_search'  => '探索結果を消去しますか？',
 

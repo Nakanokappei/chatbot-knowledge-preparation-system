@@ -972,6 +972,9 @@ return [
     'step_cluster_analysis'         => 'Analyzing clusters (LLM)',
     'step_ku_generation'            => 'Generating knowledge units (LLM)',
     'step_parameter_search'         => 'Searching parameters',
+    'step_completed'                => 'Completed',
+    'step_failed'                   => 'Failed',
+    'step_cancelled'                => 'Cancelled',
     'dismiss'                       => 'Dismiss',
     'confirm_dismiss_param_search'  => 'Dismiss search results?',
 

@@ -308,13 +308,7 @@ class DashboardController extends Controller
 
         // Send first step (preprocess) to SQS via the shared dispatcher.
         try {
-            \App\Services\SqsDispatcher::dispatch(
-                jobId: $job->id,
-                workspaceId: $job->workspace_id,
-                datasetId: $job->dataset_id,
-                step: 'preprocess',
-                pipelineConfig: $job->pipeline_config_snapshot_json,
-            );
+            \App\Services\PipelineJobService::dispatch($job, 'preprocess');
 
             return redirect()->route('dashboard')
                 ->with('success', "Pipeline Job #{$job->id} dispatched (preprocess -> embedding -> clustering).");
@@ -381,12 +375,13 @@ class DashboardController extends Controller
         }
 
         // Send to SQS via the shared dispatcher.
-        \App\Services\SqsDispatcher::dispatch(
-            jobId: $pipelineJob->id,
-            workspaceId: $pipelineJob->workspace_id,
-            datasetId: $pipelineJob->dataset_id,
+        // Use $config (which may have a freshly-resolved embedding_id) rather
+        // than the snapshot — the snapshot was captured at submit time and
+        // may be missing fields that retry needs.
+        \App\Services\PipelineJobService::dispatch(
+            job: $pipelineJob,
             step: $startStep,
-            pipelineConfig: $config,
+            configOverride: $config,
             inputS3Path: $inputS3Path,
         );
 
@@ -463,13 +458,7 @@ class DashboardController extends Controller
 
         // Send to SQS via the shared dispatcher.
         try {
-            \App\Services\SqsDispatcher::dispatch(
-                jobId: $job->id,
-                workspaceId: $job->workspace_id,
-                datasetId: $job->dataset_id,
-                step: 'ping',
-                pipelineConfig: $job->pipeline_config_snapshot_json,
-            );
+            \App\Services\PipelineJobService::dispatch($job, 'ping');
 
             return redirect()->route('dashboard')
                 ->with('success', "Job #{$job->id} dispatched to SQS.");

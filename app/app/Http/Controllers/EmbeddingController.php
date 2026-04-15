@@ -305,12 +305,10 @@ class EmbeddingController extends Controller
                 $dispatchConfig = $config;
                 $dispatchConfig['embedding_id'] = $sourceJob->embedding_id ?? $embeddingId;
 
-                \App\Services\SqsDispatcher::dispatch(
-                    jobId: $job->id,
-                    workspaceId: $workspaceId,
-                    datasetId: $embedding->dataset_id,
+                \App\Services\PipelineJobService::dispatch(
+                    job: $job,
                     step: 'clustering',
-                    pipelineConfig: $dispatchConfig,
+                    configOverride: $dispatchConfig,
                     inputS3Path: $embeddingS3Path,
                 );
             }
@@ -383,12 +381,10 @@ class EmbeddingController extends Controller
         // nothing to sweep over, so the job will sit in 'submitted'
         // until manually retried.
         if ($embeddingS3Path) {
-            \App\Services\SqsDispatcher::dispatch(
-                jobId: $job->id,
-                workspaceId: $workspaceId,
-                datasetId: $embedding->dataset_id,
+            \App\Services\PipelineJobService::dispatch(
+                job: $job,
                 step: 'parameter_search',
-                pipelineConfig: $config,
+                configOverride: $config,
                 inputS3Path: $embeddingS3Path,
             );
         }

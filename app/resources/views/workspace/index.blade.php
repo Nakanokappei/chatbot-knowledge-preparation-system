@@ -313,19 +313,7 @@
                                             {{ $nClusters }} clusters
                                             @if($silhouette !== null) · silhouette {{ number_format($silhouette, 3) }} @endif
                                         @else
-                                            @php
-                                                $jStepLabels = [
-                                                    'submitted' => __('ui.step_submitted'),
-                                                    'queued' => __('ui.step_queued'),
-                                                    'preprocess' => __('ui.step_preprocess'),
-                                                    'embedding' => __('ui.step_embedding'),
-                                                    'clustering' => __('ui.step_clustering'),
-                                                    'cluster_analysis' => __('ui.step_cluster_analysis'),
-                                                    'knowledge_unit_generation' => __('ui.step_ku_generation'),
-                                                    'parameter_search' => __('ui.step_parameter_search'),
-                                                ];
-                                            @endphp
-                                            {{ $jStepLabels[$job->status] ?? $job->status }}
+                                            {{ \App\Enums\PipelineStep::labelFor($job->status) }}
                                             @if($job->progress > 0 && $job->progress < 100) · {{ $job->progress }}% @endif
                                         @endif
                                     </div>
@@ -601,15 +589,9 @@
                         <p>{{ __('ui.run_pipeline_to_compare') }}</p>
                     </div>
                 @else
-                    @php
-                        // Human-readable clustering method names
-                        $methodNames = [
-                            'hdbscan' => 'HDBSCAN',
-                            'kmeans' => 'K-Means++',
-                            'agglomerative' => 'Agglomerative',
-                            'leiden' => 'Leiden (Graph)',
-                        ];
-                    @endphp
+                    {{-- Method names + colours come from App\Enums\ClusteringMethod.
+                         Do not redefine the array here — use displayNameFor()
+                         to pick up new methods automatically. --}}
                     <table class="ku-table compare-table">
                         <thead>
                             <tr>
@@ -643,7 +625,7 @@
                                 <tr class="{{ $loop->first ? 'best-run' : '' }}" style="cursor: pointer;"
                                     onclick="if(!event.target.closest('form'))window.location='{{ route('workspace.embedding', ['embeddingId' => $current->id]) }}?job={{ $run->job_id }}'">
                                                                         <td style="font-weight: 600; white-space: nowrap;">
-                                        {{ $methodNames[$run->clustering_method] ?? strtoupper($run->clustering_method) }}
+                                        {{ \App\Enums\ClusteringMethod::displayNameFor($run->clustering_method) }}
                                     </td>
                                     <td style="font-size: 12px; color: #5f6368; max-width: 200px;">
                                         {{ $paramStr ?: '—' }}
@@ -801,15 +783,8 @@
                                 @if(isset($cl['clustering_method']))
                                 <tr>
                                     <td style="padding: 4px 24px 4px 0; color: #5f6368; white-space: nowrap; border: none; vertical-align: top;">{{ __('ui.method') }}</td>
-                                    @php
-                                        $methodNames = [
-                                            'hdbscan' => 'HDBSCAN (density-based, auto)',
-                                            'kmeans' => 'K-Means++ (spherical)',
-                                            'agglomerative' => 'Agglomerative (hierarchical)',
-                                            'leiden' => 'HNSW + Leiden (graph community)',
-                                        ];
-                                    @endphp
-                                    <td style="padding: 4px 0; font-weight: 500; border: none; white-space: nowrap;">{{ $methodNames[$cl['clustering_method']] ?? strtoupper($cl['clustering_method']) }}
+                                    {{-- verboseNameFor() returns "HDBSCAN (density-based, auto)" etc. --}}
+                                    <td style="padding: 4px 0; font-weight: 500; border: none; white-space: nowrap;">{{ \App\Enums\ClusteringMethod::verboseNameFor($cl['clustering_method']) }}
                                         @if(isset($cl['clustering_params']))
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px 16px; margin-top: 4px; padding-left: 8px; border-left: 2px solid #e0e0e2;">
                                             @foreach($cl['clustering_params'] as $pKey => $pVal)
@@ -950,22 +925,8 @@
                         <div style="margin-top: 12px; width: 200px; height: 4px; background: #e5e5e7; border-radius: 2px; overflow: hidden;">
                             <div style="width: {{ $embeddingJob->progress }}%; height: 100%; background: #ff9500; border-radius: 2px; transition: width 0.3s;"></div>
                         </div>
-                        @php
-                            // Translate pipeline step names to user-friendly descriptions
-                            $stepLabels = [
-                                'submitted' => __('ui.step_submitted') ?? 'Waiting to start',
-                                'queued' => __('ui.step_queued') ?? 'Queued',
-                                'preprocess' => __('ui.step_preprocess') ?? 'Preprocessing data',
-                                'embedding' => __('ui.step_embedding') ?? 'Generating embeddings',
-                                'clustering' => __('ui.step_clustering') ?? 'Clustering',
-                                'cluster_analysis' => __('ui.step_cluster_analysis') ?? 'Analyzing clusters (LLM)',
-                                'knowledge_unit_generation' => __('ui.step_ku_generation') ?? 'Generating knowledge units (LLM)',
-                                'parameter_search' => __('ui.step_parameter_search') ?? 'Searching parameters',
-                            ];
-                            $stepLabel = $stepLabels[$embeddingJob->status] ?? $embeddingJob->status;
-                        @endphp
                         <div style="font-size: 13px; color: #1d1d1f; margin-top: 6px; font-weight: 500;">
-                            {{ $stepLabel }}
+                            {{ \App\Enums\PipelineStep::labelFor($embeddingJob->status) }}
                         </div>
                         <div style="font-size: 12px; color: #5f6368; margin-top: 2px;">
                             {{ $embeddingJob->progress }}%
@@ -1486,7 +1447,13 @@
 
         // ── Parameter Search: AJAX polling + chart rendering ──────────
         const paramSearchUrl = '{{ $current ? route("workspace.parameter-search-results", $current->id ?? 0) : "" }}';
-        const METHOD_COLORS = { leiden: '#0071e3', hdbscan: '#ff9500', kmeans: '#30d158', agglomerative: '#af52de' };
+        // METHOD_CONFIG is generated server-side from App\Enums\ClusteringMethod
+        // so the chart colours stay in lock-step with the comparison-table
+        // method names. Adding a clustering algorithm there auto-propagates here.
+        const METHOD_CONFIG = @json(\App\Enums\ClusteringMethod::frontendConfig());
+        const METHOD_COLORS = Object.fromEntries(
+            Object.entries(METHOD_CONFIG).map(([k, v]) => [k, v.color])
+        );
 
         let paramResultsExpanded = false; // Track collapse state
 
