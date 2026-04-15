@@ -15,17 +15,15 @@ Output: clusters, cluster_memberships, cluster_centroids, cluster_representative
         + s3://{bucket}/{tenant_id}/jobs/{job_id}/clustering/cluster_results.json
 """
 
-import io
-import json
 import logging
 from datetime import datetime, timezone
 
-import boto3
 import numpy as np
 from sklearn.metrics import silhouette_score
 
-from src.config import S3_BUCKET, S3_REGION
+from src.config import S3_BUCKET
 from src.db import get_connection, update_job_status, update_job_step_outputs, link_clusters_to_embedding, global_progress, update_job_action
+from src.s3_helpers import download_json, download_npy, upload_json
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -168,10 +166,13 @@ def remove_language_direction(
         lang_mean = embeddings[idx_array].mean(axis=0)
         debiased[idx_array] = debiased[idx_array] - lang_mean + global_mean
 
-    # Re-normalize to unit length (important for cosine similarity)
-    norms = np.linalg.norm(debiased, axis=1, keepdims=True)
-    norms = np.where(norms == 0, 1, norms)  # Avoid division by zero
-    debiased = debiased / norms
+    # Re-project onto the unit hypersphere. Subtracting + adding the
+    # language/global means moved the rows off unit length, which would
+    # break the cosine-equivalence guarantee that downstream clustering
+    # relies on. _normalize_rows is the canonical implementation used by
+    # run_clustering — using the same helper here keeps the invariant
+    # ("rows are unit-length when they reach an algorithm") explicit.
+    debiased = _normalize_rows(debiased)
 
     logger.info(
         "Language direction removed for %d languages across %d vectors",
@@ -454,21 +455,11 @@ def run_clustering(
 # Shared utility functions (unchanged)
 # ---------------------------------------------------------------------------
 
-def download_npy_from_s3(s3_path: str) -> np.ndarray:
-    """Download a NumPy array from S3."""
-    s3 = boto3.client("s3", region_name=S3_REGION)
-    key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
-    response = s3.get_object(Bucket=S3_BUCKET, Key=key)
-    buffer = io.BytesIO(response["Body"].read())
-    return np.load(buffer)
-
-
-def download_json_from_s3(s3_path: str):
-    """Download and parse a JSON file from S3."""
-    s3 = boto3.client("s3", region_name=S3_REGION)
-    key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
-    response = s3.get_object(Bucket=S3_BUCKET, Key=key)
-    return json.loads(response["Body"].read())
+# download_npy_from_s3() / download_json_from_s3() lived here; the
+# parameter_search step still imports them from this module by their old
+# names so we keep thin shims pointing at the centralised helpers.
+download_npy_from_s3 = download_npy
+download_json_from_s3 = download_json
 
 
 def compute_centroids(embeddings: np.ndarray, labels: np.ndarray) -> dict[int, np.ndarray]:
@@ -809,14 +800,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     }
 
     results_s3_path = f"s3://{S3_BUCKET}/{tenant_id}/jobs/{job_id}/clustering/cluster_results.json"
-    s3 = boto3.client("s3", region_name=S3_REGION)
-    key = results_s3_path.replace(f"s3://{S3_BUCKET}/", "")
-    s3.put_object(
-        Bucket=S3_BUCKET,
-        Key=key,
-        Body=json.dumps(results, indent=2),
-        ContentType="application/json",
-    )
+    upload_json(results, results_s3_path, indent=2)
 
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 95))
 

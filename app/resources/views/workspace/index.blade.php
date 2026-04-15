@@ -1735,7 +1735,7 @@
                 + '<th class="pdf-hide"></th></tr>';
             top5.forEach((r, i) => {
                 const paramStr = Object.entries(r.params || {}).map(([k,v]) => k + '=' + v).join(', ');
-                const silColor = r.silhouette_score >= 0.3 ? '#2e7d32' : r.silhouette_score >= 0.1 ? '#1565c0' : '#555';
+                const silColor = silhouetteColor(r.silhouette_score);
                 html += '<tr style="border-top:1px solid #f0f0f2;' + (i === 0 ? 'background:#e8f5e9;' : '') + '">'
                     + '<td style="padding:6px 4px;font-weight:500;">' + r.label + '</td>'
                     + '<td style="padding:6px 4px;font-size:11px;color:#5f6368;">' + paramStr + '</td>'
@@ -1753,6 +1753,20 @@
 
             // Store results globally for click handlers
             window._paramSearchResults = results;
+        }
+
+        // Shared silhouette-score colour mapping. The same green/blue/grey
+        // bands apply on the on-screen top-5 table, the PDF results table,
+        // and (potentially) the chart. Centralised so the threshold lines
+        // (≥0.3 = excellent, ≥0.1 = good) only have to move in one place.
+        // `lowColor` is parameterised because the on-screen table sits on
+        // a light grey body where #555 is readable, while the PDF table
+        // is on white paper and needs the higher-contrast #1d1d1f.
+        function silhouetteColor(score, lowColor = '#555') {
+            if (score == null) return lowColor;
+            if (score >= 0.3) return '#2e7d32';   // green: excellent separation
+            if (score >= 0.1) return '#1565c0';   // blue: good for text
+            return lowColor;                       // muted: typical / poor
         }
 
         // Shared "US accounting" table styling tokens used by both the
@@ -1897,11 +1911,9 @@
                 + '</tr></thead><tbody>';
             top.forEach((r, i) => {
                 const paramStr = Object.entries(r.params || {}).map(([k,v]) => k + '=' + v).join(', ');
-                // Silhouette colour cue: green for excellent, blue for good,
-                // grey otherwise. No row background (US-accounting style).
-                const silColor = r.silhouette_score >= 0.3 ? '#2e7d32'
-                              : r.silhouette_score >= 0.1 ? '#1565c0'
-                              : '#1d1d1f';
+                // PDF runs on white paper, so the grey fallback needs more
+                // contrast than the on-screen variant (#555 → #1d1d1f).
+                const silColor = silhouetteColor(r.silhouette_score, '#1d1d1f');
                 html += '<tr>'
                     + '<td style="' + S.bodyCellNum + 'color:#5f6368;">' + (i + 1) + '</td>'
                     + '<td style="' + S.bodyCell + 'font-weight:500;">' + (r.label || r.method) + '</td>'

@@ -8,16 +8,15 @@ Input:  dataset_id (rows already in dataset_rows from CSV upload)
 Output: s3://{bucket}/{tenant_id}/jobs/{job_id}/preprocess/normalized_rows.parquet
 """
 
-import io
 import logging
 import re
 import unicodedata
 
-import boto3
 import pandas as pd
 
-from src.config import S3_BUCKET, S3_REGION
+from src.config import S3_BUCKET
 from src.db import get_connection, update_job_status, update_job_step_outputs, create_or_get_embedding, global_progress, update_job_action
+from src.s3_helpers import upload_parquet
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -100,20 +99,8 @@ def save_normalized_text_to_db(rows: list[dict]):
         conn.close()
 
 
-def upload_parquet_to_s3(df: pd.DataFrame, s3_path: str):
-    """
-    Serialize a DataFrame to Parquet format and upload to S3.
-    """
-    buffer = io.BytesIO()
-    df.to_parquet(buffer, index=False, engine="pyarrow")
-    buffer.seek(0)
-
-    s3 = boto3.client("s3", region_name=S3_REGION)
-    # Parse s3_path: remove "s3://bucket/" prefix to get the key
-    key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
-
-    s3.put_object(Bucket=S3_BUCKET, Key=key, Body=buffer.getvalue())
-    logger.info("Uploaded Parquet to %s (%d rows)", s3_path, len(df))
+# upload_parquet_to_s3() lived here; superseded by src.s3_helpers.upload_parquet
+# which centralises the boto3 client + S3 key parsing for the whole pipeline.
 
 
 def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
@@ -204,7 +191,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
 
     # Prepare export DataFrame with row_id and normalized_text
     export_df = df[["id", "normalized_text"]].rename(columns={"id": "row_id"})
-    upload_parquet_to_s3(export_df, output_s3_path)
+    upload_parquet(export_df, output_s3_path)
 
     update_job_status(job_id, status="preprocess", progress=global_progress("preprocess", 90))
 

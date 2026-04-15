@@ -7,7 +7,6 @@ use App\Models\DatasetRow;
 use App\Models\Embedding;
 use App\Models\EmbeddingModel;
 use App\Models\LlmModel;
-use Aws\Sqs\SqsClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -660,38 +659,17 @@ class DatasetWizardController extends Controller
                 }
             }
 
-            // Only send the first job to SQS if not queued
+            // Only send the first job to SQS if not queued. Subsequent
+            // clustering-only jobs ride the queue mechanism that fires
+            // when the previous job completes (worker dispatch_queued_job).
             if (!$hasRunningPipeline && $firstJob) {
-                $sqsUrl = env('SQS_QUEUE_URL');
-                if (!$sqsUrl) {
-                    $prefix = env('SQS_PREFIX', '');
-                    $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
-                    if ($prefix) {
-                        $sqsUrl = $prefix . '/' . $queue;
-                    }
-                }
-
-                if ($sqsUrl) {
-                    $sqs = new SqsClient([
-                        'region' => env('SQS_REGION', 'ap-northeast-1'),
-                        'version' => 'latest',
-                    ]);
-
-                    $sqs->sendMessage([
-                        'QueueUrl' => $sqsUrl,
-                        'MessageBody' => json_encode([
-                            'job_id' => $firstJob->id,
-                            'workspace_id' => $workspaceId,
-                            'dataset_id' => $dataset->id,
-                            'step' => 'preprocess',
-                            'pipeline_config' => $firstJob->pipeline_config_snapshot_json,
-                        ]),
-                    ]);
-
-                    Log::info("Pipeline job {$firstJob->id} dispatched to SQS");
-                } else {
-                    Log::warning("SQS not configured — job {$firstJob->id} created but not dispatched");
-                }
+                \App\Services\SqsDispatcher::dispatch(
+                    jobId: $firstJob->id,
+                    workspaceId: $workspaceId,
+                    datasetId: $dataset->id,
+                    step: 'preprocess',
+                    pipelineConfig: $firstJob->pipeline_config_snapshot_json,
+                );
             }
 
             DB::commit();

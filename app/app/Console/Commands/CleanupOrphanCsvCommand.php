@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\FormatsFileSize;
 use App\Models\Dataset;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +31,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class CleanupOrphanCsvCommand extends Command
 {
+    use FormatsFileSize;
+
     protected $signature = 'kps:cleanup-orphan-csv
                             {--apply : Perform deletion (without this flag, dry-run only)}
                             {--show-all : Print every orphan path instead of truncating}
@@ -134,18 +137,5 @@ class CleanupOrphanCsvCommand extends Command
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
     }
 
-    /** Format a byte count as KB/MB/GB for readability. */
-    private function humanBytes(int $bytes): string
-    {
-        if ($bytes >= 1024 * 1024 * 1024) {
-            return sprintf('%.1f GB', $bytes / 1024 / 1024 / 1024);
-        }
-        if ($bytes >= 1024 * 1024) {
-            return sprintf('%.1f MB', $bytes / 1024 / 1024);
-        }
-        if ($bytes >= 1024) {
-            return sprintf('%.1f KB', $bytes / 1024);
-        }
-        return "{$bytes} B";
-    }
+    // humanBytes() comes from the FormatsFileSize trait.
 }

@@ -31,6 +31,7 @@ from src.embedding_client import MODEL_ID as DEFAULT_MODEL_ID
 from src.embedding_client import generate_embeddings_batch
 from src.config import S3_BUCKET, S3_REGION
 from src.db import get_connection, update_job_status, update_job_step_outputs, global_progress, update_job_action
+from src.s3_helpers import download_parquet, upload_json, upload_npy
 from src.step_chain import dispatch_next_step
 
 logger = logging.getLogger(__name__)
@@ -193,28 +194,9 @@ def save_cache_batch(entries: list[dict]):
         conn.close()
 
 
-def download_parquet_from_s3(s3_path: str) -> pd.DataFrame:
-    """Download a Parquet file from S3 and return as DataFrame."""
-    s3 = boto3.client("s3", region_name=S3_REGION)
-    key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
-
-    response = s3.get_object(Bucket=S3_BUCKET, Key=key)
-    buffer = io.BytesIO(response["Body"].read())
-
-    return pd.read_parquet(buffer)
-
-
-def upload_npy_to_s3(array: np.ndarray, s3_path: str):
-    """Serialize a NumPy array and upload to S3."""
-    buffer = io.BytesIO()
-    np.save(buffer, array)
-    buffer.seek(0)
-
-    s3 = boto3.client("s3", region_name=S3_REGION)
-    key = s3_path.replace(f"s3://{S3_BUCKET}/", "")
-    s3.put_object(Bucket=S3_BUCKET, Key=key, Body=buffer.getvalue())
-
-    logger.info("Uploaded embeddings to %s (shape: %s)", s3_path, array.shape)
+# download_parquet_from_s3() / upload_npy_to_s3() lived here; superseded by
+# src.s3_helpers.download_parquet / upload_npy which centralise the boto3
+# client + S3 key parsing for the whole pipeline.
 
 
 def execute(job_id: int, tenant_id: int, dataset_id: int = None,
@@ -241,7 +223,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     # Step 1: Load normalized data from S3
     update_job_action(job_id, "S3から前処理済みデータを読み込み中")
-    df = download_parquet_from_s3(input_s3_path)
+    df = download_parquet(input_s3_path)
     logger.info("Loaded %d rows from %s", len(df), input_s3_path)
 
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 15))
@@ -344,18 +326,12 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     # Save row_id mapping alongside embeddings (needed by clustering step)
     update_job_action(job_id, "埋め込み結果をS3にアップロード中")
     output_s3_path = f"s3://{S3_BUCKET}/{tenant_id}/jobs/{job_id}/embedding/embeddings.npy"
-    upload_npy_to_s3(embedding_matrix, output_s3_path)
+    upload_npy(embedding_matrix, output_s3_path)
 
-    # Also save the row_id -> index mapping
+    # Also save the row_id -> index mapping (used by clustering / parameter
+    # search to map back from sample indices to original row IDs).
     row_ids_path = f"s3://{S3_BUCKET}/{tenant_id}/jobs/{job_id}/embedding/row_ids.json"
-    s3 = boto3.client("s3", region_name=S3_REGION)
-    key = row_ids_path.replace(f"s3://{S3_BUCKET}/", "")
-    s3.put_object(
-        Bucket=S3_BUCKET,
-        Key=key,
-        Body=json.dumps(df["row_id"].tolist()),
-        ContentType="application/json",
-    )
+    upload_json(df["row_id"].tolist(), row_ids_path)
 
     update_job_status(job_id, status="embedding", progress=global_progress("embedding", 90))
 
@@ -385,26 +361,16 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     cfg = kwargs.get("pipeline_config") or {}
     if cfg.get("post_embedding_action") == "parameter_search":
         update_job_action(job_id, "パラメータ探索ステップに移行中")
-        # Reuse the same SQS queue the regular chain uses. Late import keeps
-        # module load simple (SQS_QUEUE_URL/SQS_REGION live next to other
-        # config constants used only at dispatch time).
-        from src.config import SQS_QUEUE_URL, SQS_REGION
-        message = {
-            "job_id": job_id,
-            "tenant_id": tenant_id,
-            "dataset_id": dataset_id,
-            "step": "parameter_search",
-            "input_s3_path": output_s3_path,
-            "pipeline_config": cfg,
-        }
-        sqs_client = boto3.client("sqs", region_name=SQS_REGION)
-        sqs_client.send_message(
-            QueueUrl=SQS_QUEUE_URL,
-            MessageBody=json.dumps(message),
-        )
-        logger.info(
-            "Embedding->parameter_search divert for job %d (bypassing clustering chain)",
-            job_id,
+        # Reuse the chain dispatcher with override_step so cancellation
+        # checks and SQS plumbing are shared with the regular flow.
+        dispatch_next_step(
+            current_step="embedding",
+            job_id=job_id,
+            tenant_id=tenant_id,
+            dataset_id=dataset_id,
+            output_s3_path=output_s3_path,
+            pipeline_config=cfg,
+            override_step="parameter_search",
         )
         return
 

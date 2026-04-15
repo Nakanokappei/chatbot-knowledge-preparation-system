@@ -8,7 +8,6 @@ use App\Models\DatasetRow;
 use App\Models\KnowledgeUnit;
 use App\Models\LlmModel;
 use App\Models\PipelineJob;
-use Aws\Sqs\SqsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -307,26 +306,15 @@ class DashboardController extends Controller
             'pipeline_config_snapshot_json' => $pipelineConfig,
         ]);
 
-        // Send first step (preprocess) to SQS
+        // Send first step (preprocess) to SQS via the shared dispatcher.
         try {
-            $sqs = new SqsClient([
-                'region' => config('queue.connections.sqs.region', 'ap-northeast-1'),
-                'version' => 'latest',
-            ]);
-
-            $queueUrl = config('queue.connections.sqs.prefix') . '/' . config('queue.connections.sqs.queue');
-
-            $sqs->sendMessage([
-                'QueueUrl' => $queueUrl,
-                'MessageBody' => json_encode([
-                    'job_id' => $job->id,
-                    'workspace_id' => $job->workspace_id,
-                    'dataset_id' => $job->dataset_id,
-                    'step' => 'preprocess',
-                    'input_s3_path' => null,
-                    'pipeline_config' => $job->pipeline_config_snapshot_json,
-                ]),
-            ]);
+            \App\Services\SqsDispatcher::dispatch(
+                jobId: $job->id,
+                workspaceId: $job->workspace_id,
+                datasetId: $job->dataset_id,
+                step: 'preprocess',
+                pipelineConfig: $job->pipeline_config_snapshot_json,
+            );
 
             return redirect()->route('dashboard')
                 ->with('success', "Pipeline Job #{$job->id} dispatched (preprocess -> embedding -> clustering).");
@@ -392,31 +380,15 @@ class DashboardController extends Controller
             }
         }
 
-        // Send to SQS
-        $sqsUrl = env('SQS_QUEUE_URL');
-        if (!$sqsUrl) {
-            $prefix = env('SQS_PREFIX', '');
-            $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
-            if ($prefix) $sqsUrl = $prefix . '/' . $queue;
-        }
-
-        if ($sqsUrl) {
-            $sqs = new \Aws\Sqs\SqsClient([
-                'region' => env('SQS_REGION', 'ap-northeast-1'),
-                'version' => 'latest',
-            ]);
-            $sqs->sendMessage([
-                'QueueUrl' => $sqsUrl,
-                'MessageBody' => json_encode([
-                    'job_id' => $pipelineJob->id,
-                    'workspace_id' => $pipelineJob->workspace_id,
-                    'dataset_id' => $pipelineJob->dataset_id,
-                    'step' => $startStep,
-                    'input_s3_path' => $inputS3Path,
-                    'pipeline_config' => $config,
-                ]),
-            ]);
-        }
+        // Send to SQS via the shared dispatcher.
+        \App\Services\SqsDispatcher::dispatch(
+            jobId: $pipelineJob->id,
+            workspaceId: $pipelineJob->workspace_id,
+            datasetId: $pipelineJob->dataset_id,
+            step: $startStep,
+            pipelineConfig: $config,
+            inputS3Path: $inputS3Path,
+        );
 
         return redirect()->back()->with('success', __('ui.job_retried'));
     }
@@ -489,28 +461,15 @@ class DashboardController extends Controller
             ],
         ]);
 
-        // Send to SQS
+        // Send to SQS via the shared dispatcher.
         try {
-            $sqs = new SqsClient([
-                'region' => config('queue.connections.sqs.region', 'ap-northeast-1'),
-                'version' => 'latest',
-            ]);
-
-            $queueUrl = config('queue.connections.sqs.prefix') . '/' . config('queue.connections.sqs.queue');
-
-            $sqs->sendMessage([
-                'QueueUrl' => $queueUrl,
-                'MessageBody' => json_encode([
-                    'job_id' => $job->id,
-                    'workspace_id' => $job->workspace_id,
-                    'dataset_id' => $job->dataset_id,
-                    'step' => 'ping',
-                    'input_s3_path' => null,
-                    'pipeline_config' => $job->pipeline_config_snapshot_json,
-                ]),
-            ]);
-
-            Log::info('Dashboard: SQS message dispatched', ['job_id' => $job->id]);
+            \App\Services\SqsDispatcher::dispatch(
+                jobId: $job->id,
+                workspaceId: $job->workspace_id,
+                datasetId: $job->dataset_id,
+                step: 'ping',
+                pipelineConfig: $job->pipeline_config_snapshot_json,
+            );
 
             return redirect()->route('dashboard')
                 ->with('success', "Job #{$job->id} dispatched to SQS.");

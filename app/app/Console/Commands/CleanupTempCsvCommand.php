@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Concerns\FormatsFileSize;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -23,6 +24,8 @@ use Illuminate\Support\Facades\Log;
  */
 class CleanupTempCsvCommand extends Command
 {
+    use FormatsFileSize;
+
     protected $signature = 'kps:cleanup-temp-csv
                             {--apply : Perform deletion (without this flag, dry-run only)}
                             {--older-than=3600 : Minimum age in seconds before a file is eligible for deletion}';
@@ -101,29 +104,5 @@ class CleanupTempCsvCommand extends Command
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
     }
 
-    /** Format a byte count as KB/MB for readability. */
-    private function humanBytes(int $bytes): string
-    {
-        if ($bytes >= 1024 * 1024) {
-            return sprintf('%.1f MB', $bytes / 1024 / 1024);
-        }
-        if ($bytes >= 1024) {
-            return sprintf('%.1f KB', $bytes / 1024);
-        }
-        return "{$bytes} B";
-    }
-
-    /** Format seconds as a short duration string (e.g. "2h 15m"). */
-    private function humanDuration(int $seconds): string
-    {
-        if ($seconds >= 3600) {
-            $h = intdiv($seconds, 3600);
-            $m = intdiv($seconds % 3600, 60);
-            return "{$h}h {$m}m";
-        }
-        if ($seconds >= 60) {
-            return intdiv($seconds, 60) . 'm';
-        }
-        return "{$seconds}s";
-    }
+    // humanBytes() and humanDuration() come from the FormatsFileSize trait.
 }

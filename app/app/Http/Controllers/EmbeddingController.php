@@ -7,6 +7,7 @@ use App\Models\Embedding;
 use App\Models\KnowledgeUnit;
 use App\Models\LlmModel;
 use App\Models\PipelineJob;
+use App\Support\CsvDownload;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -298,36 +299,20 @@ class EmbeddingController extends Controller
         if (!$hasRunningPipeline) {
             $embeddingS3Path = $sourceJob->step_outputs_json['embedding']['output_s3_path'] ?? null;
 
-            $sqsUrl = env('SQS_QUEUE_URL');
-            if (!$sqsUrl) {
-                $prefix = env('SQS_PREFIX', '');
-                $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
-                if ($prefix) {
-                    $sqsUrl = $prefix . '/' . $queue;
-                }
-            }
-
-            if ($sqsUrl && $embeddingS3Path) {
-                $sqs = new \Aws\Sqs\SqsClient([
-                    'region' => env('SQS_REGION', 'ap-northeast-1'),
-                    'version' => 'latest',
-                ]);
-
-                // Inject embedding_id into config for the clustering step
+            if ($embeddingS3Path) {
+                // Inject embedding_id into config so the clustering step
+                // can link new clusters to the right embedding parent.
                 $dispatchConfig = $config;
                 $dispatchConfig['embedding_id'] = $sourceJob->embedding_id ?? $embeddingId;
 
-                $sqs->sendMessage([
-                    'QueueUrl' => $sqsUrl,
-                    'MessageBody' => json_encode([
-                        'job_id' => $job->id,
-                        'workspace_id' => $workspaceId,
-                        'dataset_id' => $embedding->dataset_id,
-                        'step' => 'clustering',
-                        'input_s3_path' => $embeddingS3Path,
-                        'pipeline_config' => $dispatchConfig,
-                    ]),
-                ]);
+                \App\Services\SqsDispatcher::dispatch(
+                    jobId: $job->id,
+                    workspaceId: $workspaceId,
+                    datasetId: $embedding->dataset_id,
+                    step: 'clustering',
+                    pipelineConfig: $dispatchConfig,
+                    inputS3Path: $embeddingS3Path,
+                );
             }
         }
 
@@ -393,30 +378,19 @@ class EmbeddingController extends Controller
                 : null;
         }
 
-        // Dispatch to SQS
-        $sqsUrl = env('SQS_QUEUE_URL');
-        if (!$sqsUrl) {
-            $prefix = env('SQS_PREFIX', '');
-            $queue = env('SQS_QUEUE', 'ckps-pipeline-dev');
-            if ($prefix) $sqsUrl = $prefix . '/' . $queue;
-        }
-
-        if ($sqsUrl && $embeddingS3Path) {
-            $sqs = new \Aws\Sqs\SqsClient([
-                'region' => env('SQS_REGION', 'ap-northeast-1'),
-                'version' => 'latest',
-            ]);
-            $sqs->sendMessage([
-                'QueueUrl' => $sqsUrl,
-                'MessageBody' => json_encode([
-                    'job_id' => $job->id,
-                    'workspace_id' => $workspaceId,
-                    'dataset_id' => $embedding->dataset_id,
-                    'step' => 'parameter_search',
-                    'input_s3_path' => $embeddingS3Path,
-                    'pipeline_config' => $config,
-                ]),
-            ]);
+        // Dispatch to SQS via the shared service. We only enqueue if the
+        // embedding output path resolved — without it the worker has
+        // nothing to sweep over, so the job will sit in 'submitted'
+        // until manually retried.
+        if ($embeddingS3Path) {
+            \App\Services\SqsDispatcher::dispatch(
+                jobId: $job->id,
+                workspaceId: $workspaceId,
+                datasetId: $embedding->dataset_id,
+                step: 'parameter_search',
+                pipelineConfig: $config,
+                inputS3Path: $embeddingS3Path,
+            );
         }
 
         return redirect()
@@ -638,13 +612,15 @@ class EmbeddingController extends Controller
      */
     private function exportAsCsv($kus, array $columns, string $baseFilename)
     {
-        $csvHeader = $columns;
+        // Flatten KU records into ordered scalar rows. The only column-
+        // specific transform is keywords_json: it's stored as a JSON array
+        // but should appear as a semicolon-separated cell so it round-trips
+        // through Excel cleanly.
         $rows = [];
         foreach ($kus as $ku) {
             $row = [];
             foreach ($columns as $col) {
                 $value = $ku->{$col};
-                // Flatten JSON array fields to semicolon-separated string
                 if ($col === 'keywords_json' && is_array($value)) {
                     $value = implode('; ', $value);
                 }
@@ -652,22 +628,7 @@ class EmbeddingController extends Controller
             }
             $rows[] = $row;
         }
-
-        $handle = fopen('php://temp', 'r+');
-        // UTF-8 BOM for Excel compatibility
-        fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, $csvHeader);
-        foreach ($rows as $row) {
-            fputcsv($handle, $row);
-        }
-        rewind($handle);
-        $csvContent = stream_get_contents($handle);
-        fclose($handle);
-
-        return response($csvContent, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$baseFilename}.csv\"",
-        ]);
+        return CsvDownload::make($columns, $rows, $baseFilename);
     }
 
     /**
@@ -747,11 +708,9 @@ class EmbeddingController extends Controller
         $originalColumns = array_keys($firstMeta);
         $csvHeader = array_merge($originalColumns, ['cluster_topic']);
 
-        // Build CSV output
-        $handle = fopen('php://temp', 'r+');
-        fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM
-        fputcsv($handle, $csvHeader);
-
+        // Project each row's metadata_json into ordered scalar values
+        // matching $originalColumns, and append the joined cluster topic.
+        $csvRows = [];
         foreach ($rows as $row) {
             $meta = json_decode($row->metadata_json, true) ?? [];
             $csvRow = [];
@@ -759,19 +718,11 @@ class EmbeddingController extends Controller
                 $csvRow[] = $meta[$col] ?? '';
             }
             $csvRow[] = $row->cluster_topic ?? '';
-            fputcsv($handle, $csvRow);
+            $csvRows[] = $csvRow;
         }
 
-        rewind($handle);
-        $csvContent = stream_get_contents($handle);
-        fclose($handle);
-
-        $filename = Str::slug($embedding->name) . '_rows_with_clusters' . $filenameSuffix . '.csv';
-
-        return response($csvContent, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        $filename = Str::slug($embedding->name) . '_rows_with_clusters' . $filenameSuffix;
+        return CsvDownload::make($csvHeader, $csvRows, $filename);
     }
 
     /**
