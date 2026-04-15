@@ -953,13 +953,11 @@ return [
 
     // ── Parameter search ───────────────────────────────
     'parameter_search'              => 'パラメータ探索',
-    'parameter_search_auto_add'     => 'パラメータを探索して優良なパターンを自動追加',
     'parameter_search_started'      => 'パラメータ探索を開始しました（24パターン、約1分）',
     'parameter_search_running'      => '探索中...',
     'parameter_search_results'      => '探索結果',
     'parameter_search_failed'       => '探索に失敗しました',
     'parameter_search_pdf_export'   => '📄 PDF でダウンロード',
-    'param_search_btn_disabled_hint' => 'クラスタリング対象列とナレッジ構造を先に設定してください',
     'sampled'                       => 'サンプル',
     'configs_tested'                => 'パターンをテスト',
     'use_these_params'              => 'この設定で実行',

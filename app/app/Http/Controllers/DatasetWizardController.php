@@ -571,92 +571,59 @@ class DatasetWizardController extends Controller
                 }
             }
 
-            // Detect "parameter search only" run mode. The configure screen has
-            // a dedicated button that submits the form with run_mode=parameter_search.
-            // In that mode we skip creating per-clustering-config jobs and instead
-            // dispatch a single preprocess+embedding job whose config tells the
-            // worker to pivot to the parameter_search step after embedding.
-            $runMode = $request->input('run_mode', 'clustering');
+            // Collect clustering configurations from the form.
+            // Multi-config: clustering_configs[0][method], clustering_configs[0][leiden_resolution], etc.
+            // Legacy: clustering_method, hdbscan_min_cluster_size, etc.
+            $clusteringConfigs = $request->input('clustering_configs', []);
+            if (empty($clusteringConfigs)) {
+                // Backward compatibility: build single config from legacy form fields
+                $clusteringConfigs = [[
+                    'method' => $request->input('clustering_method', 'hdbscan'),
+                    'hdbscan_min_cluster_size' => $request->input('hdbscan_min_cluster_size'),
+                    'hdbscan_min_samples' => $request->input('hdbscan_min_samples'),
+                    'kmeans_n_clusters' => $request->input('kmeans_n_clusters'),
+                    'agglomerative_n_clusters' => $request->input('agglomerative_n_clusters'),
+                    'agglomerative_linkage' => $request->input('agglomerative_linkage'),
+                    'leiden_n_neighbors' => $request->input('leiden_n_neighbors'),
+                    'leiden_resolution' => $request->input('leiden_resolution'),
+                ]];
+            }
+            $firstJob = null;
+            $totalJobs = count($clusteringConfigs);
 
-            if ($runMode === 'parameter_search') {
-                // Single preprocess→embedding→parameter_search job. We do NOT
-                // auto-queue follow-up clustering jobs here: the user asked
-                // for "the sidebar parameter-search flow" which is just the
-                // sampled sweep; the user reviews results and picks which
-                // patterns to actually run via the existing "Use these params"
-                // button in the workspace compare view.
-                $paramSearchConfig = $baseConfig;
-                // Omit clustering_method/clustering_params so embedding.py
-                // diverts cleanly to parameter_search after embedding finishes
-                // (see post_embedding_action handling there).
-                $paramSearchConfig['post_embedding_action'] = 'parameter_search';
-                $paramSearchConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
+            foreach ($clusteringConfigs as $i => $cc) {
+                $isFirst = ($i === 0);
 
-                $firstJob = \App\Models\PipelineJob::create([
+                // Build per-job pipeline config with this config's clustering params
+                $jobConfig = $baseConfig;
+                $jobConfig['clustering_method'] = $cc['method'] ?? 'hdbscan';
+                $jobConfig['clustering_params'] = array_filter([
+                    'hdbscan_min_cluster_size' => $cc['hdbscan_min_cluster_size'] ?? null,
+                    'hdbscan_min_samples' => $cc['hdbscan_min_samples'] ?? null,
+                    'kmeans_n_clusters' => $cc['kmeans_n_clusters'] ?? null,
+                    'agglomerative_n_clusters' => $cc['agglomerative_n_clusters'] ?? null,
+                    'agglomerative_linkage' => $cc['agglomerative_linkage'] ?? null,
+                    'leiden_n_neighbors' => $cc['leiden_n_neighbors'] ?? null,
+                    'leiden_resolution' => $cc['leiden_resolution'] ?? null,
+                ], fn($v) => $v !== null && $v !== '');
+                $jobConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
+
+                // First job: full pipeline. Subsequent jobs: clustering-only, queued.
+                $job = \App\Models\PipelineJob::create([
                     'workspace_id' => $workspaceId,
                     'dataset_id' => $dataset->id,
-                    'start_step' => 'preprocess',
-                    'status' => $hasRunningPipeline ? 'queued' : 'submitted',
+                    'start_step' => $isFirst ? 'preprocess' : 'clustering',
+                    'source_job_id' => $isFirst ? null : $firstJob->id,
+                    'status' => ($hasRunningPipeline || !$isFirst) ? 'queued' : 'submitted',
                     'progress' => 0,
-                    'pipeline_config_snapshot_json' => $paramSearchConfig,
+                    'pipeline_config_snapshot_json' => $jobConfig,
                 ]);
-                $totalJobs = 1;
-                Log::info("Parameter-search job {$firstJob->id} created for dataset {$dataset->id}");
-            } else {
-                // Normal mode: collect clustering configurations from the form.
-                // Multi-config: clustering_configs[0][method], clustering_configs[0][leiden_resolution], etc.
-                // Legacy: clustering_method, hdbscan_min_cluster_size, etc.
-                $clusteringConfigs = $request->input('clustering_configs', []);
-                if (empty($clusteringConfigs)) {
-                    // Backward compatibility: build single config from legacy form fields
-                    $clusteringConfigs = [[
-                        'method' => $request->input('clustering_method', 'hdbscan'),
-                        'hdbscan_min_cluster_size' => $request->input('hdbscan_min_cluster_size'),
-                        'hdbscan_min_samples' => $request->input('hdbscan_min_samples'),
-                        'kmeans_n_clusters' => $request->input('kmeans_n_clusters'),
-                        'agglomerative_n_clusters' => $request->input('agglomerative_n_clusters'),
-                        'agglomerative_linkage' => $request->input('agglomerative_linkage'),
-                        'leiden_n_neighbors' => $request->input('leiden_n_neighbors'),
-                        'leiden_resolution' => $request->input('leiden_resolution'),
-                    ]];
+
+                if ($isFirst) {
+                    $firstJob = $job;
                 }
-                $firstJob = null;
-                $totalJobs = count($clusteringConfigs);
 
-                foreach ($clusteringConfigs as $i => $cc) {
-                    $isFirst = ($i === 0);
-
-                    // Build per-job pipeline config with this config's clustering params
-                    $jobConfig = $baseConfig;
-                    $jobConfig['clustering_method'] = $cc['method'] ?? 'hdbscan';
-                    $jobConfig['clustering_params'] = array_filter([
-                        'hdbscan_min_cluster_size' => $cc['hdbscan_min_cluster_size'] ?? null,
-                        'hdbscan_min_samples' => $cc['hdbscan_min_samples'] ?? null,
-                        'kmeans_n_clusters' => $cc['kmeans_n_clusters'] ?? null,
-                        'agglomerative_n_clusters' => $cc['agglomerative_n_clusters'] ?? null,
-                        'agglomerative_linkage' => $cc['agglomerative_linkage'] ?? null,
-                        'leiden_n_neighbors' => $cc['leiden_n_neighbors'] ?? null,
-                        'leiden_resolution' => $cc['leiden_resolution'] ?? null,
-                    ], fn($v) => $v !== null && $v !== '');
-                    $jobConfig['remove_language_bias'] = $request->boolean('remove_language_bias', true);
-
-                    // First job: full pipeline. Subsequent jobs: clustering-only, queued.
-                    $job = \App\Models\PipelineJob::create([
-                        'workspace_id' => $workspaceId,
-                        'dataset_id' => $dataset->id,
-                        'start_step' => $isFirst ? 'preprocess' : 'clustering',
-                        'source_job_id' => $isFirst ? null : $firstJob->id,
-                        'status' => ($hasRunningPipeline || !$isFirst) ? 'queued' : 'submitted',
-                        'progress' => 0,
-                        'pipeline_config_snapshot_json' => $jobConfig,
-                    ]);
-
-                    if ($isFirst) {
-                        $firstJob = $job;
-                    }
-
-                    Log::info("Pipeline job {$job->id} created (config {$i}/{$totalJobs}, start_step={$job->start_step})");
-                }
+                Log::info("Pipeline job {$job->id} created (config {$i}/{$totalJobs}, start_step={$job->start_step})");
             }
 
             // Only send the first job to SQS if not queued. Subsequent
@@ -670,26 +637,12 @@ class DatasetWizardController extends Controller
 
             // Keep CSV file for reconfiguration (stored in persistent volume)
 
-            if ($runMode === 'parameter_search') {
-                $jobLabel = "Parameter search job #{$firstJob->id}";
-            } else {
-                $jobLabel = $totalJobs > 1
-                    ? "{$totalJobs} jobs (1 full + " . ($totalJobs - 1) . " clustering-only)"
-                    : "Job #{$firstJob->id}";
-            }
+            $jobLabel = $totalJobs > 1
+                ? "{$totalJobs} jobs (1 full + " . ($totalJobs - 1) . " clustering-only)"
+                : "Job #{$firstJob->id}";
             $successMessage = $hasRunningPipeline
                 ? __('ui.pipeline_queued')
                 : "Dataset '{$dataset->name}' created ({$dataset->row_count} rows). {$jobLabel} dispatched.";
-
-            // For parameter_search mode we redirect the user to the workspace
-            // index (sidebar + progress view) instead of the pipeline list so
-            // they stay inside the main dataset workflow and can watch their
-            // new embedding appear live, then open the compare view to review
-            // the sweep results and pick patterns to run.
-            if ($runMode === 'parameter_search') {
-                return redirect()->route('workspace.index')
-                    ->with('success', $successMessage);
-            }
 
             return redirect()->route('dashboard')
                 ->with('success', $successMessage);

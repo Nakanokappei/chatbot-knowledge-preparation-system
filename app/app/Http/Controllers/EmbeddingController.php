@@ -44,18 +44,19 @@ class EmbeddingController extends Controller
         $sidebarEmbeddings = Embedding::where('workspace_id', $workspaceId)
             ->with(['dataset:id,name', 'pipelineJobs' => function ($jobQuery) {
                 // Only show completed clustering/full-pipeline jobs in the sidebar.
-                // Exclude two flavours of parameter_search job so they don't
-                // leak into the sidebar as ghost clustering runs:
-                //   1. Legacy: start_step='parameter_search' (workspace-button path)
-                //   2. Wizard: start_step='preprocess' but pipeline_config
-                //      .post_embedding_action='parameter_search' (new wizard path
-                //      that pivots away from clustering after embedding).
+                // Exclude parameter_search jobs so they don't leak into the
+                // sidebar as ghost clustering runs:
+                //   - start_step='parameter_search' is the current workspace
+                //     code path (EmbeddingController::parameterSearch).
+                //   - The post_embedding_action JSON guard handles legacy
+                //     wizard-button jobs (the configure-screen flow has
+                //     since been removed) so old rows don't reappear.
                 $jobQuery->where('status', 'completed')
                     ->where('start_step', '!=', 'parameter_search')
                     ->where(function ($q) {
-                        // JSON column: the flag is either absent (legacy jobs)
-                        // or explicitly not 'parameter_search'. Null comparison
-                        // on JSON extract needs the OR-whereNull guard because
+                        // JSON column: legacy rows either lack the key or
+                        // have it explicitly. Null comparison on JSON
+                        // extract needs the OR-whereNull guard because
                         // the != operator drops NULL rows.
                         $q->whereNull('pipeline_config_snapshot_json->post_embedding_action')
                           ->orWhere('pipeline_config_snapshot_json->post_embedding_action', '!=', 'parameter_search');

@@ -30,37 +30,25 @@ def dispatch_next_step(
     dataset_id: int,
     output_s3_path: str,
     pipeline_config: dict,
-    override_step: str | None = None,
 ) -> str | None:
     """
     Send the next pipeline step to SQS after the current step completes.
 
     Returns the name of the next step, or None if the pipeline is complete.
-
-    `override_step` lets a step jump out of the linear STEP_SEQUENCE and
-    hand control to a specific step instead of its sequence-successor.
-    The embedding step uses this to divert into parameter_search when
-    pipeline_config asks for a sweep instead of a clustering chain. Passing
-    `override_step` skips the "current_step in sequence" lookup and the
-    "is there a successor" check; cancellation guard still applies.
     """
-    # Resolve the next step. With override_step we trust the caller; without
-    # it we walk STEP_SEQUENCE to find current_step's neighbour.
-    if override_step is not None:
-        next_step = override_step
-    else:
-        try:
-            idx = STEP_SEQUENCE.index(current_step)
-        except ValueError:
-            logger.warning("Step '%s' not in STEP_SEQUENCE; no chaining.", current_step)
-            return None
+    # Walk STEP_SEQUENCE to find current_step's neighbour.
+    try:
+        idx = STEP_SEQUENCE.index(current_step)
+    except ValueError:
+        logger.warning("Step '%s' not in STEP_SEQUENCE; no chaining.", current_step)
+        return None
 
-        if idx + 1 >= len(STEP_SEQUENCE):
-            logger.info("Pipeline complete for job %d (last step: %s)", job_id, current_step)
-            dispatch_queued_job(tenant_id)
-            return None
+    if idx + 1 >= len(STEP_SEQUENCE):
+        logger.info("Pipeline complete for job %d (last step: %s)", job_id, current_step)
+        dispatch_queued_job(tenant_id)
+        return None
 
-        next_step = STEP_SEQUENCE[idx + 1]
+    next_step = STEP_SEQUENCE[idx + 1]
 
     # Cancellation check: if the user cancelled mid-step, do NOT enqueue the
     # next step. Without this guard the pipeline would keep chaining forward

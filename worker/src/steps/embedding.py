@@ -349,32 +349,11 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
 
     logger.info("Embedding step completed for job %d", job_id)
 
-    # Step 7: Chain to next step.
-    #
-    # Special case: when the dataset wizard dispatched this job in
-    # "parameter search" mode (flag set by DatasetWizardController::finalize
-    # when the user clicks the Parameter Search button on the configure
-    # screen), skip clustering and friends entirely and hand the embedding
-    # vectors directly to the parameter_search step on the same job_id.
-    # This lets the user get a method/parameter sweep for a brand-new
-    # dataset without first committing to a clustering config.
-    cfg = kwargs.get("pipeline_config") or {}
-    if cfg.get("post_embedding_action") == "parameter_search":
-        update_job_action(job_id, "パラメータ探索ステップに移行中")
-        # Reuse the chain dispatcher with override_step so cancellation
-        # checks and SQS plumbing are shared with the regular flow.
-        dispatch_next_step(
-            current_step="embedding",
-            job_id=job_id,
-            tenant_id=tenant_id,
-            dataset_id=dataset_id,
-            output_s3_path=output_s3_path,
-            pipeline_config=cfg,
-            override_step="parameter_search",
-        )
-        return
-
-    # Normal path: chain preprocess → embedding → clustering → ...
+    # Chain to clustering. (The wizard-stage parameter_search divert that
+    # used to live here was removed when the configure-screen button was
+    # taken out — parameter sweeps now run only from the workspace side
+    # via EmbeddingController::parameterSearch, which dispatches a
+    # standalone start_step='parameter_search' job.)
     next_step = dispatch_next_step(
         current_step="embedding",
         job_id=job_id,
