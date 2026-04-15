@@ -485,17 +485,19 @@
                              title columns, chart, x-axis labels, AND the
                              legend together in one capture. --}}
                         <div id="param-search-chart-wrap">
-                            <div style="display: flex; align-items: stretch; gap: 4px;">
-                                {{-- Left Y-axis title (silhouette). Container is
-                                     80px and anchors the rotated text to the
-                                     LEFT (justify-content: flex-start), so the
-                                     ~24px of empty space on the right pushes the
-                                     label visually away from the silhouette tick
-                                     numbers. inline-block on the span helps
-                                     html2canvas measure the rotated glyphs
-                                     correctly in the PDF capture. --}}
-                                <div style="display: flex; align-items: center; justify-content: flex-start; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0; width: 80px;">
-                                    <span style="writing-mode: vertical-rl; white-space: nowrap; display: inline-block; line-height: 1;">{{ __('ui.silhouette') }}</span>
+                            <div style="display: flex; align-items: stretch; gap: 2px;">
+                                {{-- Left Y-axis title (silhouette). SVG-based
+                                     so html2canvas can rasterise the rotated
+                                     text reliably in PDF — earlier writing-mode
+                                     attempts produced garbled / cropped glyphs
+                                     after several rounds of size tweaks. The
+                                     SVG is exactly as wide as one font column
+                                     (16px) so the label sits flush against the
+                                     y-axis tick numbers without wasted gap. --}}
+                                <div style="display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 16px;">
+                                    <svg width="16" height="160" viewBox="0 0 16 160" style="display: block;">
+                                        <text x="8" y="80" text-anchor="middle" transform="rotate(-90, 8, 80)" font-size="10" fill="#888">{{ __('ui.silhouette') }}</text>
+                                    </svg>
                                 </div>
                                 <div style="flex: 1;">
                                     <div style="display: flex; gap: 0;">
@@ -507,11 +509,7 @@
                                             {{-- SVG overlay for cluster count line (second axis) --}}
                                             <svg id="param-search-line" style="position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: visible;"></svg>
                                         </div>
-                                        {{-- yaxis2 padding-left dropped from 6 to 0
-                                             so the クラスター title can sit closer
-                                             to the chart, freeing horizontal room
-                                             that the wider title needs. --}}
-                                        <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 0; width: 40px; height: 160px; font-size: 10px; color: #333;"></div>
+                                        <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 6px; width: 40px; height: 160px; font-size: 10px; color: #333;"></div>
                                     </div>
                                     {{-- X-axis: rank numbers (1..N) aligned with the bar flex layout. --}}
                                     <div style="display: flex; gap: 0; margin-top: 2px;">
@@ -520,25 +518,21 @@
                                         <div style="width: 40px;"></div>
                                     </div>
                                 </div>
-                                {{-- Right Y-axis title (clusters). Container 80px
-                                     and anchors text to the RIGHT (flex-end) so
-                                     the empty space sits between chart and
-                                     label, mirroring the left side. クラスター
-                                     was wrapping at 60px in PDF capture; 80px
-                                     plus inline-block / line-height:1 on the
-                                     span gives html2canvas enough information
-                                     to lay out the rotated text in one column. --}}
-                                <div style="display: flex; align-items: center; justify-content: flex-end; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0; width: 80px;">
-                                    <span style="writing-mode: vertical-rl; white-space: nowrap; display: inline-block; line-height: 1;">{{ __('ui.clusters') }}</span>
+                                {{-- Right Y-axis title (clusters). Same SVG
+                                     approach as the left, mirrored rotation. --}}
+                                <div style="display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 16px;">
+                                    <svg width="16" height="160" viewBox="0 0 16 160" style="display: block;">
+                                        <text x="8" y="80" text-anchor="middle" transform="rotate(90, 8, 80)" font-size="10" fill="#333">{{ __('ui.clusters') }}</text>
+                                    </svg>
                                 </div>
                             </div>
                             {{-- Legend lives inside #param-search-chart-wrap so
                                  the html2canvas PDF capture (which targets the
                                  wrap by id) includes the colour key. padding-left
-                                 = silhouette label (80) + wrap gap (4) + yaxis
-                                 width (40) = 124px so the legend lines up with
-                                 the chart bars. --}}
-                            <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; padding-left: 124px; font-size: 11px; color: #5f6368;"></div>
+                                 = silhouette label (16) + wrap gap (2) + yaxis
+                                 width (40) = 58px so the legend sits under the
+                                 chart bars instead of under the axis numbers. --}}
+                            <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; padding-left: 58px; font-size: 11px; color: #5f6368;"></div>
                         </div>
                         {{-- Top results table --}}
                         <div id="param-search-top" style="margin-top: 12px;"></div>
