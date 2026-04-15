@@ -486,14 +486,13 @@
                              legend together in one capture. --}}
                         <div id="param-search-chart-wrap">
                             <div style="display: flex; align-items: stretch; gap: 4px;">
-                                {{-- Left Y-axis title (silhouette). Plain
-                                     vertical-rl writing mode keeps each character
-                                     upright and the text reading top→bottom.
-                                     Explicit width of ~3 katakana glyphs avoids
-                                     the auto-sized container collapsing in PDF
-                                     capture, which made the label overlap the
-                                     silhouette tick numbers. --}}
-                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0; width: 36px;">
+                                {{-- Left Y-axis title (silhouette). Width 56px
+                                     gives the rotated katakana enough horizontal
+                                     room not to bleed into the silhouette tick
+                                     numbers when html2canvas re-measures the
+                                     container in PDF rendering. (Previously
+                                     36px, which collapsed and overlapped 0.25.) --}}
+                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0; width: 56px;">
                                     <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.silhouette') }}</span>
                                 </div>
                                 <div style="flex: 1;">
@@ -506,7 +505,11 @@
                                             {{-- SVG overlay for cluster count line (second axis) --}}
                                             <svg id="param-search-line" style="position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: visible;"></svg>
                                         </div>
-                                        <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 6px; width: 40px; height: 160px; font-size: 10px; color: #333;"></div>
+                                        {{-- yaxis2 padding-left dropped from 6 to 0
+                                             so the クラスター title can sit closer
+                                             to the chart, freeing horizontal room
+                                             that the wider title needs. --}}
+                                        <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 0; width: 40px; height: 160px; font-size: 10px; color: #333;"></div>
                                     </div>
                                     {{-- X-axis: rank numbers (1..N) aligned with the bar flex layout. --}}
                                     <div style="display: flex; gap: 0; margin-top: 2px;">
@@ -515,20 +518,23 @@
                                         <div style="width: 40px;"></div>
                                     </div>
                                 </div>
-                                {{-- Right Y-axis title (clusters). Width of ~4
-                                     katakana glyphs because クラスター is one
-                                     glyph longer than シルエット and was wrapping
-                                     in PDF capture, dropping ス off-screen. --}}
-                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0; width: 44px;">
+                                {{-- Right Y-axis title (clusters). Width 60px so
+                                     クラスター fits in a single column — at 44px
+                                     html2canvas was wrapping it onto two columns
+                                     ("クラ\nス" + "ター"). The yaxis2 padding-left
+                                     above absorbs the extra width so the chart
+                                     bars don't shrink noticeably. --}}
+                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0; width: 60px;">
                                     <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.clusters') }}</span>
                                 </div>
                             </div>
                             {{-- Legend lives inside #param-search-chart-wrap so
                                  the html2canvas PDF capture (which targets the
-                                 wrap by id) includes the colour key. The
-                                 padding-left lines the legend up roughly with
-                                 the chart bars (matching the y-axis spacer). --}}
-                            <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; padding-left: 76px; font-size: 11px; color: #5f6368;"></div>
+                                 wrap by id) includes the colour key. padding-left
+                                 = silhouette label (56) + wrap gap (4) + yaxis
+                                 width (40) = 100px so the legend lines up with
+                                 the chart bars. --}}
+                            <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; padding-left: 100px; font-size: 11px; color: #5f6368;"></div>
                         </div>
                         {{-- Top results table --}}
                         <div id="param-search-top" style="margin-top: 12px;"></div>
