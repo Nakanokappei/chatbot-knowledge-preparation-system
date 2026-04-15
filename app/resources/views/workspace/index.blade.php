@@ -486,14 +486,16 @@
                              legend together in one capture. --}}
                         <div id="param-search-chart-wrap">
                             <div style="display: flex; align-items: stretch; gap: 4px;">
-                                {{-- Left Y-axis title (silhouette). Width 56px
-                                     gives the rotated katakana enough horizontal
-                                     room not to bleed into the silhouette tick
-                                     numbers when html2canvas re-measures the
-                                     container in PDF rendering. (Previously
-                                     36px, which collapsed and overlapped 0.25.) --}}
-                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0; width: 56px;">
-                                    <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.silhouette') }}</span>
+                                {{-- Left Y-axis title (silhouette). Container is
+                                     80px and anchors the rotated text to the
+                                     LEFT (justify-content: flex-start), so the
+                                     ~24px of empty space on the right pushes the
+                                     label visually away from the silhouette tick
+                                     numbers. inline-block on the span helps
+                                     html2canvas measure the rotated glyphs
+                                     correctly in the PDF capture. --}}
+                                <div style="display: flex; align-items: center; justify-content: flex-start; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0; width: 80px;">
+                                    <span style="writing-mode: vertical-rl; white-space: nowrap; display: inline-block; line-height: 1;">{{ __('ui.silhouette') }}</span>
                                 </div>
                                 <div style="flex: 1;">
                                     <div style="display: flex; gap: 0;">
@@ -518,23 +520,25 @@
                                         <div style="width: 40px;"></div>
                                     </div>
                                 </div>
-                                {{-- Right Y-axis title (clusters). Width 60px so
-                                     クラスター fits in a single column — at 44px
-                                     html2canvas was wrapping it onto two columns
-                                     ("クラ\nス" + "ター"). The yaxis2 padding-left
-                                     above absorbs the extra width so the chart
-                                     bars don't shrink noticeably. --}}
-                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0; width: 60px;">
-                                    <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.clusters') }}</span>
+                                {{-- Right Y-axis title (clusters). Container 80px
+                                     and anchors text to the RIGHT (flex-end) so
+                                     the empty space sits between chart and
+                                     label, mirroring the left side. クラスター
+                                     was wrapping at 60px in PDF capture; 80px
+                                     plus inline-block / line-height:1 on the
+                                     span gives html2canvas enough information
+                                     to lay out the rotated text in one column. --}}
+                                <div style="display: flex; align-items: center; justify-content: flex-end; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0; width: 80px;">
+                                    <span style="writing-mode: vertical-rl; white-space: nowrap; display: inline-block; line-height: 1;">{{ __('ui.clusters') }}</span>
                                 </div>
                             </div>
                             {{-- Legend lives inside #param-search-chart-wrap so
                                  the html2canvas PDF capture (which targets the
                                  wrap by id) includes the colour key. padding-left
-                                 = silhouette label (56) + wrap gap (4) + yaxis
-                                 width (40) = 100px so the legend lines up with
+                                 = silhouette label (80) + wrap gap (4) + yaxis
+                                 width (40) = 124px so the legend lines up with
                                  the chart bars. --}}
-                            <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; padding-left: 100px; font-size: 11px; color: #5f6368;"></div>
+                            <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; padding-left: 124px; font-size: 11px; color: #5f6368;"></div>
                         </div>
                         {{-- Top results table --}}
                         <div id="param-search-top" style="margin-top: 12px;"></div>
