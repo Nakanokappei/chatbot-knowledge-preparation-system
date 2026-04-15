@@ -608,14 +608,24 @@ class EmbeddingController extends Controller
      */
     private function exportAsCsv($kus, array $columns, string $baseFilename)
     {
-        // Flatten KU records into ordered scalar rows. The only column-
-        // specific transform is keywords_json: it's stored as a JSON array
-        // but should appear as a semicolon-separated cell so it round-trips
-        // through Excel cleanly.
+        // Flatten KU records into ordered scalar rows. Two column-specific
+        // transforms:
+        //   - id is replaced by a 1-based row sequence. The KnowledgeUnit
+        //     primary key is internal bookkeeping and leaks DB sequence
+        //     state into customer-facing exports — a simple "row number"
+        //     is what spreadsheet readers actually expect in column 1.
+        //   - keywords_json is stored as a JSON array but should appear as a
+        //     semicolon-separated cell so it round-trips through Excel.
         $rows = [];
+        $rowNumber = 0;
         foreach ($kus as $ku) {
+            $rowNumber++;
             $row = [];
             foreach ($columns as $col) {
+                if ($col === 'id') {
+                    $row[] = $rowNumber;
+                    continue;
+                }
                 $value = $ku->{$col};
                 if ($col === 'keywords_json' && is_array($value)) {
                     $value = implode('; ', $value);

@@ -482,49 +482,54 @@
                              count title sits on the right edge (vertically
                              centred, rotated top-down).
                              Wrapper id is used by the PDF exporter to grab
-                             both titles, chart, and x-axis labels together. --}}
-                        <div id="param-search-chart-wrap" style="display: flex; align-items: stretch; gap: 4px;">
-                            {{-- Left Y-axis title (silhouette). Plain
-                                 vertical-rl writing mode keeps each character
-                                 upright and the text reading top→bottom (the
-                                 previous transform: rotate(180deg) flipped
-                                 individual glyphs upside-down). Width is
-                                 content-sized so Japanese labels can breathe. --}}
-                            <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0;">
-                                <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.silhouette') }}</span>
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="display: flex; gap: 0;">
-                                    <div id="param-search-yaxis" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 6px; width: 40px; height: 160px; font-size: 10px; color: #888;"></div>
-                                    <div style="flex: 1; position: relative;">
-                                        {{-- Gridlines container (absolute positioned behind bars) --}}
-                                        <div id="param-search-gridlines" style="position: absolute; inset: 0; pointer-events: none;"></div>
-                                        <div id="param-search-chart" style="display: flex; align-items: flex-end; gap: 2px; height: 160px; position: relative; z-index: 1;"></div>
-                                        {{-- SVG overlay for cluster count line (second axis) --}}
-                                        <svg id="param-search-line" style="position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: visible;"></svg>
+                             title columns, chart, x-axis labels, AND the
+                             legend together in one capture. --}}
+                        <div id="param-search-chart-wrap">
+                            <div style="display: flex; align-items: stretch; gap: 4px;">
+                                {{-- Left Y-axis title (silhouette). Plain
+                                     vertical-rl writing mode keeps each character
+                                     upright and the text reading top→bottom.
+                                     Explicit width of ~3 katakana glyphs avoids
+                                     the auto-sized container collapsing in PDF
+                                     capture, which made the label overlap the
+                                     silhouette tick numbers. --}}
+                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #888; flex-shrink: 0; width: 36px;">
+                                    <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.silhouette') }}</span>
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="display: flex; gap: 0;">
+                                        <div id="param-search-yaxis" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; padding-right: 6px; width: 40px; height: 160px; font-size: 10px; color: #888;"></div>
+                                        <div style="flex: 1; position: relative;">
+                                            {{-- Gridlines container (absolute positioned behind bars) --}}
+                                            <div id="param-search-gridlines" style="position: absolute; inset: 0; pointer-events: none;"></div>
+                                            <div id="param-search-chart" style="display: flex; align-items: flex-end; gap: 2px; height: 160px; position: relative; z-index: 1;"></div>
+                                            {{-- SVG overlay for cluster count line (second axis) --}}
+                                            <svg id="param-search-line" style="position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: visible;"></svg>
+                                        </div>
+                                        <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 6px; width: 40px; height: 160px; font-size: 10px; color: #333;"></div>
                                     </div>
-                                    <div id="param-search-yaxis2" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; padding-left: 6px; width: 40px; height: 160px; font-size: 10px; color: #333;"></div>
+                                    {{-- X-axis: rank numbers (1..N) aligned with the bar flex layout. --}}
+                                    <div style="display: flex; gap: 0; margin-top: 2px;">
+                                        <div style="width: 40px;"></div>
+                                        <div id="param-search-xaxis" style="flex: 1; display: flex; gap: 2px; font-size: 9px; color: #888;"></div>
+                                        <div style="width: 40px;"></div>
+                                    </div>
                                 </div>
-                                {{-- X-axis: rank numbers (1..N) aligned with the bar flex layout.
-                                     Same left/right 40px spacers so the labels sit under the bars.
-                                     Populated by renderParamChart() so the label count matches
-                                     the number of sweep results. --}}
-                                <div style="display: flex; gap: 0; margin-top: 2px;">
-                                    <div style="width: 40px;"></div>
-                                    <div id="param-search-xaxis" style="flex: 1; display: flex; gap: 2px; font-size: 9px; color: #888;"></div>
-                                    <div style="width: 40px;"></div>
+                                {{-- Right Y-axis title (clusters). Width of ~4
+                                     katakana glyphs because クラスター is one
+                                     glyph longer than シルエット and was wrapping
+                                     in PDF capture, dropping ス off-screen. --}}
+                                <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0; width: 44px;">
+                                    <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.clusters') }}</span>
                                 </div>
                             </div>
-                            {{-- Right Y-axis title (clusters). Rotated top-down
-                                 so it reads the same way as the left title when
-                                 you tilt your head to the right. Width auto so
-                                 the text can breathe — there's plenty of chart
-                                 width to spare. --}}
-                            <div style="display: flex; align-items: center; justify-content: center; padding: 0 2px; font-size: 10px; color: #333; flex-shrink: 0;">
-                                <span style="writing-mode: vertical-rl; white-space: nowrap;">{{ __('ui.clusters') }}</span>
-                            </div>
+                            {{-- Legend lives inside #param-search-chart-wrap so
+                                 the html2canvas PDF capture (which targets the
+                                 wrap by id) includes the colour key. The
+                                 padding-left lines the legend up roughly with
+                                 the chart bars (matching the y-axis spacer). --}}
+                            <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; padding-left: 76px; font-size: 11px; color: #5f6368;"></div>
                         </div>
-                        <div id="param-search-legend" style="display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: #5f6368;"></div>
                         {{-- Top results table --}}
                         <div id="param-search-top" style="margin-top: 12px;"></div>
                     </div>
@@ -1504,7 +1509,12 @@
                     if (!container) return;
 
                     if (data.status === 'completed' && data.results) {
-                        // Show results — collapsed by default, expanded if just finished polling
+                        // Show results panel and keep it expanded whenever real
+                        // results exist. The previous "only auto-expand if we
+                        // were polling" gate caused completed results loaded
+                        // on first page render (no polling) to flash the header
+                        // briefly and stay collapsed — confusing for users who
+                        // just landed on a page with finished results.
                         container.style.display = '';
                         dismissBtn.style.display = '';
                         // Sweep finished → re-enable the action buttons that were
@@ -1519,8 +1529,11 @@
                             + data.results.configs_tested + ' {{ __("ui.configs_tested") }}';
                         renderParamChart(data.results.results);
                         renderParamTopResults(data.results.results);
-                        // Auto-expand if we were polling (just finished)
-                        if (!paramResultsExpanded && window._paramSearchPolling) {
+                        // Always open the body when results are present, unless
+                        // the user has explicitly collapsed it during this
+                        // session (toggleParamResults flips paramResultsExpanded
+                        // on click). If they collapsed it, respect that.
+                        if (!paramResultsExpanded) {
                             paramResultsExpanded = true;
                             body.style.display = '';
                             chevron.style.transform = 'rotate(90deg)';
@@ -1869,9 +1882,11 @@
             html += '<table style="' + S.table + '">'
                 + '<thead><tr style="' + S.theadRow + '">'
                 + '<th style="' + S.theadCellNum + 'width:5%;">#</th>'
-                + '<th style="' + S.theadCell + 'width:24%;">{{ __("ui.method") }}</th>'
+                + '<th style="' + S.theadCell + 'width:22%;">{{ __("ui.method") }}</th>'
                 + '<th style="' + S.theadCell + '">{{ __("ui.parameters") }}</th>'
-                + '<th style="' + S.theadCellNum + 'width:9%;">{{ __("ui.clusters") }}</th>'
+                {{-- クラスター column widened from 9% so the header doesn't wrap
+                     into "クラ\nスター" inside the narrow numeric column. --}}
+                + '<th style="' + S.theadCellNum + 'width:12%;">{{ __("ui.clusters") }}</th>'
                 + '<th style="' + S.theadCellNum + 'width:11%;">{{ __("ui.silhouette") }}</th>'
                 + '<th style="' + S.theadCellNum + 'width:8%;">{{ __("ui.noise") }}</th>'
                 + '<th style="' + S.theadCellNum + 'width:9%;">{{ __("ui.sampled") }}</th>'
