@@ -74,13 +74,21 @@ class SecurityHeaders
         // Vite dev server uses inline styles; production bundles ship with
         // hashed assets. We allow 'unsafe-inline' on style-src for now to
         // avoid breaking the UI — a follow-up task should switch to nonces
-        // or SRI hashes. JavaScript is tightly scoped to self + CDN.
+        // or SRI hashes.
+        //
+        // Script-src also needs 'unsafe-inline' temporarily: the workspace,
+        // dashboard and dataset views rely heavily on inline onclick="..."
+        // handlers and inline <script> blocks. Removing 'unsafe-inline'
+        // silently breaks every button on these pages (CSP refuses to
+        // execute the handlers). The proper fix is to migrate to nonces
+        // and addEventListener — tracked separately. Until that lands,
+        // matching the same compromise as style-src keeps the UI usable.
         //
         // Embed pages additionally need frame-ancestors=<customer domains>.
         // The EmbedApiKeyAuth middleware already enforces per-key origin
         // allowlists, so here we set a permissive frame-ancestors so the
         // iframe can load under any approved site.
-        $scriptSrc = "'self'";
+        $scriptSrc = "'self' 'unsafe-inline'";
         $styleSrc  = "'self' 'unsafe-inline'";
         $imgSrc    = "'self' data: blob: https:";
         $fontSrc   = "'self' data:";
