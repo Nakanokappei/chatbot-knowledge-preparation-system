@@ -30,11 +30,27 @@ from src.steps.clustering import (
     download_npy_from_s3,
     download_json_from_s3,
 )
+from src.target_scoring import (
+    DEFAULT_TARGET,
+    TARGET_PROFILES,
+    max_cluster_share_from_labels,
+    score_trial,
+)
+from src.parameter_search_advisor import (
+    build_advisor_input,
+    generate_advisory_markdown,
+)
 
 logger = logging.getLogger(__name__)
 
 # Maximum number of rows to sample for the parameter sweep
 SAMPLE_SIZE = 1500
+
+# Drop candidates whose noise ratio exceeds this threshold from the
+# "Accepted" group. A high score on "6 tiny clusters carved out of 1,500
+# points with 97% noise" is numerically valid but operationally useless.
+# Mirrors voice-classifier's MAX_NOISE_RATIO_FOR_SELECTION.
+MAX_NOISE_RATIO_FOR_SELECTION: float = 0.5
 
 
 def build_sweep_configs(n_samples: int) -> list[dict]:
@@ -112,14 +128,24 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     sample_size = len(sample)
     update_job_status(job_id, status="parameter_search", progress=15)
 
-    # Step 3: Optional language direction removal
+    # Step 3: Load row_ids for the sampled subset.
+    # Always loaded (cheap S3 read) because the advisor needs them to fetch
+    # representative raw_text from dataset_rows for the top sample clusters.
+    # Language debiasing optionally consumes the same array.
+    row_ids_path = input_s3_path.replace("embeddings.npy", "row_ids.json")
+    sampled_row_ids: list | None = None
+    try:
+        all_row_ids = download_json_from_s3(row_ids_path)
+        sampled_row_ids = [all_row_ids[i] for i in indices]
+    except Exception as e:
+        logger.warning(
+            "Could not load row_ids.json (%s) — advisor representatives "
+            "will be unavailable", e,
+        )
+
     remove_lang_bias = pipeline_config.get("remove_language_bias", True)
-    if remove_lang_bias:
-        # Load row_ids for the sampled subset to enable language detection
-        row_ids_path = input_s3_path.replace("embeddings.npy", "row_ids.json")
+    if remove_lang_bias and sampled_row_ids is not None:
         try:
-            all_row_ids = download_json_from_s3(row_ids_path)
-            sampled_row_ids = [all_row_ids[i] for i in indices]
             sample, _ = remove_language_direction(sample, sampled_row_ids)
             logger.info("Applied language debiasing to sample")
         except Exception as e:
@@ -130,6 +156,19 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     # Step 4: Run the sweep — each configuration gets clustering + silhouette
     configs = build_sweep_configs(sample_size)
     results = []
+
+    # Optional ranking target — if not provided, default to "chatbot" since
+    # KPS's downstream use case is FAQ / chatbot intent design. The PHP report
+    # shows scores under all three targets so the user can compare.
+    target = (pipeline_config.get("target") or DEFAULT_TARGET).lower()
+    if target not in TARGET_PROFILES:
+        logger.warning("Unknown target '%s'; falling back to %s", target, DEFAULT_TARGET)
+        target = DEFAULT_TARGET
+
+    # Cache winner sample labels so the advisor digest can derive top-N
+    # cluster sizes / representative rows from the same sample we scored.
+    winner_sample_labels: np.ndarray | None = None
+    winner_score: float = -1.0
 
     for i, config in enumerate(configs):
         try:
@@ -157,14 +196,35 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
                     sample[non_noise], labels[non_noise], metric='cosine',
                 ))
 
-            results.append({
+            # Largest-cluster share — drives the share_penalty in the
+            # target scorer and shows up directly in the report.
+            max_share = max_cluster_share_from_labels(labels, sample_size)
+
+            trial = {
                 "method": config["method"],
                 "label": config["label"],
                 "params": effective_params,
                 "n_clusters": n_clusters,
                 "silhouette_score": round(sil, 4),
                 "n_noise": n_noise,
-            })
+                "max_cluster_share": round(max_share, 4),
+                # Pre-computed scores under all three targets so the PHP
+                # report renders the table without re-implementing the
+                # scoring formula in Blade. Keeping these here also means
+                # the worker is the single source of truth for ranking.
+                "score_faq": round(score_trial(sil, n_clusters, max_share, "faq"), 4),
+                "score_chatbot": round(score_trial(sil, n_clusters, max_share, "chatbot"), 4),
+                "score_insight": round(score_trial(sil, n_clusters, max_share, "insight"), 4),
+            }
+            results.append(trial)
+
+            # Track the active-target winner during the sweep so we can
+            # later pull representatives from the matching label array.
+            if (n_noise / sample_size) <= MAX_NOISE_RATIO_FOR_SELECTION:
+                this_score = trial[f"score_{target}"]
+                if this_score > winner_score:
+                    winner_score = this_score
+                    winner_sample_labels = labels.copy()
         except Exception as e:
             logger.warning("Sweep config %s failed: %s", config["label"], e)
             results.append({
@@ -174,6 +234,10 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
                 "n_clusters": 0,
                 "silhouette_score": -1.0,
                 "n_noise": 0,
+                "max_cluster_share": 0.0,
+                "score_faq": 0.0,
+                "score_chatbot": 0.0,
+                "score_insight": 0.0,
                 "error": str(e),
             })
 
@@ -181,22 +245,61 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         progress = 20 + int((i + 1) / len(configs) * 75)
         update_job_status(job_id, status="parameter_search", progress=progress)
 
-    # Step 5: Sort by silhouette descending and store results
+    # Step 5: Sort by silhouette descending so the chart UI keeps its existing
+    # bar order (highest silhouette first). The PHP report re-sorts by the
+    # active target's score for the "Accepted Candidates" table.
     results.sort(key=lambda r: -r["silhouette_score"])
+
+    # Step 6: Generate the LLM advisory using the winner's sample labels.
+    # Bedrock Claude is invoked once for the whole digest. If anything fails
+    # (no winner, naming/advisor errors), the report still renders without
+    # an advisory section.
+    advisory_md: str = ""
+    top_clusters_meta: list[dict] = []
+    advisor_meta: dict = {}
+    try:
+        if winner_sample_labels is not None:
+            update_job_status(job_id, status="parameter_search", progress=96)
+            digest_input = build_advisor_input(
+                results=results,
+                sample_size=sample_size,
+                total_rows=total_rows,
+                target=target,
+                winner_sample_labels=winner_sample_labels,
+                sampled_row_ids=sampled_row_ids,
+                input_s3_path=input_s3_path,
+            )
+            advisory_md, top_clusters_meta, advisor_meta = generate_advisory_markdown(
+                digest_input
+            )
+        else:
+            logger.info(
+                "No candidate passed the noise-ratio filter; advisory skipped"
+            )
+    except Exception as e:
+        # Soft-fail: the report is still useful without the advisory.
+        logger.warning("Advisory generation failed: %s", e, exc_info=True)
 
     update_job_step_outputs(job_id, "parameter_search", {
         "sample_size": sample_size,
         "total_rows": total_rows,
         "configs_tested": len(configs),
+        "target": target,
+        "noise_ratio_threshold": MAX_NOISE_RATIO_FOR_SELECTION,
         "results": results,
+        "advisory_markdown": advisory_md,
+        "top_clusters": top_clusters_meta,
+        "advisor_meta": advisor_meta,
     })
 
-    # Step 6: Mark complete — no chaining (this is a standalone analysis step)
+    # Step 7: Mark complete — no chaining (this is a standalone analysis step)
     update_job_status(job_id, status="completed", progress=100)
 
     logger.info(
-        "Parameter search completed for job %d: %d configs tested, best silhouette=%.4f (%s)",
+        "Parameter search completed for job %d: %d configs tested, best silhouette=%.4f (%s), target=%s, advisory=%s",
         job_id, len(configs),
         results[0]["silhouette_score"] if results else -1,
         results[0]["label"] if results else "none",
+        target,
+        "yes" if advisory_md else "no",
     )

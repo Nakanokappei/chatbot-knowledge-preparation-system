@@ -8,6 +8,7 @@ use App\Models\KnowledgeUnit;
 use App\Models\LlmModel;
 use App\Models\PipelineJob;
 use App\Support\CsvDownload;
+use App\Support\ParameterSearchScoring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -420,6 +421,162 @@ class EmbeddingController extends Controller
             'progress' => $job->progress,
             'results' => $results,
         ]);
+    }
+
+    /**
+     * Render the full parameter-search HTML report.
+     *
+     * Drop-in replacement for the previous client-side PDF export. The page
+     * is print-friendly (the user prints to PDF from the browser when they
+     * need a deliverable) and self-contained: chart, search conditions,
+     * selected configuration, ranked accepted candidates with target-aware
+     * scores, rejected candidate tables, per-method digest, and the
+     * Bedrock-generated executive advisory section.
+     *
+     * Pipes raw `step_outputs_json` from the latest parameter_search job
+     * into a Blade template; falls back to a "no results" page when the
+     * sweep has not been run for this embedding yet.
+     */
+    public function parameterSearchReport(int $embeddingId): View
+    {
+        $workspaceId = auth()->user()->workspace_id;
+
+        $embedding = Embedding::where('workspace_id', $workspaceId)
+            ->with('dataset:id,name')
+            ->findOrFail($embeddingId);
+
+        // Latest parameter_search job for this embedding. Older jobs are
+        // ignored — re-running the sweep replaces them anyway.
+        $job = PipelineJob::where('embedding_id', $embeddingId)
+            ->where('workspace_id', $workspaceId)
+            ->where('start_step', 'parameter_search')
+            ->orderByDesc('created_at')
+            ->first();
+
+        $payload = $job?->step_outputs_json['parameter_search'] ?? null;
+        if (!$payload || empty($payload['results'])) {
+            return view('workspace.parameter_search_report', [
+                'embedding' => $embedding,
+                'job' => $job,
+                'payload' => null,
+            ]);
+        }
+
+        $sampleSize = max((int) ($payload['sample_size'] ?? 1), 1);
+        $totalRows = (int) ($payload['total_rows'] ?? $sampleSize);
+        $target = (string) ($payload['target'] ?? ParameterSearchScoring::DEFAULT_TARGET);
+        $noiseThreshold = (float) ($payload['noise_ratio_threshold'] ?? 0.5);
+
+        // Normalise every trial: backfill missing fields with derived values
+        // so the Blade template can assume a uniform shape regardless of
+        // whether the job was created before or after the worker enrichment.
+        $trials = collect($payload['results'])->map(function (array $trial) use ($sampleSize, $noiseThreshold) {
+            $sil = $trial['silhouette_score'] ?? null;
+            $silFloat = is_numeric($sil) ? (float) $sil : null;
+            $nClusters = (int) ($trial['n_clusters'] ?? 0);
+            $nNoise = (int) ($trial['n_noise'] ?? 0);
+            $maxShare = isset($trial['max_cluster_share'])
+                ? (float) $trial['max_cluster_share']
+                : 0.0;
+            $noiseRatio = $sampleSize > 0 ? $nNoise / $sampleSize : 0.0;
+
+            // Pre-computed scores from the worker (preferred); fall back to
+            // recomputing in PHP for older jobs that lack the columns.
+            $scoreFor = function (string $tgt) use ($trial, $silFloat, $nClusters, $maxShare) {
+                $key = "score_{$tgt}";
+                if (isset($trial[$key]) && is_numeric($trial[$key])) {
+                    return (float) $trial[$key];
+                }
+                return ParameterSearchScoring::score($silFloat, $nClusters, $maxShare, $tgt);
+            };
+
+            $scoreFaq = $scoreFor('faq');
+            $scoreChatbot = $scoreFor('chatbot');
+            $scoreInsight = $scoreFor('insight');
+
+            // Categorise each trial so the report can split Accepted /
+            // Rejected (noise filter) / Rejected (degenerate) sections.
+            if ($silFloat === null || $silFloat <= -1.0 || $nClusters < 2) {
+                $status = 'degenerate';
+            } elseif ($noiseRatio > $noiseThreshold) {
+                $status = 'rejected_noise';
+            } else {
+                $status = 'accepted';
+            }
+
+            return array_merge($trial, [
+                'silhouette_score' => $silFloat,
+                'n_clusters' => $nClusters,
+                'n_noise' => $nNoise,
+                'max_cluster_share' => $maxShare,
+                'noise_ratio' => $noiseRatio,
+                'score_faq' => $scoreFaq,
+                'score_chatbot' => $scoreChatbot,
+                'score_insight' => $scoreInsight,
+                'status' => $status,
+            ]);
+        });
+
+        // Chart-rank: bar position in the silhouette chart (sorted desc).
+        // The Accepted Candidates table later cites this number so users
+        // can cross-reference any row to a specific bar in the SVG.
+        $silhouetteRanked = $trials->filter(fn($t) => $t['silhouette_score'] !== null)
+            ->sortByDesc('silhouette_score')
+            ->values();
+        $chartRanks = [];
+        foreach ($silhouetteRanked as $idx => $trial) {
+            $chartRanks[$this->trialKey($trial)] = $idx + 1;
+        }
+
+        $accepted = $trials->where('status', 'accepted')
+            ->sortByDesc("score_{$target}")
+            ->values();
+        $rejectedNoise = $trials->where('status', 'rejected_noise')
+            ->sortByDesc('silhouette_score')
+            ->values();
+        $rejectedDegenerate = $trials->where('status', 'degenerate')->values();
+
+        $winner = $accepted->first();
+
+        // Per-method digest tables (KMeans / HDBSCAN / Leiden), preserving
+        // the original sweep order within each method group.
+        $byMethod = $trials->groupBy('method')->map(fn($group) => $group->values());
+
+        return view('workspace.parameter_search_report', [
+            'embedding' => $embedding,
+            'job' => $job,
+            'payload' => $payload,
+            'target' => $target,
+            'sampleSize' => $sampleSize,
+            'totalRows' => $totalRows,
+            'configsTested' => (int) ($payload['configs_tested'] ?? $trials->count()),
+            'noiseThreshold' => $noiseThreshold,
+            'trials' => $trials,
+            'silhouetteRanked' => $silhouetteRanked,
+            'chartRanks' => $chartRanks,
+            'accepted' => $accepted,
+            'rejectedNoise' => $rejectedNoise,
+            'rejectedDegenerate' => $rejectedDegenerate,
+            'byMethod' => $byMethod,
+            'winner' => $winner,
+            'advisoryMd' => (string) ($payload['advisory_markdown'] ?? ''),
+            'topClusters' => $payload['top_clusters'] ?? [],
+            'advisorMeta' => $payload['advisor_meta'] ?? [],
+        ]);
+    }
+
+    /**
+     * Stable identity for a trial — used when building the chart-rank map
+     * so the Accepted/Rejected tables can look up the bar position from
+     * the same `(method, params)` tuple that the chart renders.
+     */
+    private function trialKey(array $trial): string
+    {
+        $params = $trial['params'] ?? [];
+        if (is_array($params)) {
+            ksort($params);
+        }
+        return json_encode([$trial['method'] ?? '', $params], JSON_UNESCAPED_UNICODE);
     }
 
     /**

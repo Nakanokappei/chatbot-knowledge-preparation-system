@@ -103,6 +103,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/workspace/{embeddingId}/parameter-search', [EmbeddingController::class, 'parameterSearch'])->name('workspace.parameter-search');
     Route::get('/workspace/{embeddingId}/parameter-search-results', [EmbeddingController::class, 'parameterSearchResults'])->name('workspace.parameter-search-results');
     Route::post('/workspace/{embeddingId}/dismiss-param-search', [EmbeddingController::class, 'dismissParameterSearch'])->name('workspace.dismiss-param-search');
+    Route::get('/workspace/{embeddingId}/parameter-search-report', [EmbeddingController::class, 'parameterSearchReport'])->name('workspace.parameter-search-report');
     Route::delete('/workspace/{embeddingId}', [EmbeddingController::class, 'destroy'])->name('workspace.destroy');
     Route::post('/workspace/cleanup-jobs', [EmbeddingController::class, 'cleanupJobs'])->name('workspace.cleanup-jobs');
     Route::get('/workspace/{embeddingId}/export', [EmbeddingController::class, 'export'])->name('workspace.export');

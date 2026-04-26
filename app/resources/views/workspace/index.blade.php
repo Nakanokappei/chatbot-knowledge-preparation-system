@@ -460,14 +460,20 @@
                             {{ __('ui.parameter_search_results') }}
                         </button>
                         <span id="param-search-status" style="font-size: 12px; color: #5f6368;"></span>
-                        {{-- Export the current chart + top-5 table as a PDF
-                             report (client-side via html2canvas + jsPDF). Only
+                        {{-- Open the full server-rendered HTML report in a new
+                             tab. Replaces the old client-side PDF export
+                             (chart-only via html2canvas/jsPDF) with the
+                             comprehensive report — search conditions,
+                             ranked candidates with target-aware scores,
+                             rejected/per-method tables, and the AI advisory
+                             from Bedrock. The user prints to PDF from the
+                             browser when they need a deliverable. Only
                              shown once results are populated — dispatched by
                              renderParamSearchChart() at render time. --}}
-                        <button type="button" id="param-search-pdf" onclick="exportParamSearchPdf()"
-                            style="display:none; margin-left: auto; background: none; border: 1px solid #0071e3; border-radius: 6px; color: #0071e3; font-size: 12px; cursor: pointer; padding: 4px 10px;">
-                            {{ __('ui.parameter_search_pdf_export') ?? '📄 PDF' }}
-                        </button>
+                        <a id="param-search-pdf" href="{{ route('workspace.parameter-search-report', $current->id) }}" target="_blank" rel="noopener"
+                            style="display:none; margin-left: auto; background: none; border: 1px solid #0071e3; border-radius: 6px; color: #0071e3; font-size: 12px; cursor: pointer; padding: 4px 10px; text-decoration: none;">
+                            📊 {{ __('ui.parameter_search_report_export') ?? 'レポートを出力' }}
+                        </a>
                         <button type="button" id="param-search-dismiss" onclick="dismissParamResults()"
                             style="display:none; background: none; border: 1px solid #ff3b30; border-radius: 6px; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 4px 8px;">
                             ✕ {{ __('ui.dismiss') ?? '消去' }}
@@ -1707,8 +1713,10 @@
         function renderParamTopResults(results) {
             const container = document.getElementById('param-search-top');
             if (!container) return;
-            // On-screen view keeps the compact top-5 preview. The PDF export
-            // path uses _renderParamAllResultsHtml() below to render all 24.
+            // On-screen view keeps the compact top-5 preview. The full
+            // ranked list lives in the server-rendered HTML report
+            // (workspace.parameter-search-report) opened from the
+            // "レポートを出力" button.
             const top5 = results.slice(0, 5);
             let html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">'
                 + '<tr style="color:#5f6368;font-size:11px;"><th style="text-align:left;padding:4px;">{{ __("ui.method") }}</th>'
@@ -1753,167 +1761,6 @@
             return lowColor;                       // muted: typical / poor
         }
 
-        // Shared "US accounting" table styling tokens used by both the
-        // results table and the glossary in the PDF. The intent is a
-        // calm, reading-friendly layout: no vertical lines, only thin
-        // horizontal rules to separate header from body, and a thicker
-        // line capping the bottom — the convention used on financial
-        // statements.
-        const _PDF_TABLE_STYLES = {
-            container: 'background:#fff;padding:12px;font-family:inherit;',
-            heading:   'margin:0 0 6px 0;font-size:12px;color:#1d1d1f;font-weight:500;letter-spacing:0.02em;',
-            table:     'width:100%;border-collapse:collapse;font-size:10.5px;',
-            // Header: thin double rule above and a single rule below
-            theadRow:  'color:#5f6368;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:9.5px;',
-            theadCell: 'padding:6px 8px;border-top:1.5px solid #1d1d1f;border-bottom:0.5px solid #1d1d1f;text-align:left;',
-            theadCellNum: 'padding:6px 8px;border-top:1.5px solid #1d1d1f;border-bottom:0.5px solid #1d1d1f;text-align:right;',
-            // Body rows: no row separators (US-accounting style is to
-            // rely on vertical alignment, not horizontal rules)
-            bodyCell:    'padding:5px 8px;text-align:left;vertical-align:top;',
-            bodyCellNum: 'padding:5px 8px;text-align:right;vertical-align:top;font-variant-numeric:tabular-nums;',
-            // Closing rule under the body — single line, like a totals
-            // row separator on a balance sheet
-            footerCell:  'border-top:0.5px solid #1d1d1f;',
-            // Glossary-specific muted variant (smaller + greyer)
-            mutedHeading:    'margin:0 0 6px 0;font-size:10px;color:#8a8a8e;font-weight:500;letter-spacing:0.02em;',
-            mutedTable:      'width:100%;border-collapse:collapse;font-size:9.5px;color:#555;',
-            mutedTheadRow:   'color:#8a8a8e;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:9px;',
-            mutedTheadCell:  'padding:5px 8px;border-top:1px solid #8a8a8e;border-bottom:0.5px solid #8a8a8e;text-align:left;',
-        };
-
-        /**
-         * Build a compact, low-emphasis glossary describing each clustering
-         * method and its parameters. Rendered as the final section of the
-         * PDF report so readers unfamiliar with HDBSCAN / Leiden / K-Means
-         * / Agglomerative can interpret the results above.
-         *
-         * Same horizontal-rules-only style as the results table, but in
-         * muted grey so it reads as supporting reference material.
-         */
-        function _renderParamGlossaryHtml() {
-            const entries = [
-                {
-                    method: 'HDBSCAN',
-                    desc: 'Hierarchical Density-Based Spatial Clustering。密度ベースで自動的にクラスタ数を決定し、ノイズ点を検出できる手法。距離指標は euclidean ですが、入力ベクトルを L2 正規化しているため cosine 順位と等価。',
-                    params: [
-                        ['min_cluster_size', 'クラスタとして扱う最小のデータ点数。大きいほど少数の大きなクラスタに、小さいほど多数の細かいクラスタになる'],
-                        ['min_samples', 'コア点と判定する近傍点の最小数。大きいほどノイズに敏感になり、小さいほど緩く判定する'],
-                        ['metric', '距離尺度。euclidean on L2-normalized vectors = cosine-equivalent'],
-                    ],
-                },
-                {
-                    method: 'K-Means',
-                    desc: '指定したクラスタ数 K でデータを分割する古典的手法。全点が必ずいずれかのクラスタに属する（ノイズ無し）。距離は euclidean ですが、L2 正規化された入力に対しては cosine 相当（spherical k-means に相当）。',
-                    params: [
-                        ['n_clusters', '分割するクラスタ数。事前に決める必要がある'],
-                        ['n_init', 'ランダム初期化の試行回数。多いほど安定するが遅い'],
-                        ['max_iter', '各試行での最大反復回数'],
-                    ],
-                },
-                {
-                    method: 'Agglomerative',
-                    desc: '階層的クラスタリング。近いもの同士をボトムアップに結合していき、指定クラスタ数で切る。ward linkage を使用、距離は euclidean（L2 正規化により cosine 相当）。',
-                    params: [
-                        ['n_clusters', '最終的な切り出しクラスタ数'],
-                        ['linkage', '結合基準。ward は分散最小化（デフォルト）、average は平均距離、single は最小距離'],
-                    ],
-                },
-                {
-                    method: 'Leiden (HNSW + Leiden)',
-                    desc: 'HNSW で近傍グラフを構築し、Leiden アルゴリズムでコミュニティを検出するグラフベース手法。高次元埋め込みで自然なクラスタを見つけやすい。HNSW インデックスで cosine 距離を直接使用。',
-                    params: [
-                        ['n_neighbors', '各点の近傍として考える数。小さいと細かく、大きいと粗く分かれる'],
-                        ['resolution', 'コミュニティの粒度パラメータ。大きいほどクラスタ数が増える'],
-                        ['ef_construction', 'HNSW インデックス構築時の探索広さ。大きいほど高精度だが構築が遅い'],
-                        ['M', 'HNSW の各点の近傍接続数。グラフ品質とメモリのトレードオフ'],
-                    ],
-                },
-            ];
-
-            const S = _PDF_TABLE_STYLES;
-            const wrap = document.createElement('div');
-            wrap.style.cssText = S.container + 'color:#6b6b70;';
-            let html = '<h3 style="' + S.mutedHeading + '">専門用語の説明 / Glossary</h3>';
-            html += '<table style="' + S.mutedTable + '">'
-                + '<thead><tr style="' + S.mutedTheadRow + '">'
-                + '<th style="' + S.mutedTheadCell + 'width:18%;">手法 / Method</th>'
-                + '<th style="' + S.mutedTheadCell + '">説明 / Description &amp; Parameters</th>'
-                + '</tr></thead><tbody>';
-            entries.forEach(e => {
-                let paramsHtml = '';
-                if (e.params.length) {
-                    paramsHtml = '<div style="margin-top:4px;padding-left:8px;">';
-                    e.params.forEach(([name, desc]) => {
-                        paramsHtml += '<div style="margin-bottom:2px;"><code style="font-family:monospace;color:#333;">' + name + '</code>: <span style="color:#6b6b70;">' + desc + '</span></div>';
-                    });
-                    paramsHtml += '</div>';
-                }
-                html += '<tr>'
-                    + '<td style="' + S.bodyCell + 'font-weight:500;color:#555;">' + e.method + '</td>'
-                    + '<td style="' + S.bodyCell + '">'
-                    + '<span style="color:#555;">' + e.desc + '</span>'
-                    + paramsHtml
-                    + '</td></tr>';
-            });
-            html += '</tbody><tfoot><tr><td colspan="2" style="' + S.footerCell + '"></td></tr></tfoot></table>';
-            wrap.innerHTML = html;
-            return wrap;
-        }
-
-        /**
-         * Render the top-N parameter-search results for the PDF export.
-         * Columns: # (rank), method, params, clusters, silhouette, noise,
-         * size (sample_size shared by all rows; useful as denominator for
-         * the clusters/noise columns).
-         *
-         * Limited to top 10 by silhouette so the table fits comfortably
-         * on the same page as the chart instead of paginating across
-         * pages and obscuring the chart capture.
-         *
-         * Styled in US-accounting convention (no vertical lines, only
-         * thin horizontal rules around the header and below the body).
-         * Returned as a detached DOM node that the PDF exporter mounts
-         * into the document briefly during capture.
-         */
-        function _renderParamAllResultsHtml(results, sampleSize) {
-            const S = _PDF_TABLE_STYLES;
-            const top = results.slice(0, 10);
-            const wrap = document.createElement('div');
-            wrap.style.cssText = S.container;
-            let html = '<h3 style="' + S.heading + '">'
-                + '{{ __("ui.parameter_search_results") }} (Top ' + top.length
-                + ' / ' + results.length + ' tested)</h3>';
-            html += '<table style="' + S.table + '">'
-                + '<thead><tr style="' + S.theadRow + '">'
-                + '<th style="' + S.theadCellNum + 'width:5%;">#</th>'
-                + '<th style="' + S.theadCell + 'width:22%;">{{ __("ui.method") }}</th>'
-                + '<th style="' + S.theadCell + '">{{ __("ui.parameters") }}</th>'
-                {{-- クラスター column widened from 9% so the header doesn't wrap
-                     into "クラ\nスター" inside the narrow numeric column. --}}
-                + '<th style="' + S.theadCellNum + 'width:12%;">{{ __("ui.clusters") }}</th>'
-                + '<th style="' + S.theadCellNum + 'width:11%;">{{ __("ui.silhouette") }}</th>'
-                + '<th style="' + S.theadCellNum + 'width:8%;">{{ __("ui.noise") }}</th>'
-                + '<th style="' + S.theadCellNum + 'width:9%;">{{ __("ui.sampled") }}</th>'
-                + '</tr></thead><tbody>';
-            top.forEach((r, i) => {
-                const paramStr = Object.entries(r.params || {}).map(([k,v]) => k + '=' + v).join(', ');
-                // PDF runs on white paper, so the grey fallback needs more
-                // contrast than the on-screen variant (#555 → #1d1d1f).
-                const silColor = silhouetteColor(r.silhouette_score, '#1d1d1f');
-                html += '<tr>'
-                    + '<td style="' + S.bodyCellNum + 'color:#5f6368;">' + (i + 1) + '</td>'
-                    + '<td style="' + S.bodyCell + 'font-weight:500;">' + (r.label || r.method) + '</td>'
-                    + '<td style="' + S.bodyCell + 'font-size:9.5px;color:#5f6368;">' + paramStr + '</td>'
-                    + '<td style="' + S.bodyCellNum + '">' + r.n_clusters + '</td>'
-                    + '<td style="' + S.bodyCellNum + 'font-weight:600;color:' + silColor + ';">' + (r.silhouette_score != null ? r.silhouette_score.toFixed(3) : '—') + '</td>'
-                    + '<td style="' + S.bodyCellNum + 'color:#5f6368;">' + (r.n_noise != null ? r.n_noise : '—') + '</td>'
-                    + '<td style="' + S.bodyCellNum + 'color:#5f6368;">' + (sampleSize != null ? sampleSize : '—') + '</td>'
-                    + '</tr>';
-            });
-            html += '</tbody><tfoot><tr><td colspan="7" style="' + S.footerCell + '"></td></tr></tfoot></table>';
-            wrap.innerHTML = html;
-            return wrap;
-        }
 
         /**
          * Disable (or re-enable) the recluster and parameter-search buttons
@@ -2567,219 +2414,4 @@
         }
         @endif
 
-        // ── Parameter Search → PDF report export ─────────────────────────
-        // Captures the existing chart panel + top-results table as images,
-        // assembles them into an A4 PDF, and triggers a download. Uses
-        // jsPDF + html2canvas loaded lazily from CDN on first click so the
-        // main page load doesn't pay for it.
-        function _loadScriptOnce(src) {
-            // Avoid adding the same <script src> twice if the user clicks
-            // the PDF button more than once; resolve immediately when it's
-            // already in the DOM.
-            return new Promise((resolve, reject) => {
-                if (document.querySelector('script[data-lazy-src="' + src + '"]')) {
-                    resolve();
-                    return;
-                }
-                const s = document.createElement('script');
-                s.src = src;
-                s.dataset.lazySrc = src;
-                s.onload = () => resolve();
-                s.onerror = () => reject(new Error('failed to load ' + src));
-                document.head.appendChild(s);
-            });
-        }
-
-        async function exportParamSearchPdf() {
-            const btn = document.getElementById('param-search-pdf');
-            const body = document.getElementById('param-search-body');
-            const chartWrap = document.getElementById('param-search-results');
-            const toggle = document.getElementById('param-results-toggle');
-            if (!chartWrap) return;
-
-            // The chart + table live inside the collapsible body. If the user
-            // kept it collapsed, we have to open it so html2canvas has a
-            // laid-out DOM to capture (display:none produces a blank canvas).
-            const wasCollapsed = body && body.style.display === 'none';
-            if (wasCollapsed) {
-                body.style.display = '';
-                document.getElementById('param-results-chevron').style.transform = 'rotate(90deg)';
-                // Let the browser lay out + SVG line overlay re-draw before capture.
-                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-                if (typeof drawParamLine === 'function') drawParamLine();
-                await new Promise(r => setTimeout(r, 150));
-            }
-
-            if (btn) { btn.disabled = true; btn.textContent = '⏳ ...'; }
-            try {
-                await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-                await _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-
-                const jsPDF = window.jspdf ? window.jspdf.jsPDF : window.jsPDF;
-                if (!jsPDF || typeof window.html2canvas !== 'function') {
-                    throw new Error('PDF libraries failed to initialise');
-                }
-
-                // A4 portrait in mm; allocate a 14mm margin on every side.
-                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                const pageW = doc.internal.pageSize.getWidth();
-                const margin = 14;
-                const usableW = pageW - margin * 2;
-
-                // Title block — dataset name + timestamp for traceability.
-                const datasetName = @json($current?->dataset?->name ?? $current?->name ?? 'dataset');
-                const now = new Date();
-                const pad = n => String(n).padStart(2, '0');
-                const stamp = now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate())
-                            + '-' + pad(now.getHours()) + pad(now.getMinutes());
-
-                doc.setFontSize(14);
-                doc.text('Parameter Search Report', margin, margin + 2);
-                doc.setFontSize(10);
-                doc.setTextColor(90);
-                doc.text(datasetName + '  /  ' + now.toLocaleString(), margin, margin + 8);
-                doc.setTextColor(0);
-
-                let cursorY = margin + 14;
-
-                // Capture only the chart region (not the whole body). We avoid
-                // capturing the table-top so it doesn't show up as a blurred
-                // raster alongside the full-size 24-row table below. Using
-                // the dedicated wrapper gives us Y-axis title + gridlines +
-                // bars + SVG line overlay + x-axis labels in one shot.
-                const chartEl = document.getElementById('param-search-chart-wrap')
-                              ?? document.getElementById('param-search-chart');
-                const chartCanvas = await window.html2canvas(chartEl, {
-                    scale: 2, backgroundColor: '#ffffff', logging: false,
-                    // Strip screen-only controls ("use these params", dismiss)
-                    // from the clone so the rasterised chart doesn't include
-                    // buttons that don't belong in the report.
-                    onclone: (doc) => {
-                        doc.querySelectorAll('.pdf-hide').forEach(el => { el.style.display = 'none'; });
-                    },
-                });
-                // Fit to usable width, preserve aspect ratio, cap height so
-                // the chart doesn't squeeze the first table page.
-                const chartImg = chartCanvas.toDataURL('image/png');
-                const chartAspect = chartCanvas.height / chartCanvas.width;
-                const chartH = Math.min(usableW * chartAspect, 120);
-                doc.addImage(chartImg, 'PNG', margin, cursorY, usableW, chartH);
-                cursorY += chartH + 6;
-
-                // Build a dedicated "all 24 results" table off-screen, capture
-                // it, and paginate across PDF pages as needed. This replaces
-                // the on-screen top-5 list for the report.
-                const sampleSize = window._paramSearchSampleSize;
-                const allResults = window._paramSearchResults || [];
-                if (allResults.length) {
-                    const allTableEl = _renderParamAllResultsHtml(allResults, sampleSize);
-                    // Render off-screen but inside the layout flow so real
-                    // CSS applies (fixed width ensures predictable aspect).
-                    allTableEl.style.position = 'fixed';
-                    allTableEl.style.top = '-10000px';
-                    allTableEl.style.left = '0';
-                    allTableEl.style.width = '700px';
-                    document.body.appendChild(allTableEl);
-                    try {
-                        await new Promise(r => requestAnimationFrame(r));
-                        const tableCanvas = await window.html2canvas(allTableEl, {
-                            scale: 2, backgroundColor: '#ffffff', logging: false,
-                        });
-                        const tableImg = tableCanvas.toDataURL('image/png');
-                        const tableAspect = tableCanvas.height / tableCanvas.width;
-                        const tableFullH = usableW * tableAspect;
-                        const pageH = doc.internal.pageSize.getHeight();
-                        const availableFirstPage = pageH - cursorY - margin;
-                        // If the table fits on the same page as the chart, just add it.
-                        // Otherwise start a new page and paginate by slicing the source
-                        // canvas vertically into page-height chunks.
-                        if (tableFullH <= availableFirstPage) {
-                            // Common case (top-10 fits comfortably alongside chart)
-                            doc.addImage(tableImg, 'PNG', margin, cursorY, usableW, tableFullH);
-                            cursorY += tableFullH + 6;
-                        } else {
-                            // Table is too big for the remaining space on the
-                            // current page. Always start the table on a fresh
-                            // page (otherwise the first slice draws at margin,
-                            // margin and overwrites the chart we just placed).
-                            doc.addPage();
-                            cursorY = margin;
-                            const pagePixelsPerMm = tableCanvas.width / usableW;
-                            const pageBudgetMm = pageH - margin * 2;
-                            const pageBudgetPx = pageBudgetMm * pagePixelsPerMm;
-                            let srcY = 0;
-                            let first = true;
-                            while (srcY < tableCanvas.height) {
-                                const sliceH = Math.min(pageBudgetPx, tableCanvas.height - srcY);
-                                const slice = document.createElement('canvas');
-                                slice.width = tableCanvas.width;
-                                slice.height = sliceH;
-                                slice.getContext('2d').drawImage(
-                                    tableCanvas, 0, srcY, tableCanvas.width, sliceH,
-                                    0, 0, tableCanvas.width, sliceH,
-                                );
-                                const sliceMmH = sliceH / pagePixelsPerMm;
-                                // First iteration uses the page we just added;
-                                // subsequent iterations need their own pages.
-                                if (!first) doc.addPage();
-                                doc.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, usableW, sliceMmH);
-                                srcY += sliceH;
-                                first = false;
-                                cursorY = margin + sliceMmH + 6;
-                            }
-                        }
-                    } finally {
-                        document.body.removeChild(allTableEl);
-                    }
-                }
-
-                // Glossary: method + parameter explanations. Kept visually
-                // muted (grey palette, small font) because it's reference
-                // material, not a finding. Rendered on a fresh page so the
-                // main results read cleanly.
-                const glossaryEl = _renderParamGlossaryHtml();
-                glossaryEl.style.position = 'fixed';
-                glossaryEl.style.top = '-10000px';
-                glossaryEl.style.left = '0';
-                glossaryEl.style.width = '700px';
-                document.body.appendChild(glossaryEl);
-                try {
-                    await new Promise(r => requestAnimationFrame(r));
-                    const glossCanvas = await window.html2canvas(glossaryEl, {
-                        scale: 2, backgroundColor: '#ffffff', logging: false,
-                    });
-                    const glossImg = glossCanvas.toDataURL('image/png');
-                    const glossAspect = glossCanvas.height / glossCanvas.width;
-                    const glossH = usableW * glossAspect;
-                    const pageH = doc.internal.pageSize.getHeight();
-                    const remainingOnPage = pageH - cursorY - margin;
-                    if (glossH > remainingOnPage) {
-                        doc.addPage();
-                        doc.addImage(glossImg, 'PNG', margin, margin, usableW, glossH);
-                    } else {
-                        doc.addImage(glossImg, 'PNG', margin, cursorY, usableW, glossH);
-                    }
-                } finally {
-                    document.body.removeChild(glossaryEl);
-                }
-
-                // File name: param-search-<slug>_<YYYYMMDD-HHMM>.pdf
-                const slug = datasetName.toString()
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/^-+|-+$/g, '')
-                    .slice(0, 60) || 'dataset';
-                doc.save('param-search-' + slug + '_' + stamp + '.pdf');
-            } catch (e) {
-                console.error('PDF export failed', e);
-                alert('PDF export failed: ' + e.message);
-            } finally {
-                if (btn) { btn.disabled = false; btn.textContent = '{{ __('ui.parameter_search_pdf_export') ?? '📄 PDF' }}'; }
-                if (wasCollapsed) {
-                    // Restore the collapsed state so the user's UI state is preserved.
-                    body.style.display = 'none';
-                    document.getElementById('param-results-chevron').style.transform = '';
-                }
-            }
-        }
 @endsection
