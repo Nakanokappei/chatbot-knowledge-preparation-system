@@ -49,8 +49,16 @@ SAMPLE_SIZE = 1500
 # Drop candidates whose noise ratio exceeds this threshold from the
 # "Accepted" group. A high score on "6 tiny clusters carved out of 1,500
 # points with 97% noise" is numerically valid but operationally useless.
-# Mirrors voice-classifier's MAX_NOISE_RATIO_FOR_SELECTION.
-MAX_NOISE_RATIO_FOR_SELECTION: float = 0.5
+#
+# Raised from 0.5 to 0.6: in chatbot-knowledge use cases the operator
+# WANTS HDBSCAN's noise to stay labelled as noise (rather than forcing
+# every point into a cluster as K-Means / Leiden do), so the trade-off
+# tips toward keeping noisier-but-still-useful HDBSCAN runs on the
+# Accepted list. 60% gives a single coherent winner instead of the
+# advisor describing #1 while the report table shows #6 as accepted
+# top — they used to disagree under the 0.5 threshold whenever a high-
+# silhouette HDBSCAN candidate sat between 50% and 60% noise.
+MAX_NOISE_RATIO_FOR_SELECTION: float = 0.6
 
 
 def build_sweep_configs(n_samples: int) -> list[dict]:
