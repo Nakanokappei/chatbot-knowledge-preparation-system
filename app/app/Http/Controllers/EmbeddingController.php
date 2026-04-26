@@ -518,15 +518,31 @@ class EmbeddingController extends Controller
         });
 
         // Chart-rank: bar position in the silhouette chart (sorted desc).
-        // The Accepted Candidates table later cites this number so users
-        // can cross-reference any row to a specific bar in the SVG.
+        // Stamp the rank onto each trial directly — earlier the Blade did a
+        // separate lookup keyed by (method, params), but params dictionaries
+        // arrived in different orders depending on how each table sorted
+        // them, so the lookup missed and "Chart #" was empty for every row.
+        // Storing the rank on the trial dodges the key-equality problem.
         $silhouetteRanked = $trials->filter(fn($t) => $t['silhouette_score'] !== null)
             ->sortByDesc('silhouette_score')
             ->values();
-        $chartRanks = [];
-        foreach ($silhouetteRanked as $idx => $trial) {
-            $chartRanks[$this->trialKey($trial)] = $idx + 1;
+        $silhouetteRanked = $silhouetteRanked->map(function ($trial, $idx) {
+            $trial['chart_rank'] = $idx + 1;
+            return $trial;
+        });
+
+        // Propagate chart_rank back onto every trial in the master collection
+        // (Accepted/Rejected tables read from $trials, not from
+        // $silhouetteRanked, so they need the rank attached too). The
+        // (method, params) tuple is canonical because no two trials share it.
+        $rankByKey = [];
+        foreach ($silhouetteRanked as $trial) {
+            $rankByKey[$this->trialKey($trial)] = $trial['chart_rank'];
         }
+        $trials = $trials->map(function ($trial) use ($rankByKey) {
+            $trial['chart_rank'] = $rankByKey[$this->trialKey($trial)] ?? null;
+            return $trial;
+        });
 
         $accepted = $trials->where('status', 'accepted')
             ->sortByDesc("score_{$target}")

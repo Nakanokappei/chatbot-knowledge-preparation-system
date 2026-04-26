@@ -472,7 +472,7 @@
                              renderParamSearchChart() at render time. --}}
                         <a id="param-search-pdf" href="{{ route('workspace.parameter-search-report', $current->id) }}" target="_blank" rel="noopener"
                             style="display:none; margin-left: auto; background: none; border: 1px solid #0071e3; border-radius: 6px; color: #0071e3; font-size: 12px; cursor: pointer; padding: 4px 10px; text-decoration: none;">
-                            📊 {{ __('ui.parameter_search_report_export') ?? 'レポートを出力' }}
+                            {{ __('ui.parameter_search_report_export') ?? '📊 レポートを出力' }}
                         </a>
                         <button type="button" id="param-search-dismiss" onclick="dismissParamResults()"
                             style="display:none; background: none; border: 1px solid #ff3b30; border-radius: 6px; color: #ff3b30; font-size: 12px; cursor: pointer; padding: 4px 8px;">

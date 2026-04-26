@@ -461,7 +461,7 @@
                 @foreach($accepted as $rank => $trial)
                     @php
                         $tKey = json_encode([$trial['method'], $trial['params']], JSON_UNESCAPED_UNICODE);
-                        $chartNo = $chartRanks[$tKey] ?? null;
+                        $chartNo = $trial['chart_rank'] ?? null;
                         $isWin = $tKey === $winnerKey;
                         $paramStr = collect($trial['params'])->map(fn($v, $k) => "$k=$v")->implode(', ');
                         [$qLabel, $qColor] = $silLabel((float) $trial['silhouette_score']);
@@ -514,7 +514,7 @@
                 @foreach($rejectedNoise as $trial)
                     @php
                         $tKey = json_encode([$trial['method'], $trial['params']], JSON_UNESCAPED_UNICODE);
-                        $chartNo = $chartRanks[$tKey] ?? null;
+                        $chartNo = $trial['chart_rank'] ?? null;
                         $paramStr = collect($trial['params'])->map(fn($v, $k) => "$k=$v")->implode(', ');
                         [$qLabel, $qColor] = $silLabel((float) $trial['silhouette_score']);
                     @endphp
