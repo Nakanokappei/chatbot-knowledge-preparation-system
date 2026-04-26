@@ -569,7 +569,6 @@ class EmbeddingController extends Controller
             'noiseThreshold' => $noiseThreshold,
             'trials' => $trials,
             'silhouetteRanked' => $silhouetteRanked,
-            'chartRanks' => $chartRanks,
             'accepted' => $accepted,
             'rejectedNoise' => $rejectedNoise,
             'rejectedDegenerate' => $rejectedDegenerate,
