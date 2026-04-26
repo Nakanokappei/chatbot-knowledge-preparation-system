@@ -136,6 +136,16 @@
             border: 1px dashed var(--border);
             border-radius: 8px;
         }
+        /* Glossary — supporting reference material, visually muted so it
+           reads as background rather than primary findings. */
+        .glossary-heading { color: var(--muted); border-bottom-color: #e5e7ec; font-size: 1.1rem; }
+        table.glossary { font-size: .85rem; color: var(--muted); }
+        table.glossary th { color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+        table.glossary td { line-height: 1.55; }
+        table.glossary td strong { color: var(--fg); }
+        ul.glossary-params { margin: .35rem 0 0; padding-left: 1.1rem; }
+        ul.glossary-params li { margin: .15rem 0; }
+        ul.glossary-params code { background: #fafbfc; }
         @media print {
             body { max-width: none; margin: 0; padding: 0 1cm; font-size: 11pt; }
             .toolbar, .no-print { display: none !important; }
@@ -386,6 +396,39 @@
         @endif
     @endif
 
+    @php
+        // Per-trial interpretation helpers: collapse the row's numeric
+        // signals into the same plain-language verdicts the workspace
+        // header has used for a while (silhouette quality labels, share
+        // budget, granularity vs the active target). Keeping them inside
+        // the Blade template avoids spreading more interpretive logic
+        // across PHP — these are display-only labels, not selection-
+        // affecting decisions.
+        $silLabel = function (?float $sil): array {
+            if ($sil === null) return ['—', '#5f6368'];
+            if ($sil >= 0.50) return ['優良', '#155724'];
+            if ($sil >= 0.30) return ['良好', '#2e7d32'];
+            if ($sil >= 0.10) return ['標準的（テキスト）', '#1565c0'];
+            if ($sil >= 0.00) return ['弱い', '#5f6368'];
+            return ['要改善', '#cf222e'];
+        };
+        $granularityNote = function (int $nClusters, string $tgt): string {
+            $profile = \App\Support\ParameterSearchScoring::PROFILES[$tgt] ?? null;
+            $range = $profile['cluster_range'] ?? null;
+            if ($range === null) return '制約なし';
+            [$low, $high] = $range;
+            if ($nClusters >= $low && $nClusters <= $high) return "{$tgt} 範囲内 ({$low}-{$high})";
+            if ($nClusters < $low) return "粗すぎ ({$tgt} は {$low} 以上)";
+            return "細かすぎ ({$tgt} は {$high} 以下)";
+        };
+        $shareNote = function (float $maxShare, string $tgt): string {
+            $profile = \App\Support\ParameterSearchScoring::PROFILES[$tgt] ?? null;
+            $budget = $profile['max_cluster_share'] ?? 1.0;
+            if ($maxShare <= $budget) return '健全';
+            return '1グループに偏り';
+        };
+    @endphp
+
     {{-- Section 5: Accepted candidates ranked by active target --}}
     <h2>{{ __('ui.accepted_candidates') ?? '採用候補（ランキング）' }}</h2>
     <p>
@@ -406,10 +449,12 @@
                     <th>{{ __('ui.noise') ?? 'ノイズ' }} ({{ __('ui.ratio') ?? '比率' }})</th>
                     <th class="num">{{ __('ui.max_share') ?? '最大占有' }}</th>
                     <th class="num">{{ __('ui.silhouette') ?? 'シルエット' }}</th>
+                    <th>{{ __('ui.quality') ?? '品質' }}</th>
                     <th class="num">faq</th>
                     <th class="num">chatbot</th>
                     <th class="num">insight</th>
                     <th class="center">{{ __('ui.status') ?? '状態' }}</th>
+                    <th>{{ __('ui.interpretation') ?? '所見' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -419,6 +464,14 @@
                         $chartNo = $chartRanks[$tKey] ?? null;
                         $isWin = $tKey === $winnerKey;
                         $paramStr = collect($trial['params'])->map(fn($v, $k) => "$k=$v")->implode(', ');
+                        [$qLabel, $qColor] = $silLabel((float) $trial['silhouette_score']);
+                        $notes = [
+                            $granularityNote($trial['n_clusters'], $target),
+                            $shareNote($trial['max_cluster_share'], $target),
+                        ];
+                        if ($trial['noise_ratio'] >= 0.30) {
+                            $notes[] = 'ノイズ多め';
+                        }
                     @endphp
                     <tr>
                         <td class="num">{{ $rank + 1 }}</td>
@@ -428,11 +481,13 @@
                         <td class="num">{{ $trial['n_clusters'] }}</td>
                         <td>{{ $trial['n_noise'] }} ({{ number_format($trial['noise_ratio'] * 100, 1) }}%)</td>
                         <td class="num">{{ number_format($trial['max_cluster_share'] * 100, 1) }}%</td>
-                        <td class="num">{{ number_format($trial['silhouette_score'], 4) }}</td>
+                        <td class="num" style="color: {{ $qColor }}; font-weight: 600;">{{ number_format($trial['silhouette_score'], 4) }}</td>
+                        <td style="color: {{ $qColor }};">{{ $qLabel }}</td>
                         <td class="num">{{ number_format($trial['score_faq'], 3) }}</td>
                         <td class="num">{{ number_format($trial['score_chatbot'], 3) }}</td>
                         <td class="num">{{ number_format($trial['score_insight'], 3) }}</td>
                         <td class="center">@if($isWin)<span class="badge badge-selected">✓ 採用</span>@else—@endif</td>
+                        <td style="font-size: .85rem; color: var(--muted);">{{ implode('・', $notes) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -452,6 +507,7 @@
                     <th class="num">{{ __('ui.cluster_count') ?? 'クラスタ数' }}</th>
                     <th>{{ __('ui.noise') ?? 'ノイズ' }} ({{ __('ui.ratio') ?? '比率' }})</th>
                     <th class="num">{{ __('ui.silhouette') ?? 'シルエット' }}</th>
+                    <th>{{ __('ui.quality') ?? '品質' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -460,6 +516,7 @@
                         $tKey = json_encode([$trial['method'], $trial['params']], JSON_UNESCAPED_UNICODE);
                         $chartNo = $chartRanks[$tKey] ?? null;
                         $paramStr = collect($trial['params'])->map(fn($v, $k) => "$k=$v")->implode(', ');
+                        [$qLabel, $qColor] = $silLabel((float) $trial['silhouette_score']);
                     @endphp
                     <tr>
                         <td class="num">{{ $chartNo ?? '—' }}</td>
@@ -467,7 +524,8 @@
                         <td><code>{{ $paramStr }}</code></td>
                         <td class="num">{{ $trial['n_clusters'] }}</td>
                         <td>{{ $trial['n_noise'] }} ({{ number_format($trial['noise_ratio'] * 100, 1) }}%)</td>
-                        <td class="num">{{ number_format($trial['silhouette_score'], 4) }}</td>
+                        <td class="num" style="color: {{ $qColor }}; font-weight: 600;">{{ number_format($trial['silhouette_score'], 4) }}</td>
+                        <td style="color: {{ $qColor }};">{{ $qLabel }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -513,6 +571,7 @@
                         <th class="num">{{ __('ui.cluster_count') ?? 'クラスタ数' }}</th>
                         <th class="num">{{ __('ui.noise') ?? 'ノイズ' }}</th>
                         <th class="num">{{ __('ui.silhouette') ?? 'シルエット' }}</th>
+                        <th>{{ __('ui.quality') ?? '品質' }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -520,18 +579,87 @@
                         @php
                             $paramStr = collect($trial['params'])->map(fn($v, $k) => "$k=$v")->implode(', ');
                             $silDisplay = $trial['silhouette_score'] === null ? '—' : number_format($trial['silhouette_score'], 4);
+                            [$qLabel, $qColor] = $silLabel($trial['silhouette_score']);
                         @endphp
                         <tr>
                             <td><code>{{ $paramStr }}</code></td>
                             <td class="num">{{ $trial['n_clusters'] }}</td>
                             <td class="num">{{ $trial['n_noise'] }}</td>
-                            <td class="num">{{ $silDisplay }}</td>
+                            <td class="num" style="color: {{ $qColor }}; font-weight: 600;">{{ $silDisplay }}</td>
+                            <td style="color: {{ $qColor }};">{{ $qLabel }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         @endif
     @endforeach
+
+    {{-- Section 9: Glossary — static reference for clustering methods and
+         their parameters. Ported from the previous client-side PDF report
+         so readers unfamiliar with HDBSCAN / K-Means / Agglomerative /
+         Leiden have the vocabulary to interpret the tables above without
+         leaving the page. --}}
+    <h2 class="glossary-heading">{{ __('ui.glossary_heading') ?? '用語解説 / Glossary' }}</h2>
+    <table class="glossary">
+        <thead>
+            <tr>
+                <th style="width: 18%;">{{ __('ui.method') ?? '手法' }}</th>
+                <th>{{ __('ui.glossary_description') ?? '説明とパラメータ' }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>HDBSCAN</strong></td>
+                <td>
+                    Hierarchical Density-Based Spatial Clustering。密度ベースで自動的にクラスタ数を決定し、ノイズ点を検出できる手法。距離指標は euclidean ですが、入力ベクトルを L2 正規化しているため cosine 順位と等価。
+                    <ul class="glossary-params">
+                        <li><code>min_cluster_size</code>: クラスタとして扱う最小のデータ点数。大きいほど少数の大きなクラスタに、小さいほど多数の細かいクラスタになる</li>
+                        <li><code>min_samples</code>: コア点と判定する近傍点の最小数。大きいほどノイズに敏感になり、小さいほど緩く判定する</li>
+                        <li><code>metric</code>: 距離尺度。euclidean on L2-normalized vectors = cosine-equivalent</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>K-Means</strong></td>
+                <td>
+                    指定したクラスタ数 K でデータを分割する古典的手法。全点が必ずいずれかのクラスタに属する（ノイズ無し）。距離は euclidean ですが、L2 正規化された入力に対しては cosine 相当（spherical k-means に相当）。
+                    <ul class="glossary-params">
+                        <li><code>n_clusters</code>: 分割するクラスタ数。事前に決める必要がある</li>
+                        <li><code>n_init</code>: ランダム初期化の試行回数。多いほど安定するが遅い</li>
+                        <li><code>max_iter</code>: 各試行での最大反復回数</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Agglomerative</strong></td>
+                <td>
+                    階層的クラスタリング。近いもの同士をボトムアップに結合していき、指定クラスタ数で切る。ward linkage を使用、距離は euclidean（L2 正規化により cosine 相当）。
+                    <ul class="glossary-params">
+                        <li><code>n_clusters</code>: 最終的な切り出しクラスタ数</li>
+                        <li><code>linkage</code>: 結合基準。ward は分散最小化（デフォルト）、average は平均距離、single は最小距離</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Leiden (HNSW + Leiden)</strong></td>
+                <td>
+                    HNSW で近傍グラフを構築し、Leiden アルゴリズムでコミュニティを検出するグラフベース手法。高次元埋め込みで自然なクラスタを見つけやすい。HNSW インデックスで cosine 距離を直接使用。
+                    <ul class="glossary-params">
+                        <li><code>n_neighbors</code>: 各点の近傍として考える数。小さいと細かく、大きいと粗く分かれる</li>
+                        <li><code>resolution</code>: コミュニティの粒度パラメータ。大きいほどクラスタ数が増える</li>
+                        <li><code>ef_construction</code>: HNSW インデックス構築時の探索広さ。大きいほど高精度だが構築が遅い</li>
+                        <li><code>M</code>: HNSW の各点の近傍接続数。グラフ品質とメモリのトレードオフ</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Silhouette</strong></td>
+                <td>
+                    クラスタ分離の品質指標 (-1 〜 1)。同じクラスタ内の凝集度と他クラスタとの分離度の差から算出。テキスト埋め込みでは <strong>0.10 以上で実用的</strong>、<strong>0.30 以上で良好</strong>、<strong>0.40 以上で強い分離</strong> と読み替えるのが実務的な目安です（一般文献では 0.5 以上が「良好」とされますが、テキスト埋め込みでは到達しにくいスコア帯です）。
+                </td>
+            </tr>
+        </tbody>
+    </table>
 
     <div class="footer">
         Generated by KPS @ <time datetime="{{ now()->toIso8601String() }}">{{ now()->format('Y/m/d H:i') }}</time>
