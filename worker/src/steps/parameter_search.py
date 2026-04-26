@@ -257,8 +257,16 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     advisory_md: str = ""
     top_clusters_meta: list[dict] = []
     advisor_meta: dict = {}
+    # The advisor must use the workspace-approved Bedrock model only —
+    # never a worker-side fallback. The full-pipeline job that produced
+    # this embedding has the workspace's selected model_id stamped in
+    # its pipeline_config_snapshot, and parameterSearch inherits that
+    # config when dispatching, so the value flows through to here. If
+    # it is missing for any reason we skip the advisor rather than
+    # silently invoking an un-approved model.
+    advisor_model_id = pipeline_config.get("llm_model_id")
     try:
-        if winner_sample_labels is not None:
+        if winner_sample_labels is not None and advisor_model_id:
             update_job_status(job_id, status="parameter_search", progress=96)
             digest_input = build_advisor_input(
                 results=results,
@@ -270,11 +278,16 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
                 input_s3_path=input_s3_path,
             )
             advisory_md, top_clusters_meta, advisor_meta = generate_advisory_markdown(
-                digest_input
+                digest_input, model_id=advisor_model_id,
+            )
+        elif winner_sample_labels is None:
+            logger.info(
+                "No candidate passed the noise-ratio filter; advisory skipped"
             )
         else:
             logger.info(
-                "No candidate passed the noise-ratio filter; advisory skipped"
+                "Advisory skipped: pipeline_config['llm_model_id'] not set. "
+                "Advisor runs only against workspace-approved models."
             )
     except Exception as e:
         # Soft-fail: the report is still useful without the advisory.

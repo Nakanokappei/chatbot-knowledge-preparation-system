@@ -27,7 +27,7 @@ from typing import Any
 
 import numpy as np
 
-from src.bedrock_llm_client import DEFAULT_MODEL_ID, invoke_claude
+from src.bedrock_llm_client import invoke_claude
 from src.db import get_connection
 from src.target_scoring import TARGET_PROFILES
 
@@ -190,12 +190,16 @@ def _attach_raw_texts(top_clusters: list[dict]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _name_top_clusters(top_clusters: list[dict]) -> dict[int, str]:
+def _name_top_clusters(top_clusters: list[dict], model_id: str) -> dict[int, str]:
     """Ask Bedrock for a short Japanese-or-English label per cluster.
 
     One Claude call covers every cluster — the prompt sends a JSON list and
     asks for a JSON list of `{cluster_id, label}` back. Falls back to a
     generic placeholder when the call fails or the response is malformed.
+
+    `model_id` is the workspace-approved Bedrock model ID — passed in from
+    pipeline_config so the worker never falls back to a default model the
+    workspace hasn't explicitly approved.
     """
     namable = [c for c in top_clusters if c["representatives"]]
     if not namable:
@@ -236,6 +240,7 @@ def _name_top_clusters(top_clusters: list[dict]) -> dict[int, str]:
             max_tokens=1024,
             temperature=0.1,
             expect_json=True,
+            model_id=model_id,
         )
     except Exception as e:
         logger.warning("Cluster naming failed: %s", e)
@@ -276,6 +281,7 @@ def _truncate_text(text: str, max_len: int) -> str:
 
 def generate_advisory_markdown(
     input_data: dict,
+    model_id: str | None = None,
 ) -> tuple[str, list[dict], dict]:
     """Produce the executive Markdown advisory + per-cluster metadata.
 
@@ -285,17 +291,28 @@ def generate_advisory_markdown(
     `top_clusters_meta` carries names, sample sizes, and estimated total
     sizes for the report's "Top Groups" section. `advisor_meta` records
     model/token counts so the report can attribute the AI output.
+
+    `model_id` MUST be the workspace-approved Bedrock model ID (forwarded
+    from pipeline_config['llm_model_id']). When it is missing the advisor
+    is skipped entirely — the worker must never silently fall back to a
+    default Bedrock model the workspace has not explicitly approved.
     """
     target = input_data["target"]
     winner = input_data["winner_trial"]
     if winner is None:
         return "", [], {}
+    if not model_id:
+        logger.info(
+            "Skipping advisor: pipeline_config['llm_model_id'] not set "
+            "for this job. Advisor only runs against workspace-approved models."
+        )
+        return "", [], {}
 
     sample_size = max(input_data["sample_size"], 1)
     total_rows = max(input_data["total_rows"], 1)
 
-    # Step A — name clusters (1 Bedrock call).
-    cluster_names = _name_top_clusters(input_data["top_clusters"])
+    # Step A — name clusters (1 Bedrock call against the approved model).
+    cluster_names = _name_top_clusters(input_data["top_clusters"], model_id)
 
     # Step B — assemble cluster metadata for both the digest and the report.
     top_clusters_meta = []
@@ -350,13 +367,14 @@ def generate_advisory_markdown(
         top_clusters_meta=top_clusters_meta,
     )
 
-    # Step E — call the advisor (1 Bedrock call).
+    # Step E — call the advisor (1 Bedrock call against the approved model).
     try:
         response = invoke_claude(
             prompt=_build_advisor_prompt(digest_text),
             max_tokens=2000,
             temperature=0.4,
             expect_json=False,
+            model_id=model_id,
         )
     except Exception as e:
         logger.warning("Advisor invocation failed: %s", e)
@@ -366,7 +384,7 @@ def generate_advisory_markdown(
     advisory_md = _sanitise_markdown(raw_md)
 
     advisor_meta = {
-        "model_id": response.get("model_id", DEFAULT_MODEL_ID),
+        "model_id": response.get("model_id", model_id),
         "input_tokens": int(response.get("input_tokens", 0)),
         "output_tokens": int(response.get("output_tokens", 0)),
     }

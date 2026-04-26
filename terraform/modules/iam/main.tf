@@ -226,25 +226,6 @@ resource "aws_iam_role_policy" "worker_task_permissions" {
         ]
         Resource = "*"
       },
-      # First-time invocation of certain Bedrock models (notably the
-      # Anthropic Claude family in regional inference profiles like
-      # `jp.anthropic.claude-haiku-4-5-...`) returns an
-      # AccessDeniedException with the message "perform the required AWS
-      # Marketplace actions". AWS auto-subscribes the role to the
-      # marketplace listing on first call when these permissions exist;
-      # without them the call fails. ViewSubscriptions covers later
-      # idempotent re-checks. Restricting Resource to the relevant
-      # listing would require a per-region listing ARN per model — using
-      # "*" is the documented pattern for Bedrock-Marketplace bootstrap.
-      {
-        Sid    = "BedrockMarketplaceSubscribe"
-        Effect = "Allow"
-        Action = [
-          "aws-marketplace:Subscribe",
-          "aws-marketplace:ViewSubscriptions",
-        ]
-        Resource = "*"
-      },
       # The Worker publishes custom pipeline metrics (e.g. job duration,
       # items processed) to CloudWatch for operational visibility.
       {
