@@ -469,8 +469,21 @@
                             $granularityNote($trial['n_clusters'], $target),
                             $shareNote($trial['max_cluster_share'], $target),
                         ];
+                        // HDBSCAN reports noise honestly (-1 = "couldn't
+                        // confidently assign"); K-Means and Leiden have no
+                        // noise concept and force every point into a cluster.
+                        // For those two, a noise=0 row paired with a weak
+                        // silhouette typically means boundary points have
+                        // been swallowed into mediocre clusters — bad for
+                        // chatbot knowledge. Surface the warning instead of
+                        // letting noise=0 read as a clean win.
                         if ($trial['noise_ratio'] >= 0.30) {
                             $notes[] = 'ノイズ多め';
+                        } elseif (
+                            $trial['method'] !== 'hdbscan'
+                            && (float) $trial['silhouette_score'] < 0.30
+                        ) {
+                            $notes[] = 'ノイズ概念なし（全点強制割当）';
                         }
                     @endphp
                     <tr>
@@ -656,6 +669,17 @@
                 <td><strong>Silhouette</strong></td>
                 <td>
                     クラスタ分離の品質指標 (-1 〜 1)。同じクラスタ内の凝集度と他クラスタとの分離度の差から算出。テキスト埋め込みでは <strong>0.10 以上で実用的</strong>、<strong>0.30 以上で良好</strong>、<strong>0.40 以上で強い分離</strong> と読み替えるのが実務的な目安です（一般文献では 0.5 以上が「良好」とされますが、テキスト埋め込みでは到達しにくいスコア帯です）。
+                </td>
+            </tr>
+            <tr>
+                <td><strong>ノイズ (Noise)</strong></td>
+                <td>
+                    手法によって扱いが大きく異なるため、レポートを読むときに注意が必要です。
+                    <ul class="glossary-params">
+                        <li><strong>HDBSCAN</strong>: 密度ベースで「どのクラスタにも自信を持って割り当てられない点」を <code>-1</code> ラベルで明示します。レポートのノイズ数はこの「正直に除外された点」の数です。本数が多い = データ自体に外れ値・低頻度トピックが多い、または <code>min_cluster_size</code> が大きすぎる、というシグナル。</li>
+                        <li><strong>K-Means / Leiden</strong>: ノイズの概念を持たず、全点を必ずいずれかのクラスタへ割り当てます。レポートで <code>noise=0</code> と表示されますが、これは「外れ値が無い」のではなく「最寄りクラスタへ強制割当した結果」です。境界付近の点や本来は別トピックの点も、近そうなクラスタへ吸収されます。</li>
+                    </ul>
+                    <strong>チャットボットや FAQ ナレッジ用途で読むときの目安:</strong> K-Means / Leiden の候補が <code>noise=0</code> でも silhouette が 0.30 未満なら、クラスタが緩く境界点を強制吸収している可能性が高いです（採用候補表の「所見」列に「ノイズ概念なし（全点強制割当）」と注記）。HDBSCAN のように「クラスタにできない点を残す」結果のほうが、運用上は誤マッピングを避けやすい傾向があります。
                 </td>
             </tr>
         </tbody>
