@@ -866,14 +866,28 @@ class EmbeddingController extends Controller
         }
 
         // Fetch original rows with the cluster topic name for the resolved job.
-        // Using a parameterised job_id keeps the query deterministic (the old
-        // ORDER BY ... LIMIT 1 subquery drifted whenever new runs were added).
+        //
+        // Pipeline_job_id filtering is pushed *inside* the subquery so that the
+        // outer LEFT JOIN against dataset_rows is strictly 1:1. The naive form
+        // (LEFT JOIN cluster_memberships then LEFT JOIN clusters with the
+        // pipeline_job_id predicate in the second ON-clause) fan-outs each row
+        // by the number of pipeline_jobs that ever clustered the dataset,
+        // because cluster_memberships has no pipeline_job_id column and the
+        // worker only deletes the *current* job's memberships on re-run.
+        //
+        // Hard-clustering assumption: each dataset_row maps to at most one
+        // cluster per pipeline_job. If soft clustering is added, switch the
+        // subquery to `DISTINCT ON (cm.dataset_row_id) ... ORDER BY
+        // cm.membership_score DESC` to pick the strongest assignment.
         $rows = \DB::select("
-            SELECT dr.row_no, dr.metadata_json, c.topic_name AS cluster_topic
+            SELECT dr.row_no, dr.metadata_json, sub.topic_name AS cluster_topic
             FROM dataset_rows dr
-            LEFT JOIN cluster_memberships cm ON cm.dataset_row_id = dr.id
-            LEFT JOIN clusters c ON c.id = cm.cluster_id
-                AND c.pipeline_job_id = ?
+            LEFT JOIN (
+                SELECT cm.dataset_row_id, c.topic_name
+                FROM cluster_memberships cm
+                INNER JOIN clusters c ON c.id = cm.cluster_id
+                WHERE c.pipeline_job_id = ?
+            ) sub ON sub.dataset_row_id = dr.id
             WHERE dr.dataset_id = ? AND dr.workspace_id = ?
             ORDER BY dr.row_no
         ", [$resolvedJobId, $embedding->dataset_id, $workspaceId]);
@@ -882,9 +896,26 @@ class EmbeddingController extends Controller
             return back()->with('error', 'No data rows found.');
         }
 
-        // Determine CSV columns from the first row's metadata keys
-        $firstMeta = json_decode($rows[0]->metadata_json, true) ?? [];
-        $originalColumns = array_keys($firstMeta);
+        // Recover original CSV column order from datasets.schema_json. We
+        // cannot rely on metadata_json key order: it is stored as PostgreSQL
+        // jsonb, which canonicalises keys at write time (length, then alpha)
+        // and therefore does not preserve the source CSV header order.
+        //
+        // schema_json shape varies by upload path:
+        //   - DashboardController stores a flat array of header names
+        //   - DatasetWizardController stores ['columns' => [...], ...]
+        $dataset = Dataset::find($embedding->dataset_id);
+        $schema = $dataset?->schema_json ?? [];
+        if (isset($schema['columns']) && is_array($schema['columns'])) {
+            $originalColumns = array_values($schema['columns']);
+        } elseif (is_array($schema) && array_is_list($schema) && !empty($schema)) {
+            $originalColumns = $schema;
+        } else {
+            // Defensive fallback: jsonb-key order. Not order-preserving but
+            // ensures the CSV still downloads if schema_json is missing.
+            $firstMeta = json_decode($rows[0]->metadata_json, true) ?? [];
+            $originalColumns = array_keys($firstMeta);
+        }
         $csvHeader = array_merge($originalColumns, ['cluster_topic']);
 
         // Project each row's metadata_json into ordered scalar values
