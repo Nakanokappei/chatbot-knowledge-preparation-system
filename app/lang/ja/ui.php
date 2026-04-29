@@ -962,6 +962,7 @@ return [
     'parameter_search_report'       => 'パラメータ探索レポート',
     'back_to_workspace'             => 'ワークスペースへ戻る',
     'print_or_save_pdf'             => 'PDFとして保存・印刷',
+    'open_print_view'               => '印刷用ページを開く',
     'run_at'                        => '実行日時',
     'no_parameter_search_results'   => 'パラメータ探索の結果がありません',
     'run_parameter_search_first'    => 'まずワークスペースで「パラメータ探索」を実行してください。',

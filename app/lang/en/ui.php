@@ -961,6 +961,7 @@ return [
     'parameter_search_report'       => 'Parameter Search Report',
     'back_to_workspace'             => 'Back to workspace',
     'print_or_save_pdf'             => 'Print / Save as PDF',
+    'open_print_view'               => 'Open print view',
     'run_at'                        => 'Run at',
     'no_parameter_search_results'   => 'No parameter search results yet',
     'run_parameter_search_first'    => 'Run "Parameter search" from the workspace first.',

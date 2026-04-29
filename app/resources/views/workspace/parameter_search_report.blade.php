@@ -12,8 +12,17 @@
         7. Rejected     : noise-filter rejects + degenerate trials
         8. By method    : per-algorithm digest tables
 
-    Print: an `@media print` rule strips the toolbar and tweaks colours so
-    the user can save the report as a PDF directly from their browser.
+    Print view: clicking the toolbar's print button opens this same page
+    in a popup with `?print=1`, which switches the body to `.print-view`
+    and inlines the print stylesheet as defaults (toolbar hidden, larger
+    headings, page-break hints). The user reads/copies/prints from there
+    using the browser's native controls — we deliberately stop at HTML
+    rather than calling `window.print()`, because the browser's PDF
+    driver tends to rasterise the result for the dataset shapes used
+    here, producing a non-searchable image PDF.
+
+    The `@media print` block is retained so Cmd+P from inside the popup
+    (or even from the main view) still gets the cleaned-up layout.
 
     `payload === null` means the sweep has not been run yet for this
     embedding; we render a friendly empty state instead of the report body.
@@ -146,6 +155,19 @@
         ul.glossary-params { margin: .35rem 0 0; padding-left: 1.1rem; }
         ul.glossary-params li { margin: .15rem 0; }
         ul.glossary-params code { background: #fafbfc; }
+        /* Print-view mode: same rules as @media print but applied unconditionally
+           so the popup opened via `?print=1` already looks like a printout
+           even when viewed on screen. Kept in lockstep with the @media print
+           block below; if you change one, change both. */
+        body.print-view { max-width: none; margin: 0; padding: 0 1cm; font-size: 11pt; }
+        body.print-view .toolbar,
+        body.print-view .no-print { display: none !important; }
+        body.print-view h1 { font-size: 18pt; }
+        body.print-view h2 { font-size: 14pt; page-break-after: avoid; }
+        body.print-view h3 { font-size: 12pt; page-break-after: avoid; }
+        body.print-view table { page-break-inside: avoid; }
+        body.print-view .advisory { background: #f8fbff; border-color: #b6d5ff; }
+
         @media print {
             body { max-width: none; margin: 0; padding: 0 1cm; font-size: 11pt; }
             .toolbar, .no-print { display: none !important; }
@@ -157,14 +179,33 @@
         }
     </style>
 </head>
-<body>
+@php
+    // `?print=1` is set when this page is opened from the toolbar's print
+    // button — see the window.open() call below. In that case we render the
+    // body in `.print-view` so the popup shows the cleaned-up print layout
+    // immediately and hides the toolbar (no point clicking it again from a
+    // popup).
+    $printView = request()->boolean('print');
+@endphp
+<body class="{{ $printView ? 'print-view' : '' }}">
 
+@unless($printView)
 <div class="toolbar no-print">
     <a href="{{ route('workspace.embedding', ['embeddingId' => $embedding->id]) }}?compare=1">← {{ __('ui.back_to_workspace') ?? 'ワークスペースへ戻る' }}</a>
     @if($payload)
-        <button type="button" class="primary" onclick="window.print()">🖨 {{ __('ui.print_or_save_pdf') ?? 'PDFとして保存・印刷' }}</button>
+        {{-- Open the same report in a popup with `?print=1` so it renders
+             with the print stylesheet inlined. Deliberately does NOT call
+             window.print(): the browser's PDF driver rasterises this
+             page's content into an image PDF, which is much worse than
+             just handing the user a clean HTML view they can read,
+             search, copy, or print themselves with Cmd/Ctrl+P. --}}
+        <button type="button" class="primary"
+                onclick="window.open(window.location.pathname + '?print=1', 'parameter-search-print', 'noopener,width=920,height=1100,scrollbars=yes,resizable=yes')">
+            📄 {{ __('ui.open_print_view') ?? '印刷用ページを開く' }}
+        </button>
     @endif
 </div>
+@endunless
 
 <h1>{{ __('ui.parameter_search_report') ?? 'パラメータ探索レポート' }}</h1>
 <div class="meta-line">
