@@ -8,15 +8,17 @@ Input:  s3://{bucket}/{tenant_id}/jobs/{job_id}/preprocess/normalized_rows.parqu
 Output: s3://{bucket}/{tenant_id}/jobs/{job_id}/embedding/embeddings.npy
 
 Caching strategy:
-- Each embedding is stored individually in S3 as JSON, keyed by content hash
-- DB table (embedding_cache) maps hash -> S3 path for fast lookups
-- Cache reads and writes are parallelized with ThreadPoolExecutor
-- On cache hit, embeddings are loaded from S3 in parallel (no Bedrock call)
-- On cache miss, Bedrock generates the embedding, then cache is populated
+- Embedding vectors live in `embedding_cache.embedding_vector` (pgvector).
+- Lookups and writes are single SQL operations — no per-vector S3 round-trip.
+- Legacy entries created before the pgvector migration may have NULL
+  embedding_vector and a populated s3_path; on read we transparently
+  fall back to S3 and lazily backfill the row. New writes never touch S3.
+- This replaces the earlier design where every vector was an individual
+  S3 JSON object (~30 KB each, ~34k objects) which was expensive to
+  manage operationally.
 """
 
 import hashlib
-import io
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,7 +26,6 @@ from datetime import datetime, timezone
 
 import boto3
 import numpy as np
-import pandas as pd
 
 from src.embedding_client import EMBEDDING_DIMENSION as DEFAULT_EMBEDDING_DIMENSION
 from src.embedding_client import MODEL_ID as DEFAULT_MODEL_ID
@@ -39,8 +40,35 @@ logger = logging.getLogger(__name__)
 # Cache configuration
 NORMALIZATION_VERSION = "v1.0"
 
-# S3 parallelism for cache operations (I/O-bound, safe to use more threads)
-S3_CACHE_WORKERS = 10
+# Parallelism for legacy S3 fallback reads only. Once the backfill is
+# complete and embedding_cache.s3_path is dropped, this can go away too.
+S3_LEGACY_FALLBACK_WORKERS = 10
+
+
+def _vector_to_pg_literal(vector) -> str:
+    """
+    Convert a Python list/np.array of floats to the pgvector text literal form
+    that psycopg2 can pass through as a string parameter, e.g.
+    `[0.123,-0.456,...]`. Mirrors the pattern used in steps/clustering.py for
+    cluster_centroids.
+    """
+    return "[" + ",".join(str(float(v)) for v in vector) + "]"
+
+
+def _pg_literal_to_vector(literal: str) -> list[float]:
+    """
+    Parse pgvector's text representation back into a Python list of floats.
+    psycopg2 returns vector columns as a `[f1,f2,...]` string by default.
+    """
+    if literal is None:
+        return None
+    # Strip surrounding brackets and split. Robust to whitespace.
+    stripped = literal.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        stripped = stripped[1:-1]
+    if not stripped:
+        return []
+    return [float(x) for x in stripped.split(",")]
 
 
 def compute_cache_key(text: str, model_id: str = None, dimension: int = None) -> str:
@@ -58,7 +86,8 @@ def compute_cache_key(text: str, model_id: str = None, dimension: int = None) ->
 
 def _load_single_embedding_from_s3(s3_client, embedding_hash: str, s3_path: str):
     """
-    Load a single embedding JSON from S3.
+    Legacy fallback: load an embedding JSON from S3 for rows that pre-date
+    the pgvector backfill. Removed once embedding_cache.s3_path is dropped.
 
     Returns (embedding_hash, embedding_vector) on success, or
     (embedding_hash, None) on failure.
@@ -69,16 +98,44 @@ def _load_single_embedding_from_s3(s3_client, embedding_hash: str, s3_path: str)
         embedding = json.loads(response["Body"].read())
         return embedding_hash, embedding
     except Exception as e:
-        logger.warning("Failed to load cached embedding %s: %s", embedding_hash, e)
+        logger.warning("Failed to load legacy cached embedding %s: %s", embedding_hash, e)
         return embedding_hash, None
+
+
+def _lazy_backfill_vector(embedding_hash: str, vector: list[float]):
+    """
+    Write a freshly-recovered legacy vector back into the pgvector column
+    so subsequent cache hits skip the S3 round-trip. Best-effort: failures
+    are logged but do not interrupt the pipeline.
+    """
+    try:
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE embedding_cache SET embedding_vector = %s::vector, updated_at = %s "
+                    "WHERE embedding_hash = %s AND embedding_vector IS NULL",
+                    (_vector_to_pg_literal(vector), datetime.now(timezone.utc), embedding_hash),
+                )
+                conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.warning("Lazy backfill failed for %s: %s", embedding_hash, e)
 
 
 def check_cache_batch(cache_keys: list[str]) -> dict[str, list[float]]:
     """
     Look up multiple cache keys in the embedding_cache table.
 
-    DB lookup is a single query, then S3 reads are parallelized with
-    ThreadPoolExecutor for maximum throughput on cache hits.
+    Primary path: read embedding_vector directly from the DB (single query,
+    no S3 round-trip).
+
+    Legacy fallback: rows whose embedding_vector is NULL but s3_path is
+    populated were created before the pgvector migration. We fetch them
+    from S3 in parallel and lazily backfill the row so subsequent hits
+    use the fast path. This branch will go away once the backfill CLI
+    has run to completion and the s3_path column is dropped.
 
     Returns a dict mapping cache_key -> embedding vector (as list of floats)
     for keys that are found. Missing keys are not included.
@@ -90,87 +147,69 @@ def check_cache_batch(cache_keys: list[str]) -> dict[str, list[float]]:
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            # Single batch query for all cache keys
+            # Single batch query — get either the inline vector or the legacy s3 pointer
             placeholders = ",".join(["%s"] * len(cache_keys))
             cur.execute(
-                f"SELECT embedding_hash, s3_path FROM embedding_cache WHERE embedding_hash IN ({placeholders})",
+                f"SELECT embedding_hash, embedding_vector::text, s3_path "
+                f"FROM embedding_cache WHERE embedding_hash IN ({placeholders})",
                 cache_keys,
             )
             rows = cur.fetchall()
+    finally:
+        conn.close()
 
-        # No cache hits in the DB; return empty without touching S3
-        if not rows:
-            return {}
+    if not rows:
+        return {}
 
-        # Parallel S3 reads for all cached embeddings
+    cached: dict[str, list[float]] = {}
+    legacy_rows: list[tuple[str, str]] = []  # (hash, s3_path) for fallback
+
+    # Partition rows: inline vectors are returned immediately; rows with
+    # NULL vector but a valid s3_path go into the legacy fallback bucket.
+    for emb_hash, vector_text, s3_path in rows:
+        if vector_text is not None:
+            cached[emb_hash] = _pg_literal_to_vector(vector_text)
+        elif s3_path:
+            legacy_rows.append((emb_hash, s3_path))
+
+    if legacy_rows:
+        logger.info(
+            "Loading %d legacy embeddings from S3 (workers=%d). These will be lazily backfilled.",
+            len(legacy_rows), S3_LEGACY_FALLBACK_WORKERS,
+        )
         s3 = boto3.client("s3", region_name=S3_REGION)
-        cached = {}
-
-        logger.info("Loading %d cached embeddings from S3 (workers=%d)...", len(rows), S3_CACHE_WORKERS)
-
-        with ThreadPoolExecutor(max_workers=S3_CACHE_WORKERS) as executor:
+        with ThreadPoolExecutor(max_workers=S3_LEGACY_FALLBACK_WORKERS) as executor:
             futures = {
                 executor.submit(_load_single_embedding_from_s3, s3, emb_hash, s3_path): emb_hash
-                for emb_hash, s3_path in rows
+                for emb_hash, s3_path in legacy_rows
             }
-
             for future in as_completed(futures):
                 emb_hash, embedding = future.result()
                 if embedding is not None:
                     cached[emb_hash] = embedding
+                    # Migrate the row inline so future hits skip S3 entirely.
+                    _lazy_backfill_vector(emb_hash, embedding)
 
-        logger.info("Loaded %d/%d embeddings from S3 cache", len(cached), len(rows))
-        return cached
-    finally:
-        conn.close()
-
-
-def _upload_single_embedding_to_s3(s3_client, entry: dict):
-    """
-    Upload a single embedding JSON to S3.
-
-    Returns the entry on success for DB batch insert.
-    """
-    key = entry["s3_path"].replace(f"s3://{S3_BUCKET}/", "")
-    s3_client.put_object(
-        Bucket=S3_BUCKET,
-        Key=key,
-        Body=json.dumps(entry["embedding"]),
-        ContentType="application/json",
+    logger.info(
+        "Cache: %d hits (%d inline / %d legacy-S3) out of %d DB rows",
+        len(cached), len(cached) - len(legacy_rows), len(legacy_rows), len(rows),
     )
-    return entry
+    return cached
 
 
 def save_cache_batch(entries: list[dict]):
     """
-    Save multiple embeddings to cache (S3 files + DB records).
+    Persist new embeddings into embedding_cache.embedding_vector. The S3
+    write path used by the legacy design is intentionally omitted — vectors
+    now live exclusively in the DB.
 
-    S3 uploads run in parallel, then a single DB transaction inserts
-    all cache records. This minimizes wall-clock time while keeping
-    the DB operation atomic.
-
-    Each entry: {"hash": str, "embedding": list[float], "s3_path": str}
+    Each entry: {"hash": str, "embedding": list[float], "model_id": str,
+                 "dimension": int}
     """
     # Nothing to save when the batch is empty
     if not entries:
         return
 
-    # Parallel S3 uploads
-    s3 = boto3.client("s3", region_name=S3_REGION)
-
-    logger.info("Uploading %d embeddings to S3 cache (workers=%d)...", len(entries), S3_CACHE_WORKERS)
-
-    with ThreadPoolExecutor(max_workers=S3_CACHE_WORKERS) as executor:
-        futures = [
-            executor.submit(_upload_single_embedding_to_s3, s3, entry)
-            for entry in entries
-        ]
-
-        # Wait for all uploads to complete, propagating any errors
-        for future in as_completed(futures):
-            future.result()
-
-    # Single DB transaction for all cache records
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -179,14 +218,30 @@ def save_cache_batch(entries: list[dict]):
             for entry in entries:
                 cur.execute(
                     """INSERT INTO embedding_cache
-                       (embedding_hash, normalization_version, model_name, dimension, s3_path, created_at, updated_at)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s)
-                       ON CONFLICT (embedding_hash) DO NOTHING""",
-                    (entry["hash"], NORMALIZATION_VERSION, entry.get("model_id", DEFAULT_MODEL_ID),
-                     entry.get("dimension", DEFAULT_EMBEDDING_DIMENSION), entry["s3_path"], now, now),
+                       (embedding_hash, normalization_version, model_name,
+                        dimension, s3_path, embedding_vector, created_at, updated_at)
+                       VALUES (%s, %s, %s, %s, %s, %s::vector, %s, %s)
+                       ON CONFLICT (embedding_hash) DO UPDATE
+                       SET embedding_vector = EXCLUDED.embedding_vector,
+                           updated_at = EXCLUDED.updated_at
+                       WHERE embedding_cache.embedding_vector IS NULL""",
+                    (
+                        entry["hash"],
+                        NORMALIZATION_VERSION,
+                        entry.get("model_id", DEFAULT_MODEL_ID),
+                        entry.get("dimension", DEFAULT_EMBEDDING_DIMENSION),
+                        # s3_path is retained as empty string for new rows so
+                        # the NOT NULL constraint on the legacy column still
+                        # holds. The follow-up cleanup migration drops this
+                        # column once all rows have an inline vector.
+                        "",
+                        _vector_to_pg_literal(entry["embedding"]),
+                        now,
+                        now,
+                    ),
                 )
             conn.commit()
-        logger.info("Saved %d embeddings to cache (S3 + DB)", len(entries))
+        logger.info("Saved %d embeddings to embedding_cache (pgvector)", len(entries))
     except Exception:
         conn.rollback()
         raise
@@ -287,24 +342,24 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
             dimension=embedding_dimension,
         )
 
-        # Build cache entries for new embeddings
+        # Build cache entries for new embeddings. Vectors are persisted
+        # directly into embedding_cache.embedding_vector (pgvector) — no
+        # per-vector S3 PUT happens here anymore.
         cache_entries = []
         for idx_in_uncached, orig_idx in enumerate(uncached_indices):
             key = all_keys[orig_idx]
             vector = vectors[idx_in_uncached]
-            s3_cache_path = f"s3://{S3_BUCKET}/cache/embeddings/{key[:2]}/{key}.json"
 
             new_embeddings[key] = vector
             cache_entries.append({
                 "hash": key,
                 "embedding": vector,
-                "s3_path": s3_cache_path,
                 "model_id": model_id,
                 "dimension": embedding_dimension,
             })
 
-        # Step 4: Save to cache (parallel S3 writes + single DB transaction)
-        update_job_action(job_id, f"S3にキャッシュ保存中 ({len(cache_entries)}件)")
+        # Step 4: Save to embedding_cache (single DB transaction)
+        update_job_action(job_id, f"埋め込みキャッシュ保存中 ({len(cache_entries)}件)")
         save_cache_batch(cache_entries)
         logger.info("Saved %d new embeddings to cache", len(cache_entries))
 
