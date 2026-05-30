@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cluster;
 use App\Models\Dataset;
 use App\Models\Embedding;
 use App\Models\KnowledgeUnit;
@@ -801,11 +802,78 @@ class EmbeddingController extends Controller
         $format = $request->query('format', 'json');
         $baseFilename = Str::slug($embedding->name) . '_clusters' . $filenameSuffix;
 
+        // Fallback for LLM-disabled mode: when knowledge_unit_generation was
+        // skipped the KU table is empty for this job, so the export would be
+        // a header-only file. The underlying clusters still exist with
+        // cluster_label + row_count, so we surface those directly. The
+        // schema differs from the KU export (focused columns only — there
+        // is genuinely no topic/summary/etc. to fill in without an LLM),
+        // which keeps the file honest about what data the system actually
+        // produced rather than padding with empty columns.
+        if ($kus->isEmpty() && $jobId) {
+            $clusters = Cluster::where('pipeline_job_id', $jobId)
+                ->where('workspace_id', $workspaceId)
+                ->orderBy('cluster_label')
+                ->get(['cluster_label', 'topic_name', 'intent', 'summary', 'row_count']);
+
+            if ($clusters->isNotEmpty()) {
+                if ($format === 'csv') {
+                    return $this->exportClustersAsCsv($clusters, $baseFilename);
+                }
+                return $this->exportClustersAsJson($clusters, $embedding->name, $baseFilename);
+            }
+        }
+
         if ($format === 'csv') {
             return $this->exportAsCsv($kus, $columns, $baseFilename);
         }
 
         return $this->exportAsJson($kus, $embedding->name, $baseFilename);
+    }
+
+    /**
+     * Cluster-table fallback export (CSV). Used when knowledge_unit_generation
+     * was skipped (LLM-disabled mode) but clusters from the clustering step
+     * still exist. Columns are intentionally minimal — cluster_id and
+     * row_count are the only fields guaranteed to be populated without an
+     * LLM. topic / intent / summary appear too so that downstream
+     * in-house-LLM labelling flows can fill them in by editing the file.
+     */
+    private function exportClustersAsCsv($clusters, string $baseFilename)
+    {
+        $columns = ['cluster_id', 'topic', 'intent', 'summary', 'row_count'];
+        $rows = [];
+        foreach ($clusters as $cluster) {
+            $rows[] = [
+                $cluster->cluster_label,
+                $cluster->topic_name ?? '',
+                $cluster->intent ?? '',
+                $cluster->summary ?? '',
+                $cluster->row_count,
+            ];
+        }
+        return CsvDownload::make($columns, $rows, $baseFilename);
+    }
+
+    /**
+     * JSON counterpart of exportClustersAsCsv — same fallback, same minimal
+     * cluster-table shape.
+     */
+    private function exportClustersAsJson($clusters, string $embeddingName, string $baseFilename)
+    {
+        return response()->json([
+            'embedding' => $embeddingName,
+            'exported_at' => now()->toIso8601String(),
+            'total' => $clusters->count(),
+            'source' => 'clusters_table_fallback',
+            'clusters' => $clusters->map(fn($c) => [
+                'cluster_id' => $c->cluster_label,
+                'topic' => $c->topic_name,
+                'intent' => $c->intent,
+                'summary' => $c->summary,
+                'row_count' => $c->row_count,
+            ]),
+        ])->header('Content-Disposition', "attachment; filename=\"{$baseFilename}.json\"");
     }
 
     /**
@@ -898,7 +966,18 @@ class EmbeddingController extends Controller
             }
         }
 
-        // Fetch original rows with the cluster topic name for the resolved job.
+        // Fetch original rows with cluster identifier + topic name for the
+        // resolved job. We deliberately surface BOTH cluster_id (the
+        // numerical cluster_label assigned by the clustering step) and
+        // cluster_topic (the LLM-generated label) because they serve
+        // different purposes:
+        //   - cluster_id is always present when the row belongs to a real
+        //     cluster (noise points and unmembered rows leave it empty).
+        //     This is the column customers in LLM-disabled mode use to
+        //     group rows for self-labelling with their own in-house LLM.
+        //   - cluster_topic is the human-readable name from cluster_analysis;
+        //     when LLM is disabled or that step is skipped, it stays empty,
+        //     but cluster_id still tells the user which group each row is in.
         //
         // Pipeline_job_id filtering is pushed *inside* the subquery so that the
         // outer LEFT JOIN against dataset_rows is strictly 1:1. The naive form
@@ -913,10 +992,11 @@ class EmbeddingController extends Controller
         // subquery to `DISTINCT ON (cm.dataset_row_id) ... ORDER BY
         // cm.membership_score DESC` to pick the strongest assignment.
         $rows = \DB::select("
-            SELECT dr.row_no, dr.metadata_json, sub.topic_name AS cluster_topic
+            SELECT dr.row_no, dr.metadata_json,
+                   sub.cluster_label, sub.topic_name AS cluster_topic
             FROM dataset_rows dr
             LEFT JOIN (
-                SELECT cm.dataset_row_id, c.topic_name
+                SELECT cm.dataset_row_id, c.cluster_label, c.topic_name
                 FROM cluster_memberships cm
                 INNER JOIN clusters c ON c.id = cm.cluster_id
                 WHERE c.pipeline_job_id = ?
@@ -949,10 +1029,16 @@ class EmbeddingController extends Controller
             $firstMeta = json_decode($rows[0]->metadata_json, true) ?? [];
             $originalColumns = array_keys($firstMeta);
         }
-        $csvHeader = array_merge($originalColumns, ['cluster_topic']);
+        // cluster_id appears immediately before cluster_topic so the two
+        // cluster-related columns sit together at the rightmost edge of the
+        // CSV (and so spreadsheet users can sort by cluster_id without
+        // dragging cluster_topic out from somewhere far away).
+        $csvHeader = array_merge($originalColumns, ['cluster_id', 'cluster_topic']);
 
         // Project each row's metadata_json into ordered scalar values
-        // matching $originalColumns, and append the joined cluster topic.
+        // matching $originalColumns, then append cluster_id + cluster_topic.
+        // Both are empty strings for noise points / unmembered rows; that
+        // is the right signal — those rows did not get a cluster.
         $csvRows = [];
         foreach ($rows as $row) {
             $meta = json_decode($row->metadata_json, true) ?? [];
@@ -960,6 +1046,10 @@ class EmbeddingController extends Controller
             foreach ($originalColumns as $col) {
                 $csvRow[] = $meta[$col] ?? '';
             }
+            // cluster_label comes back as int|null from psql via PDO; an
+            // explicit `?? ''` keeps empty cells truly empty rather than
+            // rendering the literal string "0" for legitimate cluster 0.
+            $csvRow[] = $row->cluster_label !== null ? (string) $row->cluster_label : '';
             $csvRow[] = $row->cluster_topic ?? '';
             $csvRows[] = $csvRow;
         }
