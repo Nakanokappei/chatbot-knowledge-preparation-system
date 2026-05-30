@@ -65,6 +65,8 @@ return [
     'llm_disabled_mode' => 'LLM 無効モード（クラスタリングまで実行）',
     'llm_disabled_tooltip' => 'ワークスペースに有効な LLM モデルが登録されていません。クラスタリングまで実行し、cluster_id 付きの行データをダウンロードできます（社内 LLM で各クラスタを後付けラベリング可能）。設定画面でモデルを有効化すると、トピック抽出・ナレッジ生成も自動で実行されます。',
     'report_llm_disabled_note' => 'このレポートはワークスペースに有効な LLM モデルが無い状態で生成されました。数値スコア・勝者選定・サンプル分布は通常通り表示されますが、AI による要約と Top グループ命名は省略されています。',
+    'confirm_deactivate_default' => 'これはデフォルトモデルです。無効化するとパイプラインが LLM 無効モードに切り替わる場合があります。続行しますか？',
+    'confirm_deactivate_default_embedding' => 'これはデフォルトの埋め込みモデルです。無効化するとパイプラインが動作しなくなる可能性があります。続行しますか？',
     'method_hdbscan' => 'HDBSCAN（自動クラスタリング）',
     'method_kmeans' => 'K-Means（固定クラスタ数）',
     'method_agglomerative' => '凝集型（階層的）',

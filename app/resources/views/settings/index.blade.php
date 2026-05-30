@@ -91,23 +91,45 @@
                         </thead>
                         <tbody>
                             @foreach($models as $model)
-                            <tr @if(!$model->is_active) style="opacity: 0.5;" @endif>
-                                <td style="font-weight: 500;">{{ $model->display_name }}</td>
-                                <td><span class="mono">{{ $model->model_id }}</span></td>
-                                <td>
+                            {{-- Row-level opacity used to fade ALL cells when is_active=false,
+                                 which made the "Activate" button look greyed out as if the
+                                 button itself were disabled. Now only the text cells dim;
+                                 actions cell stays at full opacity, and the activate button
+                                 is styled primary when the row is inactive so it's the
+                                 obvious next action. --}}
+                            @php $rowMuted = !$model->is_active ? 'opacity: 0.5;' : ''; @endphp
+                            <tr>
+                                <td style="font-weight: 500; {{ $rowMuted }}">{{ $model->display_name }}</td>
+                                <td style="{{ $rowMuted }}"><span class="mono">{{ $model->model_id }}</span></td>
+                                <td style="{{ $rowMuted }}">
                                     @if($model->is_default)
                                         <span class="badge" style="background: #0071e3; color: #fff;">{{ __('ui.default') }}</span>
-                                    @else
-                                        <span class="badge {{ $model->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                            {{ $model->is_active ? __('ui.active') : __('ui.inactive') }}
-                                        </span>
                                     @endif
+                                    <span class="badge {{ $model->is_active ? 'badge-active' : 'badge-inactive' }}">
+                                        {{ $model->is_active ? __('ui.active') : __('ui.inactive') }}
+                                    </span>
                                 </td>
                                 <td>
                                     <div class="actions">
+                                        {{-- set_default and delete still only make sense for non-default
+                                             models. toggle_active is now available for ALL models, including
+                                             the default — deactivating the default is a valid way to put
+                                             the workspace into LLM-disabled mode. --}}
                                         @if(!$model->is_default)
                                             <form method="POST" action="{{ route('settings.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
-                                            <form method="POST" action="{{ route('settings.update', $model) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
+                                        @endif
+                                        <form method="POST"
+                                              action="{{ route('settings.update', $model) }}"
+                                              @if($model->is_active && $model->is_default)
+                                                  onsubmit="return confirm('{{ __('ui.confirm_deactivate_default') ?? 'これはデフォルトモデルです。無効化するとパイプラインが LLM 無効モードに切り替わる場合があります。続行しますか？' }}')"
+                                              @endif>
+                                            @csrf @method('PUT')
+                                            <input type="hidden" name="action" value="toggle_active">
+                                            <button type="submit" class="btn btn-sm {{ $model->is_active ? 'btn-outline' : 'btn-primary' }}">
+                                                {{ $model->is_active ? __('ui.deactivate') : __('ui.activate') }}
+                                            </button>
+                                        </form>
+                                        @if(!$model->is_default)
                                             <form method="POST" action="{{ route('settings.destroy', $model) }}" onsubmit="return confirm('Delete {{ $model->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
                                     </div>
@@ -186,25 +208,41 @@
                         </thead>
                         <tbody>
                             @foreach($embeddingModels as $em)
-                            <tr @if(!$em->is_active) style="opacity: 0.5;" @endif>
-                                <td style="font-weight: 500;">{{ $em->display_name }}</td>
-                                <td><span class="mono">{{ $em->model_id }}</span></td>
-                                <td><span class="badge {{ ($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) }}</span></td>
-                                <td style="text-align: center;">{{ $em->dimension }}</td>
-                                <td>
+                            {{-- Same treatment as the LLM table above: mute only the text
+                                 cells when inactive, keep the actions cell at full opacity,
+                                 promote the "Activate" button to primary, and let the
+                                 default model be deactivated (with a confirm prompt). --}}
+                            @php $rowMutedEm = !$em->is_active ? 'opacity: 0.5;' : ''; @endphp
+                            <tr>
+                                <td style="font-weight: 500; {{ $rowMutedEm }}">{{ $em->display_name }}</td>
+                                <td style="{{ $rowMutedEm }}"><span class="mono">{{ $em->model_id }}</span></td>
+                                <td style="{{ $rowMutedEm }}"><span class="badge {{ ($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) }}</span></td>
+                                <td style="text-align: center; {{ $rowMutedEm }}">{{ $em->dimension }}</td>
+                                <td style="{{ $rowMutedEm }}">
                                     @if($em->is_default)
                                         <span class="badge" style="background: #0071e3; color: #fff;">{{ __('ui.default') }}</span>
-                                    @else
-                                        <span class="badge {{ $em->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                            {{ $em->is_active ? __('ui.active') : __('ui.inactive') }}
-                                        </span>
                                     @endif
+                                    <span class="badge {{ $em->is_active ? 'badge-active' : 'badge-inactive' }}">
+                                        {{ $em->is_active ? __('ui.active') : __('ui.inactive') }}
+                                    </span>
                                 </td>
                                 <td>
                                     <div class="actions">
                                         @if(!$em->is_default)
                                             <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
-                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="toggle_active"><button type="submit" class="btn btn-sm btn-outline">{{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}</button></form>
+                                        @endif
+                                        <form method="POST"
+                                              action="{{ route('settings.embedding.update', $em) }}"
+                                              @if($em->is_active && $em->is_default)
+                                                  onsubmit="return confirm('{{ __('ui.confirm_deactivate_default_embedding') ?? 'これはデフォルトの埋め込みモデルです。無効化するとパイプラインが動作しなくなる可能性があります。続行しますか？' }}')"
+                                              @endif>
+                                            @csrf @method('PUT')
+                                            <input type="hidden" name="action" value="toggle_active">
+                                            <button type="submit" class="btn btn-sm {{ $em->is_active ? 'btn-outline' : 'btn-primary' }}">
+                                                {{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}
+                                            </button>
+                                        </form>
+                                        @if(!$em->is_default)
                                             <form method="POST" action="{{ route('settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
                                         @endif
                                     </div>

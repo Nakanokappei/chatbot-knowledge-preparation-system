@@ -65,6 +65,8 @@ return [
     'llm_disabled_mode' => 'LLM-disabled mode (clustering only)',
     'llm_disabled_tooltip' => 'No active LLM model is registered in this workspace. The pipeline will halt after clustering; you can download per-row data with cluster_id and label clusters with your own in-house LLM. Enable a model in Settings to run topic extraction and knowledge generation automatically.',
     'report_llm_disabled_note' => 'This report was generated with no active LLM model in the workspace. Numerical scores, winner selection, and sample distribution still render normally, but AI-generated executive advisory and Top Groups naming are omitted.',
+    'confirm_deactivate_default' => 'This is the default model. Deactivating it may switch the pipeline into LLM-disabled mode. Continue?',
+    'confirm_deactivate_default_embedding' => 'This is the default embedding model. Deactivating it may stop the pipeline from running. Continue?',
     'method_hdbscan' => 'HDBSCAN (auto clusters)',
     'method_kmeans' => 'K-Means (fixed clusters)',
     'method_agglomerative' => 'Agglomerative (hierarchical)',
