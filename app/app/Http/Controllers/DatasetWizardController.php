@@ -550,10 +550,20 @@ class DatasetWizardController extends Controller
 
             // Build base pipeline config (shared across all clustering configs)
             $baseConfig = ['phase' => '2'];
+
+            // LLM-disabled mode: when the workspace has no active LLM model
+            // we omit llm_model_id and set llm_enabled=false. The worker
+            // will skip cluster_analysis + knowledge_unit_generation and the
+            // pipeline completes at clustering.
+            $hasActiveLlm = LlmModel::where('workspace_id', $workspaceId)
+                ->where('is_active', true)
+                ->exists();
+            $baseConfig['llm_enabled'] = $hasActiveLlm;
             $llmModelId = $request->input('llm_model_id');
-            if ($llmModelId) {
+            if ($hasActiveLlm && $llmModelId) {
                 $baseConfig['llm_model_id'] = $llmModelId;
             }
+
             $baseConfig['knowledge_mapping'] = $knowledgeMapping;
             $baseConfig['column_names'] = $allColumns;
             $baseConfig['llm_fallback'] = $request->boolean('llm_fallback', true);

@@ -279,6 +279,18 @@ class EmbeddingController extends Controller
         ], fn($v) => $v !== null && $v !== '');
         $config['remove_language_bias'] = $request->boolean('remove_language_bias', true);
 
+        // Re-evaluate LLM availability at the moment of re-clustering: the
+        // workspace may have toggled its LLM models on/off since the source
+        // job ran. Old jobs' llm_enabled value is not authoritative for the
+        // new job.
+        $hasActiveLlm = LlmModel::where('workspace_id', $workspaceId)
+            ->where('is_active', true)
+            ->exists();
+        $config['llm_enabled'] = $hasActiveLlm;
+        if (!$hasActiveLlm) {
+            $config['llm_model_id'] = null;
+        }
+
         // Check if a pipeline is already running
         $hasRunningPipeline = PipelineJob::where('workspace_id', $workspaceId)
             ->whereIn('status', ['submitted', 'processing', 'preprocess', 'embedding', 'clustering', 'cluster_analysis', 'knowledge_unit_generation'])
@@ -354,6 +366,17 @@ class EmbeddingController extends Controller
         // Build minimal config (no clustering-specific params needed — the sweep generates them)
         $config = $sourceJob->pipeline_config_snapshot_json ?? [];
         $config['embedding_id'] = $embeddingId;
+
+        // Refresh LLM availability so the advisor portion of parameter search
+        // is skipped cleanly when the workspace currently has no active LLM.
+        // (Numerical sweep + winner selection still works.)
+        $hasActiveLlm = LlmModel::where('workspace_id', $workspaceId)
+            ->where('is_active', true)
+            ->exists();
+        $config['llm_enabled'] = $hasActiveLlm;
+        if (!$hasActiveLlm) {
+            $config['llm_model_id'] = null;
+        }
 
         // Create a parameter_search job (lightweight, no chaining)
         $job = PipelineJob::create([
@@ -558,6 +581,15 @@ class EmbeddingController extends Controller
         // the original sweep order within each method group.
         $byMethod = $trials->groupBy('method')->map(fn($group) => $group->values());
 
+        // Surface "LLM-disabled mode" to the report so the Search Conditions
+        // section can render an explanatory badge. We read llm_enabled from
+        // the job's snapshot rather than the workspace's current state so
+        // historical reports keep telling the truth about the run they show.
+        $jobConfig = $job?->pipeline_config_snapshot_json ?? [];
+        $llmEnabled = array_key_exists('llm_enabled', $jobConfig)
+            ? (bool) $jobConfig['llm_enabled']
+            : !empty($jobConfig['llm_model_id']);
+
         return view('workspace.parameter_search_report', [
             'embedding' => $embedding,
             'job' => $job,
@@ -577,6 +609,7 @@ class EmbeddingController extends Controller
             'advisoryMd' => (string) ($payload['advisory_markdown'] ?? ''),
             'topClusters' => $payload['top_clusters'] ?? [],
             'advisorMeta' => $payload['advisor_meta'] ?? [],
+            'llmEnabled' => $llmEnabled,
         ]);
     }
 

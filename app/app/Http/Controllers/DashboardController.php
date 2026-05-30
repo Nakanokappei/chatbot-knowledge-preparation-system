@@ -239,8 +239,16 @@ class DashboardController extends Controller
             ->whereIn('status', $runningStatuses)
             ->exists();
 
-        // Resolve the default LLM model from the database registry
+        // Resolve the default LLM model from the database registry. A workspace
+        // with NO active LLM models triggers "LLM-disabled mode": cluster_analysis
+        // and knowledge_unit_generation are skipped on the worker side, and the
+        // pipeline completes at clustering. The clustered CSV export is the
+        // user-facing deliverable in that mode.
+        $hasActiveLlm = LlmModel::where('workspace_id', $workspaceId)
+            ->where('is_active', true)
+            ->exists();
         $defaultModel = LlmModel::where('workspace_id', $workspaceId)
+            ->where('is_active', true)
             ->where('is_default', true)
             ->first();
         $defaultLlmModel = $defaultModel?->model_id ?? 'jp.anthropic.claude-haiku-4-5-20251001-v1:0';
@@ -274,7 +282,12 @@ class DashboardController extends Controller
 
         $pipelineConfig = [
             'phase' => '2',
-            'llm_model_id' => $request->input('llm_model_id', $defaultLlmModel),
+            // When the workspace has no active LLM model, set llm_model_id=null
+            // and llm_enabled=false. The worker uses llm_enabled to short-circuit
+            // cluster_analysis / knowledge_unit_generation; llm_model_id=null
+            // also gracefully disables the parameter-search advisory.
+            'llm_model_id' => $hasActiveLlm ? $request->input('llm_model_id', $defaultLlmModel) : null,
+            'llm_enabled' => $hasActiveLlm,
             'embedding_model' => $request->input('embedding_model_id', 'amazon.titan-embed-text-v2:0'),
             'embedding_dimension' => (int) ($request->input('embedding_dimension', 1024)),
             'clustering_method' => $clusteringMethod,
