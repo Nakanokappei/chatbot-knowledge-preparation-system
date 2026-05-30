@@ -208,45 +208,79 @@
                         </thead>
                         <tbody>
                             @foreach($embeddingModels as $em)
-                            {{-- Same treatment as the LLM table above: mute only the text
-                                 cells when inactive, keep the actions cell at full opacity,
-                                 promote the "Activate" button to primary, and let the
-                                 default model be deactivated (with a confirm prompt). --}}
-                            @php $rowMutedEm = !$em->is_active ? 'opacity: 0.5;' : ''; @endphp
+                            {{-- Display-only special case: Amazon Titan Text Embeddings V2
+                                 is the system's built-in / required embedding (both the
+                                 Laravel dispatch controllers and the worker fall back to
+                                 it when no other embedding is selected, so it cannot
+                                 meaningfully be turned off). Surface that to the user as
+                                 a "Default Embeddings" pseudo-row: name / model_id /
+                                 provider columns are masked, dimension is fixed at 1024,
+                                 and the deactivate / delete buttons are rendered but
+                                 disabled. The DB row is unchanged — only the rendering
+                                 swaps. OpenAI / other embeddings keep the normal UX. --}}
+                            @php
+                                $isSystemDefaultEm = $em->model_id === 'amazon.titan-embed-text-v2:0';
+                                $rowMutedEm = (!$em->is_active && !$isSystemDefaultEm) ? 'opacity: 0.5;' : '';
+                            @endphp
                             <tr>
-                                <td style="font-weight: 500; {{ $rowMutedEm }}">{{ $em->display_name }}</td>
-                                <td style="{{ $rowMutedEm }}"><span class="mono">{{ $em->model_id }}</span></td>
-                                <td style="{{ $rowMutedEm }}"><span class="badge {{ ($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) }}</span></td>
-                                <td style="text-align: center; {{ $rowMutedEm }}">{{ $em->dimension }}</td>
-                                <td style="{{ $rowMutedEm }}">
-                                    @if($em->is_default)
+                                @if($isSystemDefaultEm)
+                                    <td style="font-weight: 500;">Default Embeddings</td>
+                                    <td><span class="mono">-</span></td>
+                                    <td>-</td>
+                                    <td style="text-align: center;">1024</td>
+                                    <td>
                                         <span class="badge" style="background: #0071e3; color: #fff;">{{ __('ui.default') }}</span>
-                                    @endif
-                                    <span class="badge {{ $em->is_active ? 'badge-active' : 'badge-inactive' }}">
-                                        {{ $em->is_active ? __('ui.active') : __('ui.inactive') }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="actions">
-                                        @if(!$em->is_default)
-                                            <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
-                                        @endif
-                                        <form method="POST"
-                                              action="{{ route('settings.embedding.update', $em) }}"
-                                              @if($em->is_active && $em->is_default)
-                                                  onsubmit="return confirm('{{ __('ui.confirm_deactivate_default_embedding') ?? 'これはデフォルトの埋め込みモデルです。無効化するとパイプラインが動作しなくなる可能性があります。続行しますか？' }}')"
-                                              @endif>
-                                            @csrf @method('PUT')
-                                            <input type="hidden" name="action" value="toggle_active">
-                                            <button type="submit" class="btn btn-sm {{ $em->is_active ? 'btn-outline' : 'btn-primary' }}">
-                                                {{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}
+                                    </td>
+                                    <td>
+                                        <div class="actions">
+                                            {{-- Deactivate is rendered but disabled so users see the
+                                                 control and immediately understand it is not available
+                                                 for this row, rather than wondering why the row has
+                                                 no action button at all. --}}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline"
+                                                    disabled
+                                                    title="{{ __('ui.system_default_cannot_deactivate') ?? 'システム必須の埋め込みモデルのため無効化できません' }}"
+                                                    style="opacity: 0.4; cursor: not-allowed;">
+                                                {{ __('ui.deactivate') }}
                                             </button>
-                                        </form>
-                                        @if(!$em->is_default)
-                                            <form method="POST" action="{{ route('settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                        </div>
+                                    </td>
+                                @else
+                                    <td style="font-weight: 500; {{ $rowMutedEm }}">{{ $em->display_name }}</td>
+                                    <td style="{{ $rowMutedEm }}"><span class="mono">{{ $em->model_id }}</span></td>
+                                    <td style="{{ $rowMutedEm }}"><span class="badge {{ ($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) === 'openai' ? 'badge-published' : 'badge-draft' }}" style="font-size: 10px;">{{ ucfirst($em->provider ?: (str_starts_with($em->model_id, 'text-embedding-') ? 'openai' : 'bedrock')) }}</span></td>
+                                    <td style="text-align: center; {{ $rowMutedEm }}">{{ $em->dimension }}</td>
+                                    <td style="{{ $rowMutedEm }}">
+                                        @if($em->is_default)
+                                            <span class="badge" style="background: #0071e3; color: #fff;">{{ __('ui.default') }}</span>
                                         @endif
-                                    </div>
-                                </td>
+                                        <span class="badge {{ $em->is_active ? 'badge-active' : 'badge-inactive' }}">
+                                            {{ $em->is_active ? __('ui.active') : __('ui.inactive') }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="actions">
+                                            @if(!$em->is_default)
+                                                <form method="POST" action="{{ route('settings.embedding.update', $em) }}">@csrf @method('PUT')<input type="hidden" name="action" value="set_default"><button type="submit" class="btn btn-sm btn-outline btn-set-default">{{ __('ui.set_default') }}</button></form>
+                                            @endif
+                                            <form method="POST"
+                                                  action="{{ route('settings.embedding.update', $em) }}"
+                                                  @if($em->is_active && $em->is_default)
+                                                      onsubmit="return confirm('{{ __('ui.confirm_deactivate_default_embedding') ?? 'これはデフォルトの埋め込みモデルです。無効化するとパイプラインが動作しなくなる可能性があります。続行しますか？' }}')"
+                                                  @endif>
+                                                @csrf @method('PUT')
+                                                <input type="hidden" name="action" value="toggle_active">
+                                                <button type="submit" class="btn btn-sm {{ $em->is_active ? 'btn-outline' : 'btn-primary' }}">
+                                                    {{ $em->is_active ? __('ui.deactivate') : __('ui.activate') }}
+                                                </button>
+                                            </form>
+                                            @if(!$em->is_default)
+                                                <form method="POST" action="{{ route('settings.embedding.destroy', $em) }}" onsubmit="return confirm('Delete {{ $em->display_name }}?')">@csrf @method('DELETE')<button type="submit" class="btn btn-sm btn-danger">{{ __('ui.delete') }}</button></form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                @endif
                             </tr>
                             @endforeach
                         </tbody>

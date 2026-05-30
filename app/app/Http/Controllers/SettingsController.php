@@ -572,6 +572,19 @@ class SettingsController extends Controller
     {
         $action = $request->input('action');
 
+        // Defensive guard for the system-default embedding (Amazon Titan Text
+        // Embeddings V2). The settings view renders its deactivate / delete
+        // controls as disabled buttons, but a direct POST would still flow
+        // through here without this check. Both Laravel dispatch and the
+        // worker fall back to this model when no other embedding is
+        // selected, so allowing it to be toggled off would leave the user
+        // with no way to reach the pipeline.
+        if ($embeddingModel->model_id === 'amazon.titan-embed-text-v2:0'
+                && in_array($action, ['toggle_active', 'set_default'], true)) {
+            return redirect()->route('settings.index')
+                ->with('error', __('ui.system_default_cannot_modify') ?? 'システム必須の埋め込みモデルは変更できません。');
+        }
+
         if ($action === 'toggle_active') {
             $embeddingModel->update(['is_active' => !$embeddingModel->is_active]);
             $status = $embeddingModel->is_active ? 'activated' : 'deactivated';
@@ -605,6 +618,13 @@ class SettingsController extends Controller
      */
     public function destroyEmbedding(EmbeddingModel $embeddingModel): RedirectResponse
     {
+        // Same defence as updateEmbedding — Titan v2 is the system fallback
+        // and must not be deletable even by direct POST.
+        if ($embeddingModel->model_id === 'amazon.titan-embed-text-v2:0') {
+            return redirect()->route('settings.index')
+                ->with('error', __('ui.system_default_cannot_modify') ?? 'システム必須の埋め込みモデルは変更できません。');
+        }
+
         $name = $embeddingModel->display_name;
         $embeddingModel->delete();
         return redirect()->route('settings.index')

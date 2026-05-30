@@ -67,6 +67,8 @@ return [
     'report_llm_disabled_note' => 'This report was generated with no active LLM model in the workspace. Numerical scores, winner selection, and sample distribution still render normally, but AI-generated executive advisory and Top Groups naming are omitted.',
     'confirm_deactivate_default' => 'This is the default model. Deactivating it may switch the pipeline into LLM-disabled mode. Continue?',
     'confirm_deactivate_default_embedding' => 'This is the default embedding model. Deactivating it may stop the pipeline from running. Continue?',
+    'system_default_cannot_deactivate' => 'System-required embedding model — cannot be deactivated',
+    'system_default_cannot_modify' => 'The system-required embedding model cannot be modified.',
     'method_hdbscan' => 'HDBSCAN (auto clusters)',
     'method_kmeans' => 'K-Means (fixed clusters)',
     'method_agglomerative' => 'Agglomerative (hierarchical)',

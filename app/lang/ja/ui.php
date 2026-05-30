@@ -67,6 +67,8 @@ return [
     'report_llm_disabled_note' => 'このレポートはワークスペースに有効な LLM モデルが無い状態で生成されました。数値スコア・勝者選定・サンプル分布は通常通り表示されますが、AI による要約と Top グループ命名は省略されています。',
     'confirm_deactivate_default' => 'これはデフォルトモデルです。無効化するとパイプラインが LLM 無効モードに切り替わる場合があります。続行しますか？',
     'confirm_deactivate_default_embedding' => 'これはデフォルトの埋め込みモデルです。無効化するとパイプラインが動作しなくなる可能性があります。続行しますか？',
+    'system_default_cannot_deactivate' => 'システム必須の埋め込みモデルのため無効化できません',
+    'system_default_cannot_modify' => 'システム必須の埋め込みモデルは変更できません。',
     'method_hdbscan' => 'HDBSCAN（自動クラスタリング）',
     'method_kmeans' => 'K-Means（固定クラスタ数）',
     'method_agglomerative' => '凝集型（階層的）',
