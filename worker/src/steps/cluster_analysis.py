@@ -415,6 +415,32 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
     column_descriptions = pipeline_config.get("column_descriptions", {})
     logger.info("Using LLM model: %s", llm_model_id)
 
+    # Belt-and-braces: step_chain.dispatch_next_step already routes around
+    # LLM-dependent steps when llm_enabled is False, but if cluster_analysis
+    # is invoked directly (manual SQS, retry, legacy queued job) we still
+    # respect the flag and exit cleanly rather than calling Bedrock.
+    if not pipeline_config.get("llm_enabled", True):
+        logger.info(
+            "LLM is disabled for job %d; skipping cluster_analysis. "
+            "Clusters keep cluster_label only; topic_name/intent/summary remain NULL.",
+            job_id,
+        )
+        update_job_action(job_id, "LLM 無効化中のためクラスタ解析をスキップ")
+        update_job_step_outputs(job_id, "cluster_analysis", {
+            "skipped": True,
+            "reason": "llm_disabled",
+            "cluster_count": 0,
+        })
+        next_step = dispatch_next_step(
+            current_step="cluster_analysis",
+            job_id=job_id, tenant_id=tenant_id, dataset_id=dataset_id,
+            output_s3_path=kwargs.get("input_s3_path"),
+            pipeline_config=pipeline_config,
+        )
+        if next_step is None:
+            update_job_status(job_id, status="completed", progress=100)
+        return
+
     # Load clusters with representatives
     clusters = load_clusters_with_representatives(job_id)
     logger.info("Loaded %d clusters for analysis", len(clusters))

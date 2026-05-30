@@ -22,6 +22,14 @@ logger = logging.getLogger(__name__)
 # Pipeline step execution order
 STEP_SEQUENCE = ["preprocess", "embedding", "clustering", "cluster_analysis", "knowledge_unit_generation"]
 
+# Steps that require an LLM (Claude/Bedrock) to do anything useful. When the
+# workspace has no active LLM model registered, the pipeline skips these and
+# completes at the last LLM-free numerical step (clustering). The clustered
+# rows are still exportable as CSV with their cluster_id; customers can label
+# the clusters themselves using their own in-house LLM if they have privacy
+# constraints that bar Bedrock.
+LLM_DEPENDENT_STEPS = frozenset({"cluster_analysis", "knowledge_unit_generation"})
+
 
 def dispatch_next_step(
     current_step: str,
@@ -35,6 +43,10 @@ def dispatch_next_step(
     Send the next pipeline step to SQS after the current step completes.
 
     Returns the name of the next step, or None if the pipeline is complete.
+
+    When `pipeline_config['llm_enabled']` is False (the workspace has no
+    active LLM models), LLM-dependent steps are skipped — clustering becomes
+    the de-facto final step and the job is marked complete.
     """
     # Walk STEP_SEQUENCE to find current_step's neighbour.
     try:
@@ -43,12 +55,24 @@ def dispatch_next_step(
         logger.warning("Step '%s' not in STEP_SEQUENCE; no chaining.", current_step)
         return None
 
-    if idx + 1 >= len(STEP_SEQUENCE):
+    # Skip LLM-dependent steps when the workspace has no active LLM model.
+    # We don't want to spin up SQS workers for steps that would just no-op.
+    llm_enabled = bool(pipeline_config.get("llm_enabled", True))
+    next_idx = idx + 1
+    if not llm_enabled:
+        while next_idx < len(STEP_SEQUENCE) and STEP_SEQUENCE[next_idx] in LLM_DEPENDENT_STEPS:
+            logger.info(
+                "Skipping '%s' for job %d: workspace has no active LLM model",
+                STEP_SEQUENCE[next_idx], job_id,
+            )
+            next_idx += 1
+
+    if next_idx >= len(STEP_SEQUENCE):
         logger.info("Pipeline complete for job %d (last step: %s)", job_id, current_step)
         dispatch_queued_job(tenant_id)
         return None
 
-    next_step = STEP_SEQUENCE[idx + 1]
+    next_step = STEP_SEQUENCE[next_idx]
 
     # Cancellation check: if the user cancelled mid-step, do NOT enqueue the
     # next step. Without this guard the pipeline would keep chaining forward

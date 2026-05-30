@@ -459,6 +459,29 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None, **kwargs):
 
     pipeline_config = kwargs.get("pipeline_config") or {}
 
+    # Belt-and-braces: when the workspace has no active LLM model the
+    # cluster_analysis step has already been skipped, so there are no
+    # LLM-derived topic/intent/summary to seed KU fields from. Skip KU
+    # generation entirely and let the customer work from the clustered
+    # CSV export (which now carries each row's cluster_id).
+    if not pipeline_config.get("llm_enabled", True):
+        logger.info(
+            "LLM is disabled for job %d; skipping knowledge_unit_generation. "
+            "No knowledge_units will be created; clusters remain the final output.",
+            job_id,
+        )
+        update_job_action(job_id, "LLM 無効化中のためナレッジユニット生成をスキップ")
+        update_job_step_outputs(job_id, "knowledge_unit_generation", {
+            "skipped": True,
+            "reason": "llm_disabled",
+            "created_count": 0,
+        })
+        update_job_status(job_id, status="completed", progress=100)
+        # No chaining: KU gen is already the last step in STEP_SEQUENCE.
+        from src.step_chain import dispatch_queued_job
+        dispatch_queued_job(tenant_id)
+        return
+
     # Resolve embedding model so search/broad embeddings match the pipeline's
     # main embedding vectors (e.g., OpenAI 3072d instead of default Titan 1024d)
     embedding_model_id = pipeline_config.get("embedding_model")
