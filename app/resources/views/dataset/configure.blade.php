@@ -118,11 +118,19 @@
                     </div>
                     <div class="col">
                         <label>{{ __('ui.llm_model') }}</label>
-                        <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                            @foreach($llmModels as $model)
-                                <option value="{{ $model->model_id }}" @if($loop->first) selected @endif>{{ $model->display_name }}</option>
-                            @endforeach
-                        </select>
+                        @if($llmModels->isNotEmpty())
+                            <select name="llm_model_id" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                                @foreach($llmModels as $model)
+                                    <option value="{{ $model->model_id }}" @if($loop->first) selected @endif>{{ $model->display_name }}</option>
+                                @endforeach
+                            </select>
+                        @else
+                            {{-- LLM-disabled mode: pipeline halts after clustering --}}
+                            <div title="{{ __('ui.llm_disabled_tooltip') ?? 'ワークスペースに有効なLLMモデルが登録されていないため、クラスタリングまでで完了します' }}"
+                                 style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fff4e5; border: 1px solid #f0b358; color: #8a5300; border-radius: 8px; font-size: 13px;">
+                                🚫 {{ __('ui.llm_disabled_mode') ?? 'LLM 無効モード（クラスタリングまで実行）' }}
+                            </div>
+                        @endif
                     </div>
                 </div>
                 <div style="margin-top: 10px;">

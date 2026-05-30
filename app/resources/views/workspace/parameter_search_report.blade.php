@@ -222,6 +222,17 @@
         <p style="margin: 0;">{{ __('ui.run_parameter_search_first') ?? 'まずワークスペースで「パラメータ探索」を実行してください。' }}</p>
     </div>
 @else
+    {{-- LLM-disabled notice: shown when the run was performed without an
+         active LLM model in the workspace. The numerical sweep / winner
+         selection still works, but the Bedrock-generated executive
+         advisory and the AI-named "Top Groups" labels are absent. --}}
+    @if(isset($llmEnabled) && !$llmEnabled)
+        <div style="margin: 1rem 0 1.5rem; padding: .8rem 1rem; background: #fff4e5; border: 1px solid #f0b358; color: #6b4100; border-radius: 6px; font-size: .9rem;">
+            🚫 <strong>{{ __('ui.llm_disabled_mode') ?? 'LLM 無効モード' }}</strong> ―
+            {{ __('ui.report_llm_disabled_note') ?? 'このレポートはワークスペースに有効な LLM モデルが無い状態で生成されました。数値スコア・勝者選定・サンプル分布は通常通り表示されますが、AI による要約と Top グループ命名は省略されています。' }}
+        </div>
+    @endif
+
     {{-- Section 1: Search Conditions --}}
     <h2>{{ __('ui.search_conditions') ?? '探索条件' }}</h2>
     <table>

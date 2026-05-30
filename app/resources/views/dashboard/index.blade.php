@@ -111,12 +111,24 @@
                                     <option value="{{ $dataset->id }}">{{ $dataset->name }} ({{ $dataset->row_count }} rows)</option>
                                 @endforeach
                             </select>
-                            <select name="llm_model_id" required style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
-                                <option value="">{{ __('ui.select_llm') }}</option>
-                                @foreach($llmModels as $model)
-                                    <option value="{{ $model->model_id }}">{{ $model->display_name }}</option>
-                                @endforeach
-                            </select>
+                            @if($llmModels->isNotEmpty())
+                                <select name="llm_model_id" required style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
+                                    <option value="">{{ __('ui.select_llm') }}</option>
+                                    @foreach($llmModels as $model)
+                                        <option value="{{ $model->model_id }}">{{ $model->display_name }}</option>
+                                    @endforeach
+                                </select>
+                            @else
+                                {{-- LLM-disabled mode: no active models in the workspace.
+                                     The pipeline will stop at clustering; cluster_analysis
+                                     and knowledge_unit_generation are skipped. The user
+                                     can export per-row cluster_id from the workspace and
+                                     label the clusters with their own in-house LLM. --}}
+                                <span title="{{ __('ui.llm_disabled_tooltip') ?? 'ワークスペースに有効なLLMモデルが登録されていないため、クラスタリングまでで完了します' }}"
+                                      style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fff4e5; border: 1px solid #f0b358; color: #8a5300; border-radius: 8px; font-size: 13px;">
+                                    🚫 {{ __('ui.llm_disabled_mode') ?? 'LLM 無効モード（クラスタリングまで実行）' }}
+                                </span>
+                            @endif
                             <select name="clustering_method" id="clustering-method" style="padding: 8px 12px; border: 1px solid #d2d2d7; border-radius: 8px; font-size: 14px;">
                                 <option value="hdbscan" selected>{{ __('ui.method_hdbscan') }}</option>
                                 <option value="kmeans">{{ __('ui.method_kmeans') }}</option>
