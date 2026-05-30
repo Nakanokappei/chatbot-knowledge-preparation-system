@@ -190,34 +190,9 @@ def _attach_raw_texts(top_clusters: list[dict]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _name_top_clusters(top_clusters: list[dict], model_id: str) -> dict[int, str]:
-    """Ask Bedrock for a short Japanese-or-English label per cluster.
-
-    One Claude call covers every cluster — the prompt sends a JSON list and
-    asks for a JSON list of `{cluster_id, label}` back. Falls back to a
-    generic placeholder when the call fails or the response is malformed.
-
-    `model_id` is the workspace-approved Bedrock model ID — passed in from
-    pipeline_config so the worker never falls back to a default model the
-    workspace hasn't explicitly approved.
-    """
-    namable = [c for c in top_clusters if c["representatives"]]
-    if not namable:
-        return {}
-
-    payload = [
-        {
-            "cluster_id": cluster["cluster_id"],
-            "rep_count": len(cluster["representatives"]),
-            "examples": [
-                _truncate_text(text, 240)
-                for text in cluster["representatives"][:REPS_PER_CLUSTER]
-            ],
-        }
-        for cluster in namable
-    ]
-
-    prompt = (
+def _build_naming_prompt(clusters_payload: list[dict]) -> str:
+    """Shared prompt builder for the initial naming call and any retry pass."""
+    return (
         "You are labelling clusters discovered by an automated text-clustering "
         "run over customer-voice data (support tickets, inquiries, feedback). "
         "For every cluster I give you 3-5 representative texts; return a "
@@ -229,28 +204,37 @@ def _name_top_clusters(top_clusters: list[dict], model_id: str) -> dict[int, str
         "3. Be specific. \"Software issues\" is too vague; "
         "\"Firmware update related\" or \"Echo software update\" is right.\n"
         "4. No quotation marks around the label, no trailing punctuation.\n"
-        "5. Return STRICT JSON only — no markdown, no commentary. "
+        "5. You MUST return one label for EVERY cluster in the input. "
+        "Do not omit any cluster_id.\n"
+        "6. Return STRICT JSON only — no markdown, no commentary. "
         "Schema: {\"labels\":[{\"cluster_id\":<int>,\"label\":<string>}, ...]}\n\n"
-        f"Clusters:\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n"
+        f"Clusters:\n{json.dumps(clusters_payload, ensure_ascii=False, indent=2)}\n"
     )
 
-    try:
-        response = invoke_claude(
-            prompt=prompt,
-            max_tokens=1024,
-            temperature=0.1,
-            expect_json=True,
-            model_id=model_id,
-        )
-    except Exception as e:
-        logger.warning("Cluster naming failed: %s", e)
-        return {}
 
-    parsed = response.get("parsed_json")
+def _build_cluster_payload(clusters: list[dict]) -> list[dict]:
+    """Project namable clusters into the compact form sent to the LLM."""
+    return [
+        {
+            "cluster_id": cluster["cluster_id"],
+            "rep_count": len(cluster["representatives"]),
+            "examples": [
+                _truncate_text(text, 240)
+                for text in cluster["representatives"][:REPS_PER_CLUSTER]
+            ],
+        }
+        for cluster in clusters
+    ]
+
+
+def _parse_naming_response(parsed: dict | None) -> dict[int, str]:
+    """Extract {cluster_id: label} from a parsed naming response.
+
+    Tolerant of missing/extra fields — entries that fail to coerce are
+    skipped so one bad row doesn't lose the rest.
+    """
     if not parsed or "labels" not in parsed:
-        logger.warning("Cluster naming returned unparseable response")
         return {}
-
     names: dict[int, str] = {}
     for entry in parsed["labels"]:
         try:
@@ -260,6 +244,85 @@ def _name_top_clusters(top_clusters: list[dict], model_id: str) -> dict[int, str
                 names[cid] = label
         except (KeyError, ValueError, TypeError):
             continue
+    return names
+
+
+def _name_top_clusters(top_clusters: list[dict], model_id: str) -> dict[int, str]:
+    """Ask Bedrock for a short Japanese-or-English label per cluster.
+
+    One batched Claude call covers every cluster — the prompt sends a JSON
+    list and asks for a JSON list of `{cluster_id, label}` back. When the
+    first response is missing labels for some clusters (which happens when
+    Claude truncates JSON near max_tokens, or simply omits entries), we
+    retry just the missing ones in a smaller focused call before giving
+    up — historically those clusters fell back to `グループ #N` even
+    though the workspace had an approved LLM, which was misleading.
+
+    `model_id` is the workspace-approved Bedrock model ID — passed in from
+    pipeline_config so the worker never falls back to a default model the
+    workspace hasn't explicitly approved.
+
+    Returns a dict mapping cluster_id -> label for every cluster the LLM
+    actually named. Clusters whose `representatives` list is empty cannot
+    be named at all and are intentionally absent (the caller falls back
+    to a placeholder for those — they have no data to name from).
+    """
+    namable = [c for c in top_clusters if c["representatives"]]
+    if not namable:
+        return {}
+
+    # First pass: batch-name everything in one call.
+    # max_tokens bumped from 1024 → 4096 so JSON for ~15 clusters cannot
+    # be truncated mid-array. Each label is ~6-30 chars (≈5-20 tokens for
+    # Japanese), so the upper bound is well under 4096 even at the worst
+    # case; the headroom is purely a defence against verbose responses.
+    try:
+        response = invoke_claude(
+            prompt=_build_naming_prompt(_build_cluster_payload(namable)),
+            max_tokens=4096,
+            temperature=0.1,
+            expect_json=True,
+            model_id=model_id,
+        )
+    except Exception as e:
+        logger.warning("Cluster naming failed: %s", e)
+        return {}
+
+    names = _parse_naming_response(response.get("parsed_json"))
+    if not names:
+        # Wholesale failure (unparseable JSON, empty labels) — bail out
+        # without a retry since the model itself is misbehaving.
+        logger.warning("Cluster naming returned no usable labels")
+        return {}
+
+    # Retry pass: pick up clusters that the first call silently skipped.
+    # Only retry when the first call partially succeeded — a full failure
+    # is treated as the model misbehaving (handled above).
+    missing = [c for c in namable if c["cluster_id"] not in names]
+    if missing:
+        logger.info(
+            "Cluster naming first pass missed %d/%d clusters; retrying just those",
+            len(missing), len(namable),
+        )
+        try:
+            retry_response = invoke_claude(
+                prompt=_build_naming_prompt(_build_cluster_payload(missing)),
+                max_tokens=2048,
+                temperature=0.1,
+                expect_json=True,
+                model_id=model_id,
+            )
+            retry_names = _parse_naming_response(retry_response.get("parsed_json"))
+            names.update(retry_names)
+            still_missing = [c for c in missing if c["cluster_id"] not in retry_names]
+            if still_missing:
+                logger.warning(
+                    "Cluster naming retry still missed %d clusters; "
+                    "the report will show 'グループ #N' for those",
+                    len(still_missing),
+                )
+        except Exception as e:
+            logger.warning("Cluster naming retry failed: %s", e)
 
     return names
 
