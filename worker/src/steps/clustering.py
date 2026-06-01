@@ -483,6 +483,30 @@ def compute_centroids(embeddings: np.ndarray, labels: np.ndarray) -> dict[int, n
     return centroids
 
 
+def compute_membership_distances(
+    embeddings: np.ndarray,
+    labels: np.ndarray,
+    centroids: dict[int, np.ndarray],
+) -> np.ndarray:
+    """
+    Euclidean distance from every row to its own cluster centroid.
+
+    Computed from the SAME embeddings/centroids as compute_centroids and
+    find_representatives (i.e. after language debiasing + unit-normalisation),
+    so each value is directly comparable to cluster_representatives. Unlike
+    find_representatives this covers ALL members, not just the closest N, which
+    is what the rows-with-clusters CSV export needs.
+
+    Noise points (label=-1) and any label without a centroid keep NaN; the
+    persistence layer skips them.
+    """
+    distances = np.full(len(labels), np.nan, dtype=float)
+    for label, centroid in centroids.items():
+        mask = labels == label
+        distances[mask] = np.linalg.norm(embeddings[mask] - centroid, axis=1)
+    return distances
+
+
 def find_representatives(
     embeddings: np.ndarray,
     labels: np.ndarray,
@@ -533,6 +557,7 @@ def save_clusters_to_db(
     centroids: dict[int, np.ndarray],
     representatives: dict[int, list[dict]],
     quality_score: float,
+    membership_distances: np.ndarray,
 ):
     """
     Save all clustering results to RDS:
@@ -598,11 +623,17 @@ def save_clusters_to_db(
                 cluster_db_id = label_to_db_id[label]
                 prob = float(probabilities[i]) if probabilities is not None else 1.0
 
+                # Per-row distance to the cluster centroid. Non-noise rows
+                # always have a finite distance, but guard NaN -> NULL so a
+                # missing centroid never crashes the insert.
+                dist = membership_distances[i]
+                dist = float(dist) if np.isfinite(dist) else None
+
                 cur.execute(
                     """INSERT INTO cluster_memberships
-                       (cluster_id, dataset_row_id, membership_score, created_at, updated_at)
-                       VALUES (%s, %s, %s, %s, %s)""",
-                    (cluster_db_id, int(row_id), prob, now, now),
+                       (cluster_id, dataset_row_id, membership_score, distance_to_centroid, created_at, updated_at)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (cluster_db_id, int(row_id), prob, dist, now, now),
                 )
                 membership_count += 1
 
@@ -713,6 +744,12 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
     centroids = compute_centroids(embeddings, labels)
     logger.info("Computed %d cluster centroids", len(centroids))
 
+    # Per-row distance to centroid for every clustered row (not just the top-N
+    # representatives). Persisted on cluster_memberships and surfaced in the
+    # rows-with-clusters CSV export so each row carries its proximity to the
+    # cluster's average position.
+    membership_distances = compute_membership_distances(embeddings, labels, centroids)
+
     update_job_status(job_id, status="clustering", progress=global_progress("clustering", 50))
     update_job_action(job_id, f"代表行を抽出中 ({len(centroids)}クラスタ)")
 
@@ -767,6 +804,7 @@ def execute(job_id: int, tenant_id: int, dataset_id: int = None,
         centroids=centroids,
         representatives=representatives,
         quality_score=quality_score,
+        membership_distances=membership_distances,
     )
 
     # Link clusters to their parent embedding

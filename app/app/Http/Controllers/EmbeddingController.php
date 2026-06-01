@@ -993,10 +993,10 @@ class EmbeddingController extends Controller
         // cm.membership_score DESC` to pick the strongest assignment.
         $rows = \DB::select("
             SELECT dr.row_no, dr.metadata_json,
-                   sub.cluster_label, sub.topic_name AS cluster_topic
+                   sub.cluster_label, sub.distance_to_centroid, sub.topic_name AS cluster_topic
             FROM dataset_rows dr
             LEFT JOIN (
-                SELECT cm.dataset_row_id, c.cluster_label, c.topic_name
+                SELECT cm.dataset_row_id, cm.distance_to_centroid, c.cluster_label, c.topic_name
                 FROM cluster_memberships cm
                 INNER JOIN clusters c ON c.id = cm.cluster_id
                 WHERE c.pipeline_job_id = ?
@@ -1029,16 +1029,24 @@ class EmbeddingController extends Controller
             $firstMeta = json_decode($rows[0]->metadata_json, true) ?? [];
             $originalColumns = array_keys($firstMeta);
         }
-        // cluster_id appears immediately before cluster_topic so the two
-        // cluster-related columns sit together at the rightmost edge of the
-        // CSV (and so spreadsheet users can sort by cluster_id without
-        // dragging cluster_topic out from somewhere far away).
-        $csvHeader = array_merge($originalColumns, ['cluster_id', 'cluster_topic']);
+        // The three cluster-related columns sit together at the rightmost edge
+        // of the CSV. Order is cluster_id, distance_to_centroid, cluster_topic:
+        //   - cluster_id groups the rows;
+        //   - distance_to_centroid lets a spreadsheet user sort within a
+        //     cluster to find the rows nearest the centroid (the "average"
+        //     question), e.g. to feed the closest few into an in-house LLM for
+        //     naming/summarising;
+        //   - cluster_topic is the human-readable LLM label (empty when LLM is
+        //     disabled). Keeping the numeric columns adjacent means sorting by
+        //     cluster_id then distance never drags cluster_topic out of place.
+        $csvHeader = array_merge($originalColumns, ['cluster_id', 'distance_to_centroid', 'cluster_topic']);
 
-        // Project each row's metadata_json into ordered scalar values
-        // matching $originalColumns, then append cluster_id + cluster_topic.
-        // Both are empty strings for noise points / unmembered rows; that
-        // is the right signal — those rows did not get a cluster.
+        // Project each row's metadata_json into ordered scalar values matching
+        // $originalColumns, then append cluster_id + distance_to_centroid +
+        // cluster_topic. All three are empty strings for noise points /
+        // unmembered rows; that is the right signal — those rows did not get a
+        // cluster. distance_to_centroid is also empty for rows clustered before
+        // this column existed (re-run clustering to backfill it).
         $csvRows = [];
         foreach ($rows as $row) {
             $meta = json_decode($row->metadata_json, true) ?? [];
@@ -1050,6 +1058,9 @@ class EmbeddingController extends Controller
             // explicit `?? ''` keeps empty cells truly empty rather than
             // rendering the literal string "0" for legitimate cluster 0.
             $csvRow[] = $row->cluster_label !== null ? (string) $row->cluster_label : '';
+            // distance_to_centroid is decimal|null; null (noise / pre-backfill)
+            // stays an empty cell.
+            $csvRow[] = $row->distance_to_centroid !== null ? (string) $row->distance_to_centroid : '';
             $csvRow[] = $row->cluster_topic ?? '';
             $csvRows[] = $csvRow;
         }
