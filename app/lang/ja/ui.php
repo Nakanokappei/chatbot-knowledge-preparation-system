@@ -101,6 +101,8 @@ return [
     'pipeline_processing' => 'パイプライン処理中',
     'pipeline_processing_hint' => '処理が完了するとナレッジユニットが表示されます。',
     'approve_ku_first' => '1つ以上のKUを承認するとチャットが有効になります',
+    'chat_llm_required' => 'LLMモデルが設定されていないため、この機能は利用できません。設定でLLMモデルを追加・有効化してください。',
+    'chat_unavailable' => '申し訳ございません。現在このチャットはご利用いただけません。',
     'chat_ask_filter' => '何についてのご質問ですか？',
     'chat_ask_filter_named' => 'どの:nameについてのご質問ですか？',
     'chat_searching_for' => ':name について調べています…',

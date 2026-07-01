@@ -100,6 +100,8 @@ return [
     'pipeline_processing' => 'Pipeline is processing',
     'pipeline_processing_hint' => 'Knowledge units will appear here once the pipeline completes.',
     'approve_ku_first' => 'Approve at least one KU to enable chat',
+    'chat_llm_required' => 'This feature is unavailable because no LLM model is configured. Add and enable an LLM model in Settings.',
+    'chat_unavailable' => 'Sorry, this chat is currently unavailable.',
     'chat_ask_filter' => 'Could you specify what this is about?',
     'chat_ask_filter_named' => 'Which :name is this about?',
     'chat_searching_for' => 'Searching for :name...',

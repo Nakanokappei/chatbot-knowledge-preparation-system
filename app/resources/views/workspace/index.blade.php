@@ -853,11 +853,20 @@
                                 @endif
                             </table>
                             <div style="flex: 1;"></div>
-                            @php $hasApproved = ($statusCounts->get('approved', 0) > 0); @endphp
+                            @php
+                                $hasApproved = ($statusCounts->get('approved', 0) > 0);
+                                // "Chat with data" needs an active LLM model; disable it (with the
+                                // reason in a tooltip) when the workspace has none configured.
+                                $hasLlm = $llmModels->isNotEmpty();
+                                $chatDisabled = !$hasApproved || !$hasLlm;
+                                $chatDisabledReason = !$hasLlm
+                                    ? __('ui.chat_llm_required')
+                                    : (!$hasApproved ? (__('ui.approve_ku_first') ?? 'Approve at least one KU to enable chat') : '');
+                            @endphp
                             <button onclick="openChatOverlay()" class="btn btn-primary"
-                                style="padding: 12px 28px; font-size: 15px; border-radius: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap; {{ !$hasApproved ? 'opacity: 0.4; pointer-events: none;' : '' }}"
-                                {{ !$hasApproved ? 'disabled' : '' }}
-                                title="{{ !$hasApproved ? __('ui.approve_ku_first') ?? 'Approve at least one KU to enable chat' : '' }}">
+                                style="padding: 12px 28px; font-size: 15px; border-radius: 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap; {{ $chatDisabled ? 'opacity: 0.4; pointer-events: none;' : '' }}"
+                                {{ $chatDisabled ? 'disabled' : '' }}
+                                title="{{ $chatDisabledReason }}">
                                 💬 {{ __('ui.chat_with_data') }}
                             </button>
                         </div>

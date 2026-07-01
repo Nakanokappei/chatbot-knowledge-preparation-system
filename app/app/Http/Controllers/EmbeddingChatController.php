@@ -7,6 +7,7 @@ use App\Models\ChatSession;
 use App\Models\ChatTurn;
 use App\Models\Embedding;
 use App\Models\KnowledgeUnit;
+use App\Models\LlmModel;
 use App\Services\BedrockService;
 use App\Services\CostTrackingService;
 use App\Services\RagService;
@@ -49,6 +50,19 @@ class EmbeddingChatController extends Controller
 
         $workspaceId = auth()->user()->workspace_id;
         $embedding = Embedding::where('workspace_id', $workspaceId)->findOrFail($embeddingId);
+
+        // "Chat with data" is turned off when the workspace has no active LLM
+        // model. Return a clean disabled message instead of proceeding into the
+        // LLM-backed paths (which would 500 with no model configured).
+        if (! LlmModel::where('workspace_id', $workspaceId)->where('is_active', true)->exists()) {
+            return response()->json([
+                'action'     => 'disabled',
+                'message'    => __('ui.chat_llm_required'),
+                'context'    => ['primary_filter' => null, 'question' => null],
+                'sources'    => [],
+                'session_id' => $request->input('session_id'),
+            ]);
+        }
 
         try {
             // Load or create session and resolve conversation context from DB

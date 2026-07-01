@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChatSession;
 use App\Models\ChatTurn;
 use App\Models\KnowledgeUnit;
+use App\Models\LlmModel;
 use App\Services\BedrockService;
 use App\Services\CostTrackingService;
 use App\Services\RagService;
@@ -37,6 +38,16 @@ class EmbedChatController extends Controller
         $packageId = $request->attributes->get('embed_package_id');
         $workspaceId = $request->attributes->get('embed_workspace_id');
         $package = $request->attributes->get('embed_package');
+
+        // The embedded chat is unavailable when the workspace has no active LLM
+        // model. Show a neutral end-user message instead of invoking the LLM.
+        if (! LlmModel::where('workspace_id', $workspaceId)->where('is_active', true)->exists()) {
+            return response()->json([
+                'action'  => 'disabled',
+                'message' => __('ui.chat_unavailable'),
+                'sources' => [],
+            ]);
+        }
 
         try {
             // Load or create session (scoped to package, not embedding)
