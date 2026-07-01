@@ -463,6 +463,7 @@ return [
     'invite_already_registered' => 'This email is already registered.',
     'invite_already_sent' => 'A pending invitation has already been sent to this email.',
     'invite_expired' => 'This invitation has expired.',
+    'invite_already_used' => 'This invitation has already been used. Please log in.',
     'accept_invitation' => 'Accept Invitation',
     'invite_register_description' => 'Create your account to get started.',
     'invited_by' => 'Invited by :name (:workspace)',

@@ -464,6 +464,7 @@ return [
     'invite_already_registered' => 'このメールアドレスは登録済みです。',
     'invite_already_sent' => 'このメールアドレスには招待を送信済みです。',
     'invite_expired' => 'この招待は期限切れです。',
+    'invite_already_used' => 'この招待は既に使用されています。ログインしてください。',
     'accept_invitation' => '招待を受ける',
     'invite_register_description' => 'アカウントを作成して始めましょう。',
     'invited_by' => ':name（:workspace）からの招待',

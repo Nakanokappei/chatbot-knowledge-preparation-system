@@ -35,7 +35,10 @@
             <div class="error">{{ $errors->first() }}</div>
         @endif
 
-        <form method="POST" action="{{ route('invitation.register', ['token' => $token]) }}">
+        {{-- Block a second POST from a double-clicked submit: the first request
+             consumes the invitation, so a duplicate would otherwise 404. --}}
+        <form method="POST" action="{{ route('invitation.register', ['token' => $token]) }}"
+              onsubmit="if(this.dataset.submitted){return false;} this.dataset.submitted='1'; var b=this.querySelector('button[type=submit]'); if(b){b.disabled=true;}">
             @csrf
 
             <label for="email">{{ __('ui.email') }}</label>

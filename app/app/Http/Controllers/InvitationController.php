@@ -81,9 +81,12 @@ class InvitationController extends Controller
     /** Show the registration form for an invited user. */
     public function showRegisterForm(string $token)
     {
-        $invitation = Invitation::where('token', $token)
-            ->whereNull('accepted_at')
-            ->firstOrFail();
+        $invitation = $this->resolveInvitation($token);
+
+        // Already-used token: send the invitee to login instead of a bare 404.
+        if (! $invitation instanceof Invitation) {
+            return $invitation;
+        }
 
         if ($invitation->isExpired()) {
             abort(410, __('ui.invite_expired'));
@@ -98,9 +101,13 @@ class InvitationController extends Controller
     /** Register a new user from an invitation. */
     public function register(Request $request, string $token)
     {
-        $invitation = Invitation::where('token', $token)
-            ->whereNull('accepted_at')
-            ->firstOrFail();
+        $invitation = $this->resolveInvitation($token);
+
+        // Already-used token (e.g. a double-clicked submit or a re-opened
+        // link after registration completed): redirect to login, not a 404.
+        if (! $invitation instanceof Invitation) {
+            return $invitation;
+        }
 
         if ($invitation->isExpired()) {
             abort(410, __('ui.invite_expired'));
@@ -135,6 +142,31 @@ class InvitationController extends Controller
         return $user->isSystemAdmin()
             ? redirect()->route('admin.index')
             : redirect()->route('dashboard');
+    }
+
+    /**
+     * Resolve an invitation token to a pending invitation.
+     *
+     * Returns the pending Invitation when the token is still open. When the
+     * token exists but has already been accepted, returns a redirect to login
+     * with an explanatory message instead of the bare 404 that whereNull()
+     * + firstOrFail() used to produce — this is what invitees hit when they
+     * double-click the submit button or re-open the emailed link after
+     * registering. An unknown token still 404s.
+     */
+    private function resolveInvitation(string $token)
+    {
+        $invitation = Invitation::where('token', $token)->first();
+
+        if (! $invitation) {
+            abort(404);
+        }
+
+        if ($invitation->accepted_at !== null) {
+            return redirect()->route('login')->with('status', __('ui.invite_already_used'));
+        }
+
+        return $invitation;
     }
 
     /** Cancel a pending invitation by deleting it. */
