@@ -33,9 +33,12 @@ class CsvDownload
         $handle = fopen('php://temp', 'r+');
         // UTF-8 BOM so Microsoft Excel autodetects encoding correctly.
         fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, $headers);
+        // Neutralise CSV/formula injection on every cell (headers included):
+        // user-supplied text (KU topics/summaries, cluster names, manual QA)
+        // could otherwise be interpreted as a formula when opened in Excel.
+        fputcsv($handle, array_map([self::class, 'neutralizeFormula'], $headers));
         foreach ($rows as $row) {
-            fputcsv($handle, $row);
+            fputcsv($handle, array_map([self::class, 'neutralizeFormula'], $row));
         }
         rewind($handle);
         $csv = stream_get_contents($handle);
@@ -45,5 +48,23 @@ class CsvDownload
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}.csv\"",
         ]);
+    }
+
+    /**
+     * Prefix a leading `=`, `+`, `-`, `@`, tab or CR with a single quote so
+     * spreadsheet apps (Excel, LibreOffice, Google Sheets) treat the cell as
+     * literal text rather than a formula. Non-string cells are left untouched.
+     */
+    private static function neutralizeFormula(mixed $value): mixed
+    {
+        if (! is_string($value) || $value === '') {
+            return $value;
+        }
+
+        if (in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 }

@@ -8,6 +8,7 @@ use App\Models\DatasetRow;
 use App\Models\KnowledgeUnit;
 use App\Models\LlmModel;
 use App\Models\PipelineJob;
+use App\Support\CsvDownload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -535,35 +536,28 @@ class DashboardController extends Controller
             'created_at' => $ku->created_at->toIso8601String(),
         ]);
 
-        // Render as CSV download if requested; otherwise return JSON
+        // Render as CSV download if requested; otherwise return JSON.
+        // Build through CsvDownload so cells are formula-injection-sanitised
+        // and RFC-4180-quoted in one place (same as every other CSV export).
         if ($format === 'csv') {
-            $lines = [];
-            // CSV header
-            $lines[] = implode(',', [
+            $columns = [
                 'id', 'topic', 'intent', 'summary', 'keywords',
                 'row_count', 'review_status', 'version', 'confidence', 'created_at',
-            ]);
-            // CSV rows
-            foreach ($exportData as $row) {
-                $lines[] = implode(',', [
-                    $row['id'],
-                    '"' . str_replace('"', '""', $row['topic']) . '"',
-                    '"' . str_replace('"', '""', $row['intent']) . '"',
-                    '"' . str_replace('"', '""', $row['summary']) . '"',
-                    '"' . implode('; ', $row['keywords']) . '"',
-                    $row['row_count'],
-                    $row['review_status'],
-                    $row['version'],
-                    $row['confidence'],
-                    $row['created_at'],
-                ]);
-            }
+            ];
+            $rows = $exportData->map(fn ($row) => [
+                $row['id'],
+                $row['topic'],
+                $row['intent'],
+                $row['summary'],
+                implode('; ', $row['keywords']),
+                $row['row_count'],
+                $row['review_status'],
+                $row['version'],
+                $row['confidence'],
+                $row['created_at'],
+            ])->all();
 
-            $filename = "knowledge_units_job_{$pipelineJob->id}.csv";
-
-            return response(implode("\n", $lines))
-                ->header('Content-Type', 'text/csv')
-                ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+            return CsvDownload::make($columns, $rows, "knowledge_units_job_{$pipelineJob->id}");
         }
 
         // Default: JSON
