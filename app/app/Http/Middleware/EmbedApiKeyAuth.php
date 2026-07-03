@@ -41,9 +41,15 @@ class EmbedApiKeyAuth
             return response()->json(['error' => 'Package not available.'], 404);
         }
 
-        // Domain restriction check (for browser-originated requests)
+        // Domain restriction check.
+        // When a key restricts domains, a matching Origin/Referer is REQUIRED.
+        // Rejecting requests with no verifiable origin (curl, server-side, etc.)
+        // stops a leaked public key from being replayed from an arbitrary
+        // location. Keys with no allowlist configured stay unrestricted.
+        $allowedDomains = $embedKey->allowed_domains_json ?? [];
         $origin = $request->header('Origin') ?? $request->header('Referer');
-        if ($origin && !$this->isDomainAllowed($origin, $embedKey->allowed_domains_json ?? [])) {
+        if (!empty($allowedDomains)
+            && (!$origin || !$this->isDomainAllowed($origin, $allowedDomains))) {
             return response()->json(['error' => 'Domain not allowed.'], 403);
         }
 
