@@ -23,6 +23,7 @@ class ChatSession extends Model
     protected $fillable = [
         'workspace_id', 'user_id', 'embedding_id', 'knowledge_package_id',
         'title', 'current_primary_filter', 'current_question', 'state',
+        'public_token',
     ];
 
     /** All turns in this session, ordered chronologically. */

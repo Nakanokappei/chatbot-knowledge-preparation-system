@@ -12,6 +12,7 @@ use App\Services\RagService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Chat API for embedded widget/iframe — uses the SAME engine as workspace chat.
@@ -32,7 +33,7 @@ class EmbedChatController extends Controller
     {
         $request->validate([
             'message' => 'required|string|max:4000',
-            'session_id' => 'nullable|integer',
+            'session_id' => 'nullable|string|max:64',
         ]);
 
         $packageId = $request->attributes->get('embed_package_id');
@@ -86,7 +87,7 @@ class EmbedChatController extends Controller
                     'action' => 'rejected',
                     'context' => ['primary_filter' => null, 'question' => null],
                     'sources' => [],
-                    'session_id' => $session->id,
+                    'session_id' => $session->public_token,
                 ]);
             }
 
@@ -102,7 +103,7 @@ class EmbedChatController extends Controller
                     'action' => 'ask_primary_filter',
                     'context' => $context,
                     'sources' => [],
-                    'session_id' => $session->id,
+                    'session_id' => $session->public_token,
                 ]);
             }
 
@@ -116,7 +117,7 @@ class EmbedChatController extends Controller
                     'action' => 'no_match',
                     'context' => $context,
                     'sources' => [],
-                    'session_id' => $session->id,
+                    'session_id' => $session->public_token,
                 ]);
             }
 
@@ -144,7 +145,7 @@ class EmbedChatController extends Controller
                     'action' => $action,
                     'links' => $responseStrategy['links'],
                     'sources' => $sources,
-                    'session_id' => $session->id,
+                    'session_id' => $session->public_token,
                     'latency_ms' => 0,
                 ]);
             }
@@ -193,7 +194,7 @@ class EmbedChatController extends Controller
                 'context' => $context,
                 'links' => $responseStrategy['links'],
                 'sources' => $sources,
-                'session_id' => $session->id,
+                'session_id' => $session->public_token,
                 'latency_ms' => $llmResult['latency_ms'],
             ]);
 
@@ -208,12 +209,15 @@ class EmbedChatController extends Controller
      */
     private function resolveSession(Request $request, int $workspaceId, int $packageId): ChatSession
     {
-        $sessionId = $request->input('session_id');
+        // Resolve by the unguessable public token — never the numeric id — so a
+        // holder of the public embed key cannot enumerate other visitors' chats.
+        $token = $request->input('session_id');
 
-        if ($sessionId) {
+        if ($token) {
             $session = ChatSession::where('workspace_id', $workspaceId)
                 ->where('knowledge_package_id', $packageId)
-                ->find($sessionId);
+                ->where('public_token', $token)
+                ->first();
             if ($session) {
                 return $session;
             }
@@ -224,6 +228,7 @@ class EmbedChatController extends Controller
             'user_id' => null,  // Anonymous embed user
             'embedding_id' => null,
             'knowledge_package_id' => $packageId,
+            'public_token' => Str::random(40),
             'title' => mb_substr($request->message, 0, 60),
             'state' => 'idle',
         ]);
@@ -249,7 +254,7 @@ class EmbedChatController extends Controller
             ];
 
             ChatTurn::create([
-                'session_id' => $session->id,
+                'session_id' => $session->public_token,
                 'role' => 'user',
                 'content' => $userContent,
                 'context' => $context,
@@ -257,7 +262,7 @@ class EmbedChatController extends Controller
             ]);
 
             ChatTurn::create([
-                'session_id' => $session->id,
+                'session_id' => $session->public_token,
                 'role' => 'assistant',
                 'content' => $assistantContent,
                 'context' => $context,
