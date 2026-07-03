@@ -75,10 +75,12 @@ Route::post('/invitation/{token}', [InvitationController::class, 'register'])
 Route::get('/embed/chat/{token}', [EmbedController::class, 'show'])->name('embed.chat');
 // Demo inquiry page with chat widget (dynamically rendered)
 Route::get('/embed/demo/{token}', [EmbedController::class, 'demo'])->name('embed.demo');
-// Chat API called from within the iframe (API key in Authorization header)
+// Chat API called from within the iframe (API key in Authorization header).
+// Order matters: authenticate/bind the key first, then rate-limit per key,
+// then enforce the workspace token budget (both read the bound embed key).
 Route::post('/embed/api/chat', [EmbedChatController::class, 'chat'])
     ->name('embed.api.chat')
-    ->middleware(['embed.apikey', 'throttle:60,1']);
+    ->middleware(['embed.apikey', 'throttle:embed-chat', 'budget']);
 // CORS preflight for embed API (no auth required for OPTIONS)
 Route::options('/embed/api/chat', fn () => response('', 204)
     ->header('Access-Control-Allow-Origin', '*')

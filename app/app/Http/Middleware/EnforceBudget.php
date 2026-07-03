@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Workspace;
 use App\Services\CostTrackingService;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,20 +20,27 @@ class EnforceBudget
 {
     /**
      * Check the workspace's token budget and block or warn as appropriate.
-     * Unauthenticated requests pass through without budget checks.
+     *
+     * Resolves the workspace from the authenticated user, or — for the public
+     * embed chat API, which has no Sanctum/session user — from the embed
+     * workspace bound by EmbedApiKeyAuth. Only requests with no workspace
+     * context at all pass through unchecked.
      */
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        // Skip budget enforcement for unauthenticated requests
-        if (! $user) {
+        $workspaceId = $user?->workspace_id
+            ?? $request->attributes->get('embed_workspace_id');
+
+        // No workspace context (truly anonymous, non-embed request) → skip
+        if (! $workspaceId) {
             return $next($request);
         }
 
-        $workspace = $user->workspace;
+        $workspace = $user?->workspace ?? Workspace::find($workspaceId);
         $budget = $workspace->monthly_token_budget ?? 1_000_000;
         $costService = new CostTrackingService();
-        $status = $costService->checkBudgetStatus($user->workspace_id, $budget);
+        $status = $costService->checkBudgetStatus($workspaceId, $budget);
 
         $path = $request->path();
         $isExport = str_contains($path, 'export');

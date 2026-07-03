@@ -42,6 +42,19 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute($limit)->by($request->user()?->workspace_id ?? $request->ip());
         });
 
+        // Per-key rate limiting for the public embed chat API.
+        // The embed API key is public (embedded in customer <script> tags), so
+        // the limit must be keyed by the key itself — not the client IP, which
+        // an attacker can rotate freely. EmbedApiKeyAuth runs before this and
+        // binds the resolved key, so the per-key rate_limit_per_minute value
+        // (configurable in the UI) is finally enforced here instead of ignored.
+        RateLimiter::for('embed-chat', function (Request $request) {
+            $embedKey = $request->attributes->get('embed_api_key');
+            $limit = max(1, (int) ($embedKey?->rate_limit_per_minute ?? 60));
+            $by = $embedKey ? 'embed-key:' . $embedKey->id : $request->ip();
+            return Limit::perMinute($limit)->by($by);
+        });
+
         // -----------------------------------------------------------------
         // Brute-force protection for credential-carrying public endpoints
         // -----------------------------------------------------------------
