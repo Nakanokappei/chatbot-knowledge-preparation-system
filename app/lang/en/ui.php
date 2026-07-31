@@ -1035,4 +1035,23 @@ return [
     'tip_kmeans_n_clusters'         => 'Number of clusters to create. Choose based on expected topic count.',
     'tip_agglomerative_n_clusters'  => 'Number of clusters to create.',
     'tip_agglomerative_linkage'     => 'Linkage method: ward (compact), complete (max distance), average, single (min distance).',
+
+    // ── Documents (PDF upload) ──────────────────────────
+    'documents'                     => 'Documents',
+    'documents_subtitle'            => 'Upload and keep PDF files. Processing will be added later.',
+    'documents_upload'              => 'Upload PDF',
+    'documents_upload_button'       => 'Upload',
+    'documents_upload_hint'         => 'PDF only. Up to :files files and :size MB in total per upload.',
+    'documents_upload_too_large'    => 'The selected files exceed :size MB in total. Please upload them in smaller batches.',
+    'documents_upload_success'      => 'Uploaded :count PDF file(s).',
+    'documents_upload_rejected'     => 'Uploaded :count file(s). Skipped because they are not readable as PDF: :files',
+    'documents_delete_success'      => 'Document deleted.',
+    'documents_delete_confirm'      => 'Delete this document? This cannot be undone.',
+    'documents_download'            => 'Download',
+    'documents_empty_title'         => 'No documents yet',
+    'documents_empty_hint'          => 'Upload a PDF using the form above.',
+    'documents_col_name'            => 'File name',
+    'documents_col_size'            => 'Size',
+    'documents_col_uploader'        => 'Uploaded by',
+    'documents_col_uploaded_at'     => 'Uploaded at',
 ];

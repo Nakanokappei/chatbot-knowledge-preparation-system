@@ -144,6 +144,7 @@
                      Members work entirely within the sidebar on the main workspace view. --}}
                 @if(auth()->user()->isOwner())
                 <a href="{{ route('kp.index') }}" class="{{ request()->routeIs('kp.*') || request()->routeIs('knowledge-units.*') ? 'active' : '' }}">{{ __('ui.datasets') }}</a>
+                <a href="{{ route('documents.index') }}" class="{{ request()->routeIs('documents.*') ? 'active' : '' }}">{{ __('ui.documents') }}</a>
                 <a href="{{ route('question-insights.index') }}" class="{{ request()->routeIs('question-insights.*') ? 'active' : '' }}">{{ __('ui.question_insights') }}</a>
                 <span style="display: inline-block; width: 1px; height: 16px; background: #d2d2d7; margin: 0 4px; align-self: center;"></span>
                 <a href="{{ route('usage') }}" class="{{ request()->routeIs('usage') ? 'active' : '' }}">{{ __('ui.usage') }}</a>

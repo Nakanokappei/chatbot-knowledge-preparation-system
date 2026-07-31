@@ -19,6 +19,7 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetWizardController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\EmbeddingController;
 use App\Http\Controllers\EmbedApiKeyController;
 use App\Http\Controllers\EmbedChatController;
@@ -128,6 +129,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/dataset/{dataset}/finalize', [DatasetWizardController::class, 'finalize'])->name('dataset.finalize');
         Route::put('/dataset/{dataset}/rename', [DatasetWizardController::class, 'rename'])->name('dataset.rename');
         Route::delete('/dataset/{dataset}', [DatasetWizardController::class, 'destroy'])->name('dataset.destroy');
+
+        // Document upload: store source PDFs as-is (no processing yet)
+        Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
+        Route::post('/documents', [DocumentController::class, 'store'])->name('documents.store');
+        Route::get('/documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+        Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 
         Route::post('/dispatch-pipeline', [DashboardController::class, 'dispatchPipeline'])->name('dashboard.dispatch-pipeline');
         Route::post('/jobs/{pipelineJob}/cancel', [DashboardController::class, 'cancelPipeline'])->name('dashboard.cancel-pipeline');

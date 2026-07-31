@@ -1083,6 +1083,14 @@
             <p style="font-size: 12px; color: #5f6368; margin-top: 8px;">
                 {{ __('ui.after_upload_hint') }}
             </p>
+
+            {{-- PDF is stored as a document, not parsed into a dataset (yet) --}}
+            <div style="border-top: 1px solid #e5e5e7; margin-top: 16px; padding-top: 16px;">
+                <div style="font-size: 13px; font-weight: 600; color: #5f6368; margin-bottom: 8px;">{{ strtoupper(__('ui.documents_upload')) }}</div>
+                <a href="{{ route('documents.index') }}" style="font-size: 13px; color: #0071e3; text-decoration: none;">
+                    {{ __('ui.documents') }} &rarr;
+                </a>
+            </div>
         </div>
     </div>
 

@@ -1036,4 +1036,23 @@ return [
     'tip_kmeans_n_clusters'         => '作成するクラスター数。想定されるトピック数に基づいて選択してください。',
     'tip_agglomerative_n_clusters'  => '作成するクラスター数。',
     'tip_agglomerative_linkage'     => '結合方法: ward(コンパクト)、complete(最大距離)、average(平均)、single(最小距離)。',
+
+    // ── ドキュメント（PDFアップロード） ──────────────────
+    'documents'                     => 'ドキュメント',
+    'documents_subtitle'            => 'PDFをアップロードして保管します。取り込み処理は今後追加されます。',
+    'documents_upload'              => 'PDFをアップロード',
+    'documents_upload_button'       => 'アップロード',
+    'documents_upload_hint'         => 'PDFのみ。1回あたり最大:files件、合計:sizeMBまでです。',
+    'documents_upload_too_large'    => '選択したファイルの合計が:sizeMBを超えています。分けてアップロードしてください。',
+    'documents_upload_success'      => ':count件のPDFをアップロードしました。',
+    'documents_upload_rejected'     => ':count件をアップロードしました。PDFとして読めないため除外したファイル: :files',
+    'documents_delete_success'      => 'ドキュメントを削除しました。',
+    'documents_delete_confirm'      => 'このドキュメントを削除しますか？この操作は元に戻せません。',
+    'documents_download'            => 'ダウンロード',
+    'documents_empty_title'         => 'ドキュメントがありません',
+    'documents_empty_hint'          => '上のフォームからPDFをアップロードしてください。',
+    'documents_col_name'            => 'ファイル名',
+    'documents_col_size'            => 'サイズ',
+    'documents_col_uploader'        => 'アップロード者',
+    'documents_col_uploaded_at'     => 'アップロード日時',
 ];
