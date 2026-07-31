@@ -34,6 +34,22 @@ resource "aws_wafv2_web_acl" "this" {
       managed_rule_group_statement {
         name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
+
+        # SizeRestrictions_BODY blocks any request body over 8 KB, which is
+        # incompatible with this product: CSV datasets (/dataset/upload) and
+        # source documents (/documents) are uploaded at up to 50 MB. WAF can
+        # only inspect the first 8 KB of a body in any case, so the rule adds
+        # no inspection coverage here — it only rejects the upload outright.
+        # Counted instead of blocked so the metric stays visible; every other
+        # rule in the group, including the XSS and LFI body checks, keeps
+        # blocking as before.
+        rule_action_override {
+          name = "SizeRestrictions_BODY"
+
+          action_to_use {
+            count {}
+          }
+        }
       }
     }
 

@@ -106,6 +106,11 @@ resource "aws_ecs_service" "app" {
   desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
+  # ECS Exec is how database migrations are run against the deployed task
+  # (see CLAUDE.md). It was enabled outside Terraform; declaring it here
+  # keeps a future apply from silently turning it off.
+  enable_execute_command = true
+
   # Place tasks in private subnets without public IP addresses.
   network_configuration {
     subnets          = var.private_subnet_ids

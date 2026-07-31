@@ -81,6 +81,10 @@ resource "aws_ecs_service" "worker" {
   task_definition = aws_ecs_task_definition.worker.arn
   desired_count   = var.desired_count
 
+  # Enabled outside Terraform for debugging pipeline steps on the running
+  # task; declared here so a future apply does not silently turn it off.
+  enable_execute_command = true
+
   # Use Spot capacity exclusively for cost savings on background work.
   capacity_provider_strategy {
     capacity_provider = "FARGATE_SPOT"
