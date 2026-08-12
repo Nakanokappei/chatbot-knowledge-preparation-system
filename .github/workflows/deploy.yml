@@ -1,10 +1,15 @@
-# CI/CD: on push to main, build Docker images, push to ECR, deploy to ECS.
+# CI/CD: build Docker images, push to ECR, deploy to ECS.
+#
+# DISABLED 2026-08-13 — the AWS demo environment (demo02.poc-pxt.com) was
+# decommissioned, so none of the ECR repositories, the ECS cluster, or the
+# OIDC role referenced below exist any more. The push trigger is removed so
+# commits to main no longer fail against missing infrastructure; the workflow
+# is kept intact so it works again once the environment is rebuilt from
+# terraform/. Re-enable by restoring the `push:` trigger below.
 name: Deploy to AWS
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch: # Manual trigger only — see the note above.
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

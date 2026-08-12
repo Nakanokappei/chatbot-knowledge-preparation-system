@@ -7,6 +7,22 @@
 #
 # The 'db' service provides a local PostgreSQL for development.
 # In production, RDS is used instead (no db container needed).
+#
+# Since the AWS demo environment was decommissioned (2026-08-13) this stack
+# is fully self-contained: 'elasticmq' stands in for SQS and 'minio' for S3.
+# Both are reached through the SDKs' standard AWS_ENDPOINT_URL_<SERVICE>
+# variables, so no application code differs between local and AWS — pointing
+# the stack back at real AWS is a matter of dropping those variables.
+
+# Credentials shared by the app and worker containers. They authenticate
+# against MinIO (which validates signatures against its root credentials),
+# not against AWS, so they are deliberately local-only dummies.
+x-local-aws-credentials: &local-aws-credentials
+  AWS_ACCESS_KEY_ID: ckps_local
+  AWS_SECRET_ACCESS_KEY: ckps_local_secret
+  AWS_DEFAULT_REGION: ap-northeast-1
+  AWS_ENDPOINT_URL_SQS: http://elasticmq:9324
+  AWS_ENDPOINT_URL_S3: http://minio:9000
 
 services:
   # ── PostgreSQL (local development only) ──────────────────────
@@ -16,8 +32,10 @@ services:
       POSTGRES_DB: knowledge_prep
       POSTGRES_USER: ckps_user
       POSTGRES_PASSWORD: ckps_local_password
+    # Host port 5434 (not the usual 5433) so this stack can run alongside
+    # other local projects that already publish PostgreSQL on 5433.
     ports:
-      - "5433:5432"
+      - "5434:5432"
     # Persist DB data and run init SQL on first start
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -27,6 +45,52 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  # ── SQS-compatible queue (local stand-in for AWS SQS) ────────
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.6.11
+    ports:
+      - "9324:9324"
+    volumes:
+      - ./infra/elasticmq.conf:/opt/elasticmq.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9324/?Action=ListQueues"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── S3-compatible object storage (local stand-in for AWS S3) ─
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ckps_local
+      MINIO_ROOT_PASSWORD: ckps_local_secret
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Creates the bucket once MinIO is up, then exits. The name must match the
+  # s3:// paths already stored in the database, which is why it is the same
+  # bucket name the decommissioned AWS environment used.
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ckps_local ckps_local_secret &&
+      mc mb --ignore-existing local/kps-dev-csv-uploads &&
+      echo 'bucket ready'
+      "
 
   # ── Laravel Web Application ──────────────────────────────────
   app:
@@ -46,18 +110,24 @@ services:
       DB_DATABASE: knowledge_prep
       DB_USERNAME: ckps_user
       DB_PASSWORD: ckps_local_password
-      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-}
-      SQS_PREFIX: ${SQS_PREFIX:-}
-      SQS_QUEUE: ${SQS_QUEUE:-ckps-pipeline-dev}
+      <<: *local-aws-credentials
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-http://elasticmq:9324/000000000000/kps-dev-pipeline}
       SQS_REGION: ${SQS_REGION:-ap-northeast-1}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+      S3_BUCKET: ${S3_BUCKET:-kps-dev-csv-uploads}
+      # Laravel's s3 disk needs the endpoint and path-style addressing
+      # spelled out; MinIO does not serve virtual-host style bucket names.
+      AWS_ENDPOINT: http://minio:9000
+      AWS_USE_PATH_STYLE_ENDPOINT: "true"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     # Shared volume for uploaded CSV files between app and host
     volumes:
       - csv-uploads:/var/www/html/storage/app/private/csv-uploads
     depends_on:
       db:
+        condition: service_healthy
+      elasticmq:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   # ── Python Pipeline Worker ───────────────────────────────────
@@ -71,16 +141,19 @@ services:
       DB_NAME: knowledge_prep
       DB_USER: ckps_user
       DB_PASSWORD: ckps_local_password
-      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-}
+      <<: *local-aws-credentials
+      SQS_QUEUE_URL: ${SQS_QUEUE_URL:-http://elasticmq:9324/000000000000/kps-dev-pipeline}
       SQS_REGION: ${SQS_REGION:-ap-northeast-1}
-      S3_BUCKET: ${S3_BUCKET:-knowledge-prep-data-dev}
+      S3_BUCKET: ${S3_BUCKET:-kps-dev-csv-uploads}
       S3_REGION: ${S3_REGION:-ap-northeast-1}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-northeast-1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       db:
+        condition: service_healthy
+      elasticmq:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   # ── Worker connected to host DB (for testing with existing data) ──
@@ -111,3 +184,5 @@ volumes:
   pgdata:
   # Uploaded CSV files shared between app container and host
   csv-uploads:
+  # MinIO object storage — the local stand-in for the S3 bucket
+  miniodata:
